@@ -23,6 +23,13 @@ _INFO_COMBO = {
 
 # Подпункты: специфичнее разделов, матчатся первыми.
 _SUBRULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
+    # Экран «Настройки подписки»: «Управление устройствами» (subscription_manage_devices)
+    # есть только на нём и на его help-экране — баннер настроек, а не перевыпуска.
+    (
+        'subscription.settings',
+        frozenset(),
+        ('subscription_manage_devices', 'subscription_add_countries', 'subscription_change_devices'),
+    ),
     # Флоу покупки подписки (в т.ч. «простая покупка») — до balance.topup,
     # чтобы simple_subscription_*/check_simple_* не утаскивали экран покупки в пополнение.
     ('subscription_purchase', frozenset(), ('simple_subscription_', 'check_simple_')),
@@ -208,6 +215,10 @@ def detect_section_key(reply_markup: InlineKeyboardMarkup | ReplyKeyboardMarkup 
     keys = {key for key in (_match_callback(cb) for cb in callbacks) if key}
     if not keys:
         return None
+    # Экран настроек подписки: manage_devices + перевыпуск/трафик/страны — это
+    # один экран настроек, а не «несколько подпунктов» раздела.
+    if 'subscription.settings' in keys:
+        return 'subscription.settings'
     if len(keys) == 1:
         return next(iter(keys))
 

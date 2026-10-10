@@ -77,10 +77,11 @@ DEFINED = {
     'language',
     'server_status',
     'trial',
-    # Подпункты — у каждого своя картинка (31 ключ в БД), НЕ схлопывать.
+    # Подпункты — у каждого своя картинка (32 ключа в БД), НЕ схлопывать.
     'balance.history',
     'balance.cards',
     'balance.topup',
+    'subscription.settings',
     'subscription.devices',
     'subscription.traffic',
     'subscription.autopay',
@@ -92,14 +93,14 @@ DEFINED = {
 }
 
 # en-варианты баннеров (ui_section_image.<key>.en — русские мелкие подписи
-# для англоязычного интерфейса, инверсия языков по дизайну владельца; 62 ключа
+# для англоязычного интерфейса, инверсия языков по дизайну владельца; 64 ключа
 # в БД). В автодетекте не участвуют (там языка нет — базовый вариант); eff()
 # их не схлопывает — это самостоятельные картинки, а не иерархический фолбэк.
 DEFINED_EN = {f'{k}.en' for k in tuple(DEFINED)}
-assert len(DEFINED_EN) == 31, len(DEFINED_EN)
+assert len(DEFINED_EN) == 32, len(DEFINED_EN)
 assert not (DEFINED_EN & DEFINED)
 DEFINED |= DEFINED_EN
-assert len(DEFINED) == 62, len(DEFINED)
+assert len(DEFINED) == 64, len(DEFINED)
 # _SECTION_IMAGE_ALIASES из app/services/section_image_service.py
 ALIAS = {'subscription': 'my_subscriptions', 'referral': 'referrals'}
 
@@ -343,7 +344,7 @@ case(
         'subscription_revoke',
         'menu_subscription',
     ],
-    'subscription',
+    'subscription.settings',
 )
 case(
     'tariffs_list',
@@ -486,6 +487,12 @@ case(
 case('detail_inactive', ['se:5', 'sub_del:5', 'my_subscriptions'], 'active_subscription', 'active_subscription')
 case('subs_devices_menu', ['change_devices_menu:5', 'device_management:5', 'sm:5'], 'subscription.devices')
 case('delete_confirm', ['sub_del_yes:5', 'sm:5'], 'subscription.revoke')
+# Экран «Настройки подписки»: manage_devices + перевыпуск + назад — баннер настроек.
+case(
+    'subs_settings_tariff',
+    ['subscription_manage_devices', 'subscription_revoke', 'menu_subscription'],
+    'subscription.settings',
+)
 case('connect_multi', ['sl:1', 'sl:2', 'back_to_menu'], 'my_subscriptions')
 case('connect_miniapp_sub', ['sm:5'], 'my_subscriptions')
 case('connect_miniapp_custom', ['sm:5'], 'my_subscriptions')
@@ -581,7 +588,7 @@ case(
     'app_selection', ['app_ios_v2ray', 'app_ios_streisand', 'subscription_connect', 'menu_subscription'], 'subscription'
 )
 case('specific_app_guide', ['app_list_ios', 'subscription_connect:5', 'sm:5'], 'subscription')
-case('connection_help', ['device_connection_help', 'subscription_manage_devices', 'menu_subscription'], 'subscription')
+case('connection_help', ['device_connection_help', 'subscription_manage_devices', 'menu_subscription'], 'subscription.settings')
 case(
     'autopay_menu',
     [

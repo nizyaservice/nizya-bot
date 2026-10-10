@@ -97,6 +97,7 @@ SECTIONS: dict[str, dict] = {
     },
     'subscription': {
         'subs': {
+            'settings': ('adjustments', 'НАСТРОЙКИ', 'SETTINGS'),
             'devices': ('devices-2', 'УСТРОЙСТВА', 'DEVICES'),
             'traffic': ('chart-arrows', 'ДОП. ТРАФИК', 'EXTRA TRAFFIC'),
             'autopay': ('calendar-repeat', 'АВТОПРОДЛЕНИЕ', 'AUTO-RENEWAL'),

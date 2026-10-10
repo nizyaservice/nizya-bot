@@ -156,6 +156,11 @@ SECTION_IMAGE_DEFINITIONS: tuple[SectionImageDefinition, ...] = (
         title_default='💰 Баланс → Сохранённые карты',
     ),
     SectionImageDefinition(
+        key='subscription.settings',
+        title_key='ADMIN_SECTION_IMAGE_SUB_SETTINGS',
+        title_default='📱 Подписки → Настройки',
+    ),
+    SectionImageDefinition(
         key='subscription.devices',
         title_key='ADMIN_SECTION_IMAGE_SUB_DEVICES',
         title_default='📱 Подписки → Устройства',
