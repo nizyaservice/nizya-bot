@@ -8,6 +8,7 @@
 !.env.example
 !.env.aperturu.example
 !.gitignore
+!.gitleaks.toml
 !.python-version
 !Dockerfile
 !docker-compose.yml

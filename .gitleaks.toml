@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+# Known test fixtures and upstream sample credentials.
+# Only suppresses specific, well-known fixture strings — real scanning stays intact.
+[[allowlists]]
+description = "test fixtures"
+regexes = ['''(bsk_live_test|bsk_live_secret|SecurePass123|change_me|owned-panel-marker)''']
+paths = ['''tests/.*''']
