@@ -19,12 +19,14 @@ from app.keyboards.inline import (
 )
 from app.localization.texts import get_texts
 from app.services.pricing_engine import PricingEngine, pricing_engine
+from app.services.section_image_service import SECTION_IMAGE_MY_SUBSCRIPTIONS, get_section_media_kwargs
 from app.services.subscription_checkout_service import (
     save_subscription_checkout_draft,
     should_offer_checkout_resume,
 )
 from app.services.subscription_service import SubscriptionService
 from app.states import SubscriptionStates
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.pricing_utils import (
     apply_percentage_discount,
     calculate_prorated_price,
@@ -487,8 +489,12 @@ async def apply_countries_changes(callback: types.CallbackQuery, db_user: User, 
             '🌐 <b>Активных стран:</b> {count}',
         ).format(count=len(selected_countries))
 
-        await callback.message.edit_text(
-            success_text, reply_markup=get_back_keyboard(db_user.language), parse_mode='HTML'
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_text,
+            keyboard=get_back_keyboard(db_user.language),
+            parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
         )
 
         await state.clear()
@@ -959,7 +965,12 @@ async def confirm_add_countries_to_subscription(
 
         success_text += f'\n🌍 Активных стран: {len(selected_countries)}'
 
-        await callback.message.edit_text(success_text, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_text,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+        )
 
         logger.info(
             '✅ Пользователь обновил страны подписки. Добавлено: убрано',

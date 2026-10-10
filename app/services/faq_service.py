@@ -19,7 +19,9 @@ logger = structlog.get_logger(__name__)
 
 
 class FaqService:
-    MAX_PAGE_LENGTH = 3500
+    # ≤1024 символов Telegram caption: страница обязана влезать в подпись
+    # к баннеру раздела, иначе экран уйдёт чистым текстом без картинки.
+    MAX_PAGE_LENGTH = 950
 
     @staticmethod
     def _normalize_language(language: str) -> str:

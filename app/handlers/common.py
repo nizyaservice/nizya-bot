@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import User
 from app.keyboards.inline import get_back_keyboard
 from app.localization.texts import get_rules, get_texts
+from app.services.section_image_service import SECTION_IMAGE_RULES, get_section_media_kwargs
+from app.utils.photo_message import edit_or_answer_photo
 
 
 logger = structlog.get_logger(__name__)
@@ -100,7 +102,12 @@ async def show_rules(callback: types.CallbackQuery, db_user: User, db: AsyncSess
 
     rules_text = await get_rules(db_user.language)
 
-    await callback.message.edit_text(rules_text, reply_markup=get_back_keyboard(db_user.language))
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=rules_text,
+        keyboard=get_back_keyboard(db_user.language),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_RULES),
+    )
     await callback.answer()
 
 

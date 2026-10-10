@@ -140,6 +140,57 @@ SECTION_IMAGE_DEFINITIONS: tuple[SectionImageDefinition, ...] = (
         title_key='ADMIN_SECTION_IMAGE_TRIAL',
         title_default='🎁 Пробный период',
     ),
+    # Подпункты разделов (ключи вида '<section>.<sub>' — фолбэк на картинку раздела)
+    SectionImageDefinition(
+        key='balance.history',
+        title_key='ADMIN_SECTION_IMAGE_BALANCE_HISTORY',
+        title_default='💰 Баланс → История операций',
+    ),
+    SectionImageDefinition(
+        key='balance.cards',
+        title_key='ADMIN_SECTION_IMAGE_BALANCE_CARDS',
+        title_default='💰 Баланс → Сохранённые карты',
+    ),
+    SectionImageDefinition(
+        key='subscription.devices',
+        title_key='ADMIN_SECTION_IMAGE_SUB_DEVICES',
+        title_default='📱 Подписки → Устройства',
+    ),
+    SectionImageDefinition(
+        key='subscription.traffic',
+        title_key='ADMIN_SECTION_IMAGE_SUB_TRAFFIC',
+        title_default='📱 Подписки → Трафик',
+    ),
+    SectionImageDefinition(
+        key='subscription.autopay',
+        title_key='ADMIN_SECTION_IMAGE_SUB_AUTOPAY',
+        title_default='📱 Подписки → Автопродление',
+    ),
+    SectionImageDefinition(
+        key='subscription.extend',
+        title_key='ADMIN_SECTION_IMAGE_SUB_EXTEND',
+        title_default='📱 Подписки → Продление',
+    ),
+    SectionImageDefinition(
+        key='subscription.revoke',
+        title_key='ADMIN_SECTION_IMAGE_SUB_REVOKE',
+        title_default='📱 Подписки → Перевыпуск',
+    ),
+    SectionImageDefinition(
+        key='referral.list',
+        title_key='ADMIN_SECTION_IMAGE_REFERRAL_LIST',
+        title_default='🤝 Партнёрка → Список рефералов',
+    ),
+    SectionImageDefinition(
+        key='referral.analytics',
+        title_key='ADMIN_SECTION_IMAGE_REFERRAL_ANALYTICS',
+        title_default='🤝 Партнёрка → Аналитика',
+    ),
+    SectionImageDefinition(
+        key='referral.withdrawal',
+        title_key='ADMIN_SECTION_IMAGE_REFERRAL_WITHDRAWAL',
+        title_default='🤝 Партнёрка → Вывод средств',
+    ),
 )
 
 _SECTION_IMAGE_DEFINITIONS_BY_KEY = {definition.key: definition for definition in SECTION_IMAGE_DEFINITIONS}
@@ -193,6 +244,28 @@ async def get_cached_section_file_id(section_key: str) -> str | None:
             return _FILE_ID_CACHE.get(section_key)
         _CACHE_TS = now
     return _FILE_ID_CACHE.get(section_key)
+
+
+# Ключ детекта → фактический ключ раздела в БД (у подписок раздел называется my_subscriptions;
+# корень 'referral' сервисных подпунктов referral.* — это раздел 'referrals').
+_SECTION_IMAGE_ALIASES = {'subscription': 'my_subscriptions', 'referral': 'referrals'}
+
+
+async def resolve_cached_section_file_id(section_key: str) -> str | None:
+    """File_id с фолбэком по иерархии: 'referral.analytics' → 'referral' → алиас → None."""
+    file_id = await get_cached_section_file_id(section_key)
+    if file_id:
+        return file_id
+    if '.' in section_key:
+        parent = section_key.rsplit('.', 1)[0]
+        file_id = await get_cached_section_file_id(parent)
+        if file_id:
+            return file_id
+        section_key = parent
+    alias = _SECTION_IMAGE_ALIASES.get(section_key)
+    if alias:
+        return await get_cached_section_file_id(alias)
+    return None
 
 
 async def invalidate_section_cache() -> None:

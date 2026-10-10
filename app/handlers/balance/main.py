@@ -18,7 +18,11 @@ from app.keyboards.inline import (
     get_payment_methods_keyboard,
 )
 from app.localization.texts import get_texts
-from app.services.section_image_service import SECTION_IMAGE_BALANCE, get_section_media_kwargs
+from app.services.section_image_service import (
+    SECTION_IMAGE_BALANCE,
+    SECTION_IMAGE_TOPUP_SUCCESS,
+    get_section_media_kwargs,
+)
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
 from app.utils.photo_message import edit_or_answer_photo
@@ -310,7 +314,12 @@ async def show_balance_history(callback: types.CallbackQuery, db_user: User, db:
             total_unique += 1
 
     if not unique_transactions:
-        await callback.message.edit_text('📊 История операций пуста', reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption='📊 История операций пуста',
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, 'balance.history'),
+        )
         await callback.answer()
         return
 
@@ -338,8 +347,12 @@ async def show_balance_history(callback: types.CallbackQuery, db_user: User, db:
 
     keyboard.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_balance')])
 
-    await callback.message.edit_text(
-        text, reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='HTML'
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=text,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, 'balance.history'),
     )
     await callback.answer()
 
@@ -481,9 +494,19 @@ async def handle_successful_topup_with_cart(user_id: int, amount_kopeks: int, bo
                 f'Хотите продолжить оформление?'
             )
 
-            await bot.send_message(
-                chat_id=user.telegram_id, text=success_text, reply_markup=keyboard, parse_mode='HTML'
-            )
+            media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TOPUP_SUCCESS)
+            if media_kwargs:
+                await bot.send_photo(
+                    chat_id=user.telegram_id,
+                    photo=media_kwargs['media'],
+                    caption=success_text,
+                    reply_markup=keyboard,
+                    parse_mode='HTML',
+                )
+            else:
+                await bot.send_message(
+                    chat_id=user.telegram_id, text=success_text, reply_markup=keyboard, parse_mode='HTML'
+                )
 
     except Exception as e:
         logger.error('Ошибка обработки успешного пополнения с корзиной', error=e)
@@ -538,6 +561,13 @@ async def request_support_topup(callback: types.CallbackQuery, db_user: User):
     await callback.answer()
 
 
+async def _answer_with_balance_banner(message: types.Message, text: str, language: str | None = None) -> None:
+    """Текстовый экран флоу пополнения с баннером раздела «Баланс» (если картинка задана)."""
+    from .topup_screen import answer_topup_screen
+
+    await answer_topup_screen(message, text, language)
+
+
 @error_handler
 async def process_topup_amount(message: types.Message, db_user: User, state: FSMContext):
     texts = get_texts(db_user.language)
@@ -551,12 +581,12 @@ async def process_topup_amount(message: types.Message, db_user: User, state: FSM
                 await state.clear()
                 return
 
-            await message.answer(texts.INVALID_AMOUNT, reply_markup=get_back_keyboard(db_user.language))
+            await _answer_with_balance_banner(message, texts.INVALID_AMOUNT, db_user.language)
             return
 
         amount_text = message.text.strip()
         if not amount_text:
-            await message.answer(texts.INVALID_AMOUNT, reply_markup=get_back_keyboard(db_user.language))
+            await _answer_with_balance_banner(message, texts.INVALID_AMOUNT, db_user.language)
             return
 
         amount_rubles = float(amount_text.replace(',', '.'))
@@ -602,10 +632,10 @@ async def process_topup_amount(message: types.Message, db_user: User, state: FSM
                 return
 
         if not await route_payment_by_method(message, db_user, amount_kopeks, state, payment_method):
-            await message.answer('Неизвестный способ оплаты')
+            await _answer_with_balance_banner(message, 'Неизвестный способ оплаты')
 
     except ValueError:
-        await message.answer(texts.INVALID_AMOUNT, reply_markup=get_back_keyboard(db_user.language))
+        await _answer_with_balance_banner(message, texts.INVALID_AMOUNT, db_user.language)
 
 
 @error_handler
@@ -630,15 +660,28 @@ async def handle_sbp_payment(callback: types.CallbackQuery, db: AsyncSession):
             await callback.answer('❌ Токен подтверждения не найден', show_alert=True)
             return
 
-        await callback.message.answer(
-            f'Для оплаты через СБП откройте приложение вашего банка и подтвердите платеж.\\n\\n'
-            f'Если у вас не открылось банковское приложение автоматически, вы можете:\\n'
-            f'1. Скопировать этот токен: <code>{confirmation_token}</code>\\n'
-            f'2. Открыть приложение вашего банка\\n'
-            f'3. Найти функцию оплаты по токену\\n'
-            f'4. Вставить токен и подтвердить платеж',
-            parse_mode='HTML',
-        )
+        sbp_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_BALANCE)
+        if sbp_media_kwargs:
+            await callback.message.answer_photo(
+                sbp_media_kwargs['media'],
+                caption=f'Для оплаты через СБП откройте приложение вашего банка и подтвердите платеж.\\n\\n'
+                f'Если у вас не открылось банковское приложение автоматически, вы можете:\\n'
+                f'1. Скопировать этот токен: <code>{confirmation_token}</code>\\n'
+                f'2. Открыть приложение вашего банка\\n'
+                f'3. Найти функцию оплаты по токену\\n'
+                f'4. Вставить токен и подтвердить платеж',
+                parse_mode='HTML',
+            )
+        else:
+            await callback.message.answer(
+                f'Для оплаты через СБП откройте приложение вашего банка и подтвердите платеж.\\n\\n'
+                f'Если у вас не открылось банковское приложение автоматически, вы можете:\\n'
+                f'1. Скопировать этот токен: <code>{confirmation_token}</code>\\n'
+                f'2. Открыть приложение вашего банка\\n'
+                f'3. Найти функцию оплаты по токену\\n'
+                f'4. Вставить токен и подтвердить платеж',
+                parse_mode='HTML',
+            )
 
         await callback.answer('Информация об оплате отправлена', show_alert=True)
 
@@ -650,7 +693,7 @@ async def handle_sbp_payment(callback: types.CallbackQuery, db: AsyncSession):
 async def _reply_after_answer(callback: types.CallbackQuery, text: str) -> None:
     """Нажатие уже подтверждено — второй answer() Telegram отвергнет, поэтому пишем сообщением."""
     if isinstance(callback.message, types.Message):
-        await callback.message.answer(text)
+        await _answer_with_balance_banner(callback.message, text)
 
 
 @error_handler

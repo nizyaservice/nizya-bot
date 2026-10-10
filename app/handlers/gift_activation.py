@@ -17,6 +17,8 @@ from app.services.gift_claim_service import (
     claim_bound_gift_for_user,
 )
 from app.services.guest_purchase_service import GuestPurchaseError
+from app.services.section_image_service import SECTION_IMAGE_MY_SUBSCRIPTIONS, get_section_media_kwargs
+from app.utils.photo_message import edit_or_answer_photo
 
 
 logger = structlog.get_logger(__name__)
@@ -45,12 +47,22 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
         return
 
     await callback.answer()
-    await callback.message.edit_text('⏳ Активируем подарок...', parse_mode=None)
-
     async with AsyncSessionLocal() as db:
+        await edit_or_answer_photo(
+            callback=callback,
+            caption='⏳ Активируем подарок...',
+            keyboard=None,
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+        )
+
         user = await get_user_by_telegram_id(db, callback.from_user.id)
         if not user:
-            await callback.message.edit_text(_GIFT_NOT_FOUND, parse_mode=None)
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=_GIFT_NOT_FOUND,
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+            )
             return
 
         texts = get_texts(user.language)
@@ -62,24 +74,30 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                 purchase_id=purchase_id,
             )
         except (GiftClaimNotFoundError, GiftClaimAlreadyOwnedError):
-            await callback.message.edit_text(
-                texts.t('GIFT_ACTIVATION_NOT_FOUND', _GIFT_NOT_FOUND),
-                parse_mode=None,
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('GIFT_ACTIVATION_NOT_FOUND', _GIFT_NOT_FOUND),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
             )
             return
         except GiftClaimSelfActivationError:
-            await callback.message.edit_text(
-                texts.t(
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t(
                     'GIFT_ACTIVATION_SELF_CLAIM_ERROR',
                     '⚠️ Нельзя активировать свой собственный подарок.\nОтправьте код другу!',
                 ),
-                parse_mode=None,
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
             )
             return
         except GiftClaimNotActivatableError:
-            await callback.message.edit_text(
-                texts.t('GIFT_ACTIVATION_NOT_ACTIVATABLE_ERROR', '❌ Этот подарок невозможно активировать.'),
-                parse_mode=None,
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('GIFT_ACTIVATION_NOT_ACTIVATABLE_ERROR', '❌ Этот подарок невозможно активировать.'),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
             )
             return
         except GuestPurchaseError as exc:
@@ -90,20 +108,24 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                 error=exc.message,
             )
             if exc.status_code >= 500:
-                await callback.message.edit_text(
-                    texts.t(
+                await edit_or_answer_photo(
+                    callback=callback,
+                    caption=texts.t(
                         'GIFT_ACTIVATION_GENERIC_ERROR',
                         'Произошла ошибка при активации. Попробуйте позже.',
                     ),
-                    parse_mode=None,
+                    keyboard=None,
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
                 )
             else:
-                await callback.message.edit_text(
-                    texts.t(
+                await edit_or_answer_photo(
+                    callback=callback,
+                    caption=texts.t(
                         'GIFT_ACTIVATION_FAILED_PREFIX',
                         'Не удалось активировать подарок: {error}',
                     ).format(error=html_mod.escape(exc.message)),
-                    parse_mode=None,
+                    keyboard=None,
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
                 )
             return
         except Exception:
@@ -112,12 +134,14 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                 purchase_id=purchase_id,
                 telegram_id=callback.from_user.id,
             )
-            await callback.message.edit_text(
-                texts.t(
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t(
                     'GIFT_ACTIVATION_GENERIC_ERROR',
                     'Произошла ошибка при активации. Попробуйте позже.',
                 ),
-                parse_mode=None,
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
             )
             return
 
@@ -126,13 +150,16 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
         period_text = f'{period_days} дн.' if period_days else ''
         tariff_text = f'{tariff_name} — {period_text}' if tariff_name else period_text
 
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'GIFT_ACTIVATION_CALLBACK_SUCCESS_TEXT',
                 '✅ <b>Подарок активирован!</b>\n{tariff_text}\n\nВаша подписка обновлена.',
             ).format(
                 tariff_text=tariff_text,
             ),
+            keyboard=None,
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
         )
 
 

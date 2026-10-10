@@ -329,6 +329,23 @@ async def answer_menu_with_media(message, text: str, keyboard, db) -> None:
                     error=str(video_error),
                 )
 
+        # Баннер главного меню: без него автодетект по клавиатуре меню даёт
+        # случайный раздел (или общий логотип).
+        from app.services.section_image_service import SECTION_IMAGE_MAIN_MENU, get_section_media_kwargs
+
+        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU)
+        if media_kwargs:
+            try:
+                await message.answer_photo(
+                    media_kwargs['media'],
+                    caption=text,
+                    reply_markup=keyboard,
+                    parse_mode='HTML',
+                )
+                return
+            except Exception:
+                pass
+
     await message.answer(text, reply_markup=keyboard, parse_mode='HTML')
 
 

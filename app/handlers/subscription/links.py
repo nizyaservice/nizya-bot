@@ -11,6 +11,7 @@ from app.keyboards.inline import (
     get_happ_download_button_row,
 )
 from app.localization.texts import get_texts
+from app.services.section_image_service import SECTION_IMAGE_MY_SUBSCRIPTIONS, get_section_media_kwargs
 from app.utils.subscription_time import local_days_until
 from app.utils.subscription_utils import (
     convert_subscription_link_to_happ_scheme,
@@ -306,12 +307,22 @@ async def handle_open_subscription_link(
             redirect_link=redirect_link,
         )
 
-        await callback.message.answer(
-            happ_message,
-            parse_mode='HTML',
-            disable_web_page_preview=True,
-            reply_markup=keyboard,
-        )
+        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS)
+        if media_kwargs:
+            await callback.message.answer_photo(
+                media_kwargs['media'],
+                caption=happ_message,
+                parse_mode='HTML',
+                disable_web_page_preview=True,
+                reply_markup=keyboard,
+            )
+        else:
+            await callback.message.answer(
+                happ_message,
+                parse_mode='HTML',
+                disable_web_page_preview=True,
+                reply_markup=keyboard,
+            )
         await callback.answer()
         return
 

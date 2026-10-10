@@ -34,11 +34,13 @@ from app.keyboards.inline import (
 from app.localization.texts import get_texts
 from app.services.pricing_engine import PricingEngine
 from app.services.remnawave_service import RemnaWaveService
+from app.services.section_image_service import SECTION_IMAGE_MY_SUBSCRIPTIONS, get_section_media_kwargs
 from app.services.subscription_service import SubscriptionService
 from app.services.user_cart_service import user_cart_service
 from app.states import SubscriptionStates
 from app.utils.legacy_subscription import is_legacy_subscription
 from app.utils.pagination import paginate_list
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.pricing_utils import (
     apply_percentage_discount,
     calculate_prorated_price,
@@ -523,14 +525,18 @@ async def confirm_change_devices(
     if devices_warning:
         confirm_text += devices_warning
 
-    await callback.message.edit_text(
-        confirm_text,
-        reply_markup=get_confirm_change_devices_keyboard(
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=confirm_text,
+        keyboard=get_confirm_change_devices_keyboard(
             new_devices_count,
             price,
             db_user.language,
             back_callback=f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'subscription_settings',
         ),
+        # Подтверждение смены числа устройств — подпункт subscription.devices
+        # (кнопка confirm_change_devices_* не матчится детектором — медиа явно).
+        **await get_section_media_kwargs(db, 'subscription.devices'),
     )
 
     await callback.answer()
@@ -805,7 +811,12 @@ async def execute_change_devices(
                 'ℹ️ Возврат средств не производится',
             )
 
-        await callback.message.edit_text(success_text, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_text,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, 'subscription.devices'),
+        )
 
         logger.info(
             '✅ Пользователь изменил количество устройств с на доплата: ₽',
@@ -858,9 +869,11 @@ async def handle_device_management(
                 devices_list = devices_info.get('devices', [])
 
                 if total_devices == 0:
-                    await callback.message.edit_text(
-                        texts.t('DEVICE_NONE_CONNECTED', 'ℹ️ У вас нет подключенных устройств'),
-                        reply_markup=get_back_keyboard(db_user.language),
+                    await edit_or_answer_photo(
+                        callback=callback,
+                        caption=texts.t('DEVICE_NONE_CONNECTED', 'ℹ️ У вас нет подключенных устройств'),
+                        keyboard=get_back_keyboard(db_user.language),
+                        **await get_section_media_kwargs(db, 'subscription.devices'),
                     )
                     await callback.answer()
                     return
@@ -1410,8 +1423,9 @@ async def handle_all_devices_reset_from_management(
 
             if success_count > 0:
                 if failed_count == 0:
-                    await callback.message.edit_text(
-                        texts.t(
+                    await edit_or_answer_photo(
+                        callback=callback,
+                        caption=texts.t(
                             'DEVICE_RESET_ALL_SUCCESS_MESSAGE',
                             (
                                 '✅ <b>Все устройства успешно сброшены!</b>\n\n'
@@ -1420,8 +1434,9 @@ async def handle_all_devices_reset_from_management(
                                 "💡 Используйте ссылку из раздела 'Моя подписка' для повторного подключения"
                             ),
                         ).format(count=success_count),
-                        reply_markup=get_back_keyboard(db_user.language),
+                        keyboard=get_back_keyboard(db_user.language),
                         parse_mode='HTML',
+                        **await get_section_media_kwargs(db, 'subscription.devices'),
                     )
                     logger.info(
                         '✅ Пользователь успешно сбросил устройств',
@@ -1429,8 +1444,9 @@ async def handle_all_devices_reset_from_management(
                         success_count=success_count,
                     )
                 else:
-                    await callback.message.edit_text(
-                        texts.t(
+                    await edit_or_answer_photo(
+                        callback=callback,
+                        caption=texts.t(
                             'DEVICE_RESET_PARTIAL_MESSAGE',
                             (
                                 '⚠️ <b>Частичный сброс устройств</b>\n\n'
@@ -1439,8 +1455,9 @@ async def handle_all_devices_reset_from_management(
                                 'Попробуйте еще раз или обратитесь в поддержку.'
                             ),
                         ).format(success=success_count, failed=failed_count),
-                        reply_markup=get_back_keyboard(db_user.language),
+                        keyboard=get_back_keyboard(db_user.language),
                         parse_mode='HTML',
+                        **await get_section_media_kwargs(db, 'subscription.devices'),
                     )
                     logger.warning(
                         '⚠️ Частичный сброс у пользователя /',
@@ -1449,8 +1466,9 @@ async def handle_all_devices_reset_from_management(
                         devices_list_count=len(devices_list),
                     )
             else:
-                await callback.message.edit_text(
-                    texts.t(
+                await edit_or_answer_photo(
+                    callback=callback,
+                    caption=texts.t(
                         'DEVICE_RESET_ALL_FAILED_MESSAGE',
                         (
                             '❌ <b>Не удалось сбросить устройства</b>\n\n'
@@ -1458,8 +1476,9 @@ async def handle_all_devices_reset_from_management(
                             'Всего устройств: {total}'
                         ),
                     ).format(total=len(devices_list)),
-                    reply_markup=get_back_keyboard(db_user.language),
+                    keyboard=get_back_keyboard(db_user.language),
                     parse_mode='HTML',
+                    **await get_section_media_kwargs(db, 'subscription.devices'),
                 )
                 logger.error(
                     '❌ Не удалось сбросить ни одного устройства у пользователя', telegram_id=db_user.telegram_id
@@ -1729,7 +1748,12 @@ async def confirm_add_devices(callback: types.CallbackQuery, db_user: User, db: 
         if total_discount > 0:
             success_text += f' (скидка {devices_discount_percent}%: -{texts.format_price(total_discount)})'
 
-        await callback.message.edit_text(success_text, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_text,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, 'subscription.devices'),
+        )
 
         logger.info(
             '✅ Пользователь добавил устройств за ₽',

@@ -17,6 +17,8 @@ from app.services.payment_service import PaymentService
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
 
+from .topup_screen import answer_topup_screen
+
 
 logger = structlog.get_logger(__name__)
 
@@ -172,23 +174,25 @@ async def process_donut_payment_amount(
     max_amount = settings.DONUT_MAX_AMOUNT_KOPEKS
 
     if amount_kopeks < min_amount:
-        await message.answer(
+        await answer_topup_screen(
+            message,
             texts.t(
                 'PAYMENT_AMOUNT_TOO_LOW',
                 'Минимальная сумма пополнения: {min_amount}₽',
             ).format(min_amount=min_amount // 100),
-            reply_markup=get_back_keyboard(db_user.language),
+            db_user.language,
             parse_mode='HTML',
         )
         return
 
     if amount_kopeks > max_amount:
-        await message.answer(
+        await answer_topup_screen(
+            message,
             texts.t(
                 'PAYMENT_AMOUNT_TOO_HIGH',
                 'Максимальная сумма пополнения: {max_amount}₽',
             ).format(max_amount=max_amount // 100),
-            reply_markup=get_back_keyboard(db_user.language),
+            db_user.language,
             parse_mode='HTML',
         )
         return

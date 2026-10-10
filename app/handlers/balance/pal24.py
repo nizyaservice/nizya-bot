@@ -16,6 +16,8 @@ from app.keyboards.inline import get_back_keyboard
 from app.keyboards.topup_amounts import get_topup_amount_keyboard
 from app.localization.texts import get_texts
 from app.services.payment_service import PaymentService
+
+from .topup_screen import answer_topup_screen
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
 from app.utils.timezone import format_local_datetime
@@ -354,21 +356,23 @@ async def process_pal24_payment_amount(
 
     if amount_kopeks < settings.PAL24_MIN_AMOUNT_KOPEKS:
         min_rubles = settings.PAL24_MIN_AMOUNT_KOPEKS / 100
-        await message.answer(
+        await answer_topup_screen(
+            message,
             f'❌ Минимальная сумма для оплаты через PayPalych: {min_rubles:.0f} ₽\n\n'
             'Отправьте новую сумму пополнения числом в сообщении.',
-            reply_markup=get_back_keyboard(db_user.language),
+            db_user.language,
         )
         return
 
     if amount_kopeks > settings.PAL24_MAX_AMOUNT_KOPEKS:
         max_rubles = settings.PAL24_MAX_AMOUNT_KOPEKS / 100
-        await message.answer(
+        await answer_topup_screen(
+            message,
             (
                 f'❌ Максимальная сумма для оплаты через PayPalych: {max_rubles:,.0f} ₽\n\n'
                 'Отправьте новую сумму пополнения числом в сообщении.'
             ).replace(',', ' '),
-            reply_markup=get_back_keyboard(db_user.language),
+            db_user.language,
         )
         return
 

@@ -29,13 +29,13 @@ _MEDIA_UNSET = object()
 
 async def _auto_section_media(keyboard) -> object:
     """Если по клавиатуре распознаётся секция с загруженной картинкой — её file_id."""
-    from app.services.section_image_service import get_cached_section_file_id
+    from app.services.section_image_service import resolve_cached_section_file_id
     from app.utils.menu_section_detect import detect_section_key
 
     try:
         section_key = detect_section_key(keyboard)
         if section_key:
-            file_id = await get_cached_section_file_id(section_key)
+            file_id = await resolve_cached_section_file_id(section_key)
             if file_id:
                 return file_id
     except Exception:

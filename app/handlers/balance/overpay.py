@@ -16,6 +16,8 @@ from app.services.payment_service import PaymentService
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
 
+from .topup_screen import answer_topup_screen
+
 
 logger = structlog.get_logger(__name__)
 
@@ -221,12 +223,13 @@ async def process_overpay_payment_amount(
         amount_eur = round(amount_kopeks / 100 / settings.OVERPAY_RUB_PER_EUR, 2)
         if amount_eur < settings.OVERPAY_INT_MIN_EUR:
             min_rub = math.ceil(settings.OVERPAY_INT_MIN_EUR * settings.OVERPAY_RUB_PER_EUR)
-            await message.answer(
+            await answer_topup_screen(
+                message,
                 texts.t(
                     'OVERPAY_INT_AMOUNT_TOO_LOW',
                     'Минимальная сумма для оплаты в евро: {min_eur}€ (≈ {min_rub}₽)',
                 ).format(min_eur=f'{settings.OVERPAY_INT_MIN_EUR:g}', min_rub=min_rub),
-                reply_markup=get_back_keyboard(db_user.language),
+                db_user.language,
                 parse_mode='HTML',
             )
             return

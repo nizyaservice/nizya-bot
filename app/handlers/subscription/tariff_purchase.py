@@ -27,12 +27,17 @@ from app.localization.texts import Texts, get_texts
 from app.services.admin_notification_service import AdminNotificationService
 from app.services.panel_sync import should_create_panel_account
 from app.services.subscription_service import SubscriptionService
-from app.services.section_image_service import SECTION_IMAGE_SUBSCRIPTION_PURCHASE, get_section_media_kwargs
+from app.services.section_image_service import (
+    SECTION_IMAGE_SUBSCRIPTION_PURCHASE,
+    SECTION_IMAGE_SUBSCRIPTION_SUCCESS,
+    get_section_media_kwargs,
+)
 from app.services.tariff_switch_policy import remaining_days_for_switch, should_reset_used_traffic
 from app.services.user_cart_service import user_cart_service
 from app.utils.decorators import error_handler
 from app.utils.formatting import format_period, format_price_kopeks, format_traffic
 from app.utils.legacy_subscription import is_legacy_subscription as _legacy_subscription
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.promo_offer import get_user_active_promo_discount_percent
 from app.utils.subscription_time import local_days_until
 
@@ -853,14 +858,16 @@ async def show_tariffs_list(
     tariffs = await get_tariffs_for_user(db, promo_group_id)
 
     if not tariffs:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_PURCHASE_NO_TARIFFS',
                 '😔 <b>Нет доступных тарифов</b>\n\nК сожалению, сейчас нет тарифов для покупки.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='back_to_menu')]]
             ),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -901,8 +908,6 @@ async def show_tariffs_list(
 
     # Формируем текст со списком тарифов и их характеристиками
     tariffs_text = format_tariffs_list_text(tariffs, db_user, has_period_discounts, purchased_tariff_ids)
-
-    from app.utils.photo_message import edit_or_answer_photo
 
     await edit_or_answer_photo(
         callback=callback,
@@ -1470,8 +1475,11 @@ async def handle_custom_confirm(
                 refund_error=refund_error,
             )
         try:
-            await callback.message.edit_text(
-                texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки')
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки'),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
             )
         except Exception:
             pass
@@ -1549,8 +1557,9 @@ async def handle_custom_confirm(
 
         traffic_display = format_traffic(traffic_limit)
 
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_PURCHASE_SUCCESS',
                 '🎉 <b>Подписка успешно оформлена!</b>\n\n'
                 '📦 Тариф: <b>{name}</b>\n'
@@ -1566,7 +1575,7 @@ async def handle_custom_confirm(
                 period=format_period(custom_days),
                 price=format_price_kopeks(total_price),
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
@@ -1580,6 +1589,7 @@ async def handle_custom_confirm(
                 ]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
         )
     except Exception as e:
         logger.error('Ошибка при покупке тарифа с кастомными параметрами', error=e, exc_info=True)
@@ -1937,14 +1947,24 @@ async def confirm_tariff_purchase(
         )
         if not success:
             try:
-                await callback.message.edit_text(texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'))
+                await edit_or_answer_photo(
+                    callback=callback,
+                    caption=texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'),
+                    keyboard=None,
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                )
             except Exception:
                 pass
             return
     except Exception as e:
         logger.error('Ошибка списания баланса при покупке тарифа', error=e, exc_info=True)
         try:
-            await callback.message.edit_text(texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'))
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            )
         except Exception:
             pass
         return
@@ -2094,8 +2114,11 @@ async def confirm_tariff_purchase(
                 error=refund_error,
             )
         try:
-            await callback.message.edit_text(
-                texts.t('TARIFF_PURCHASE_ALREADY_ACTIVE_SUB', '❌ У вас уже есть активная подписка на этот тариф')
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('TARIFF_PURCHASE_ALREADY_ACTIVE_SUB', '❌ У вас уже есть активная подписка на этот тариф'),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
             )
         except Exception:
             pass
@@ -2143,8 +2166,11 @@ async def confirm_tariff_purchase(
                 error=refund_error,
             )
         try:
-            await callback.message.edit_text(
-                texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки')
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки'),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
             )
         except Exception:
             pass
@@ -2233,8 +2259,9 @@ async def confirm_tariff_purchase(
 
     traffic = format_traffic(tariff.traffic_limit_gb)
 
-    await callback.message.edit_text(
-        texts.t(
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t(
             'TARIFF_PURCHASE_SUCCESS',
             '🎉 <b>Подписка успешно оформлена!</b>\n\n'
             '📦 Тариф: <b>{name}</b>\n'
@@ -2250,7 +2277,7 @@ async def confirm_tariff_purchase(
             period=format_period(period),
             price=format_price_kopeks(final_price),
         ),
-        reply_markup=InlineKeyboardMarkup(
+        keyboard=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
@@ -2264,6 +2291,7 @@ async def confirm_tariff_purchase(
             ]
         ),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
     )
 
 
@@ -2457,8 +2485,11 @@ async def confirm_daily_tariff_purchase(
                 refund_error=refund_error,
             )
         try:
-            await callback.message.edit_text(
-                texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки')
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки'),
+                keyboard=None,
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
             )
         except Exception:
             pass
@@ -2534,8 +2565,13 @@ async def confirm_daily_tariff_purchase(
 
     traffic = format_traffic(tariff.traffic_limit_gb)
 
-    await callback.message.edit_text(
-        texts.t(
+    await state.clear()
+
+    traffic = format_traffic(tariff.traffic_limit_gb)
+
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t(
             'TARIFF_PURCHASE_DAILY_SUCCESS',
             '🎉 <b>Суточная подписка оформлена!</b>\n\n'
             '📦 Тариф: <b>{name}</b>\n'
@@ -2551,7 +2587,7 @@ async def confirm_daily_tariff_purchase(
             devices=tariff.device_limit,
             price=format_price_kopeks(final_daily_price),
         ),
-        reply_markup=InlineKeyboardMarkup(
+        keyboard=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
@@ -2565,6 +2601,7 @@ async def confirm_daily_tariff_purchase(
             ]
         ),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
     )
 
 
@@ -2719,13 +2756,17 @@ async def show_tariff_extend(
                 keyboard.append(
                     [InlineKeyboardButton(text=texts.t('BACK_BUTTON', '◀️ Назад'), callback_data='back_to_menu')]
                 )
-                await callback.message.edit_text(
-                    texts.t(
+                # Пикер подписок для продления — подпункт subscription.extend
+                # (детект по «se:»-кнопкам сворачивается в корень подписок).
+                await edit_or_answer_photo(
+                    callback=callback,
+                    caption=texts.t(
                         'TARIFF_RENEW_PICK_SUBSCRIPTION',
                         '🔄 <b>Продление подписки</b>\n\nВыберите подписку для продления:',
                     ),
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                    keyboard=InlineKeyboardMarkup(inline_keyboard=keyboard),
                     parse_mode='HTML',
+                    **await get_section_media_kwargs(db, 'subscription.extend'),
                 )
                 await callback.answer()
                 return
@@ -2827,8 +2868,9 @@ async def show_tariff_extend(
 
     actual_device_limit = subscription.device_limit or tariff.device_limit
 
-    await callback.message.edit_text(
-        texts.t(
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t(
             'TARIFF_RENEW_TITLE',
             '🔄 <b>Продление подписки</b>{discount_hint}\n\n'
             '📦 Тариф: <b>{name}</b>\n'
@@ -2841,7 +2883,7 @@ async def show_tariff_extend(
             traffic=traffic,
             devices=actual_device_limit,
         ),
-        reply_markup=get_tariff_extend_keyboard(
+        keyboard=get_tariff_extend_keyboard(
             tariff,
             db_user.language,
             db_user=db_user,
@@ -2849,6 +2891,8 @@ async def show_tariff_extend(
             subscription_id=subscription.id,
         ),
         parse_mode='HTML',
+        # Экран продления — подпункт subscription.extend со своей картинкой.
+        **await get_section_media_kwargs(db, 'subscription.extend'),
     )
     await callback.answer()
 
@@ -3190,8 +3234,9 @@ async def confirm_tariff_extend(
 
         traffic = format_traffic(tariff.traffic_limit_gb)
 
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_RENEW_SUCCESS',
                 '🎉 <b>Подписка успешно продлена!</b>\n\n'
                 '📦 Тариф: <b>{name}</b>\n'
@@ -3206,7 +3251,7 @@ async def confirm_tariff_extend(
                 period=format_period(period),
                 price=format_price_kopeks(final_price),
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
@@ -3220,6 +3265,8 @@ async def confirm_tariff_extend(
                 ]
             ),
             parse_mode='HTML',
+            # Успех продления — подпункт subscription.extend со своей картинкой.
+            **await get_section_media_kwargs(db, 'subscription.extend'),
         )
     except Exception as e:
         logger.error('Ошибка при продлении тарифа', error=e, exc_info=True)
@@ -3425,14 +3472,15 @@ async def show_tariff_switch_list(
     # (раньше кнопка «Тариф» вела сюда в тупик на истёкшей подписке).
     subscription_expired = not subscription.end_date or subscription.end_date <= datetime.now(UTC)
     if subscription_expired and not is_legacy_subscription:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_EXPIRED',
                 '❌ <b>Переключение недоступно</b>\n\n'
                 'У вашей подписки не осталось активных дней.\n'
                 'Оформите новый тариф с нуля.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
@@ -3443,6 +3491,7 @@ async def show_tariff_switch_list(
                 ]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -3452,15 +3501,17 @@ async def show_tariff_switch_list(
     # Проверяем, разрешена ли смена тарифа хотя бы в одном направлении
     switch_disabled = not settings.TARIFF_SWITCH_UPGRADE_ENABLED and not settings.TARIFF_SWITCH_DOWNGRADE_ENABLED
     if switch_disabled and not is_legacy_subscription:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_DISABLED',
                 '🚫 <b>Смена тарифа недоступна</b>\n\nАдминистратор отключил возможность смены тарифа.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -3486,15 +3537,17 @@ async def show_tariff_switch_list(
         )
 
     if not available_tariffs:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_NO_TARIFFS',
                 '😔 <b>Нет доступных тарифов для переключения</b>\n\nВы уже используете единственный доступный тариф.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -3521,10 +3574,12 @@ async def show_tariff_switch_list(
         available_tariffs, current_tariff_id, current_tariff_name, db_user, has_period_discounts
     )
 
-    await callback.message.edit_text(
-        switch_text,
-        reply_markup=get_tariff_switch_keyboard(available_tariffs, current_tariff_id, db_user.language),
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=switch_text,
+        keyboard=get_tariff_switch_keyboard(available_tariffs, current_tariff_id, db_user.language),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
     )
 
     await state.update_data(
@@ -4040,8 +4095,9 @@ async def confirm_tariff_switch(
         # При смене тарифа устанавливается оплаченный период
         time_info = texts.t('TARIFF_SWITCH_PERIOD_LINE', '📅 Период: {days} дней').format(days=days_for_new_tariff)
 
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_SUCCESS',
                 '🎉 <b>Тариф успешно изменён!</b>\n\n'
                 '📦 Новый тариф: <b>{name}</b>\n'
@@ -4057,7 +4113,7 @@ async def confirm_tariff_switch(
                 price=format_price_kopeks(final_price),
                 time_info=time_info,
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
@@ -4071,6 +4127,8 @@ async def confirm_tariff_switch(
                 ]
             ),
             parse_mode='HTML',
+            # Успех смены тарифа — секция «Успешная активация подписки».
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
         )
 
     except Exception as e:
@@ -4324,8 +4382,9 @@ async def confirm_daily_tariff_switch(
 
         traffic = format_traffic(tariff.traffic_limit_gb)
 
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_DAILY_SUCCESS',
                 '🎉 <b>Тариф успешно изменён!</b>\n\n'
                 '📦 Новый тариф: <b>{name}</b>\n'
@@ -4340,7 +4399,7 @@ async def confirm_daily_tariff_switch(
                 devices=tariff.device_limit,
                 price=format_price_kopeks(final_daily_price),
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
@@ -4354,6 +4413,8 @@ async def confirm_daily_tariff_switch(
                 ]
             ),
             parse_mode='HTML',
+            # Успех смены на суточный тариф — секция «Успешная активация подписки».
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
         )
 
     except Exception as e:
@@ -4603,14 +4664,15 @@ async def show_instant_switch_list(
     remaining_days = remaining_days_for_switch(subscription.end_date, now)
 
     if not subscription.end_date or subscription.end_date <= now:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_EXPIRED',
                 '❌ <b>Переключение недоступно</b>\n\n'
                 'У вашей подписки не осталось активных дней.\n'
                 'Оформите новый тариф с нуля.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
@@ -4621,21 +4683,24 @@ async def show_instant_switch_list(
                 ]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
 
     # Проверяем, разрешена ли смена тарифа хотя бы в одном направлении
     if not settings.TARIFF_SWITCH_UPGRADE_ENABLED and not settings.TARIFF_SWITCH_DOWNGRADE_ENABLED:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_DISABLED',
                 '🚫 <b>Смена тарифа недоступна</b>\n\nАдминистратор отключил возможность смены тарифа.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -4656,15 +4721,17 @@ async def show_instant_switch_list(
     available_tariffs = _filter_tariffs_by_switch_direction(available_tariffs, current_tariff, remaining_days, db_user)
 
     if not available_tariffs:
-        await callback.message.edit_text(
-            texts.t(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'TARIFF_SWITCH_NO_TARIFFS',
                 '😔 <b>Нет доступных тарифов для переключения</b>\n\nВы уже используете единственный доступный тариф.',
             ),
-            reply_markup=InlineKeyboardMarkup(
+            keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -4672,12 +4739,14 @@ async def show_instant_switch_list(
     # Формируем текст со списком тарифов
     switch_text = format_instant_switch_list_text(available_tariffs, current_tariff, remaining_days, db_user)
 
-    await callback.message.edit_text(
-        switch_text,
-        reply_markup=get_instant_switch_keyboard(
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=switch_text,
+        keyboard=get_instant_switch_keyboard(
             available_tariffs, current_tariff, remaining_days, db_user.language, db_user
         ),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
     )
 
     await state.update_data(
@@ -5339,8 +5408,9 @@ async def confirm_instant_switch(
 
         # Для суточного тарифа другое сообщение об успехе
         if is_new_daily:
-            await callback.message.edit_text(
-                texts.t(
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t(
                     'TARIFF_SWITCH_DAILY_SUCCESS',
                     '🎉 <b>Тариф успешно изменён!</b>\n\n'
                     '📦 Новый тариф: <b>{name}</b>\n'
@@ -5355,7 +5425,7 @@ async def confirm_instant_switch(
                     devices=new_tariff.device_limit,
                     price=format_price_kopeks(daily_price),
                 ),
-                reply_markup=InlineKeyboardMarkup(
+                keyboard=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
                             InlineKeyboardButton(
@@ -5369,6 +5439,8 @@ async def confirm_instant_switch(
                     ]
                 ),
                 parse_mode='HTML',
+                # Успех мгновенной смены на суточный тариф — «Успешная активация подписки».
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
             )
         else:
             if is_upgrade:
@@ -5378,8 +5450,9 @@ async def confirm_instant_switch(
             else:
                 cost_text = texts.t('TARIFF_SWITCH_FREE_COST_LINE', '💰 Бесплатно')
 
-            await callback.message.edit_text(
-                texts.t(
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t(
                     'TARIFF_SWITCH_INSTANT_SUCCESS',
                     '🎉 <b>Тариф успешно изменён!</b>\n\n'
                     '📦 Новый тариф: <b>{name}</b>\n'
@@ -5394,7 +5467,7 @@ async def confirm_instant_switch(
                     days=remaining_days,
                     cost_text=cost_text,
                 ),
-                reply_markup=InlineKeyboardMarkup(
+                keyboard=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
                             InlineKeyboardButton(
@@ -5408,6 +5481,8 @@ async def confirm_instant_switch(
                     ]
                 ),
                 parse_mode='HTML',
+                # Успех мгновенной смены тарифа — «Успешная активация подписки».
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
             )
 
     except Exception as e:

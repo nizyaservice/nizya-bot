@@ -14,9 +14,15 @@ from app.database.models import User
 from app.keyboards.inline import get_happ_download_button_row
 from app.localization.texts import get_texts
 from app.services.payment_service import PaymentService
+from app.services.section_image_service import (
+    SECTION_IMAGE_SUBSCRIPTION_PURCHASE,
+    SECTION_IMAGE_SUBSCRIPTION_SUCCESS,
+    get_section_media_kwargs,
+)
 from app.services.subscription_purchase_service import SubscriptionPurchaseService
 from app.states import SubscriptionStates
 from app.utils.decorators import error_handler
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.pricing_utils import compute_simple_subscription_price
 from app.utils.subscription_time import local_days_until
 from app.utils.subscription_utils import (
@@ -56,10 +62,12 @@ async def start_simple_subscription_purchase(
             keyboard.append([types.InlineKeyboardButton(text='🆘 Обжаловать', url=support_url)])
         keyboard.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='subscription')])
 
-        await callback.message.edit_text(
-            f'🚫 <b>Покупка подписки ограничена</b>\n\n{reason}\n\n'
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=f'🚫 <b>Покупка подписки ограничена</b>\n\n{reason}\n\n'
             'Если вы считаете это ошибкой, вы можете обжаловать решение.',
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+            keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -655,7 +663,13 @@ async def handle_simple_subscription_pay_with_balance(
 
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
 
-        await callback.message.edit_text(success_message, reply_markup=keyboard, parse_mode='HTML')
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_message,
+            keyboard=keyboard,
+            parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+        )
 
         # Отправляем уведомление админам
         try:
@@ -1101,7 +1115,13 @@ async def handle_simple_subscription_payment_method(
                 )
             else:
                 # Если QR-код недоступен, отправляем обычное текстовое сообщение
-                await callback.message.edit_text(message_text, reply_markup=keyboard, parse_mode='HTML')
+                await edit_or_answer_photo(
+                    callback=callback,
+                    caption=message_text,
+                    keyboard=keyboard,
+                    parse_mode='HTML',
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                )
 
             await state.clear()
             await callback.answer()
@@ -2403,7 +2423,13 @@ async def confirm_simple_subscription_purchase(
 
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
 
-        await callback.message.edit_text(success_message, reply_markup=keyboard, parse_mode='HTML')
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_message,
+            keyboard=keyboard,
+            parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+        )
 
         # Отправляем уведомление админам
         try:

@@ -89,6 +89,16 @@ async def activate_promocode_for_registration(
 _NO_SAVED_STATE = object()
 
 
+async def _answer_promo_result(message: types.Message, text: str, db: AsyncSession, language: str) -> None:
+    """Результат активации промокода с баннером раздела (если картинка задана)."""
+    media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE)
+    keyboard = get_back_keyboard(language)
+    if media_kwargs:
+        await message.answer_photo(media_kwargs['media'], caption=text, reply_markup=keyboard)
+    else:
+        await message.answer(text, reply_markup=keyboard)
+
+
 async def _restore_previous_state(state: FSMContext) -> None:
     """Восстанавливает FSM-состояние, которое было до входа в промокод-флоу."""
     data = await state.get_data()
@@ -110,12 +120,14 @@ async def process_promocode(message: types.Message, db_user: User, state: FSMCon
     code = message.text.strip()
 
     if not code:
-        await message.answer(
+        await _answer_promo_result(
+            message,
             texts.t(
                 'PROMOCODE_EMPTY_INPUT',
                 '❌ Введите корректный промокод',
             ),
-            reply_markup=get_back_keyboard(db_user.language),
+            db,
+            db_user.language,
         )
         return
 
@@ -123,30 +135,34 @@ async def process_promocode(message: types.Message, db_user: User, state: FSMCon
 
     # Валидация формата
     if not validate_promo_format(code):
-        await message.answer(texts.PROMOCODE_INVALID, reply_markup=get_back_keyboard(db_user.language))
+        await _answer_promo_result(message, texts.PROMOCODE_INVALID, db, db_user.language)
         return
 
     # Rate-limit на перебор
     if promo_limiter.is_blocked(message.from_user.id):
         cooldown = promo_limiter.get_block_cooldown(message.from_user.id)
-        await message.answer(
+        await _answer_promo_result(
+            message,
             texts.t(
                 'PROMO_RATE_LIMITED',
                 '⏳ Слишком много попыток. Попробуйте через {cooldown} сек.',
             ).format(cooldown=cooldown),
-            reply_markup=get_back_keyboard(db_user.language),
+            db,
+            db_user.language,
         )
         await _restore_previous_state(state)
         return
 
     # Лимит на стакинг (макс активаций в день)
     if not promo_limiter.can_activate(message.from_user.id):
-        await message.answer(
+        await _answer_promo_result(
+            message,
             texts.t(
                 'PROMO_DAILY_LIMIT',
                 '❌ Достигнут лимит активаций промокодов на сегодня. Попробуйте завтра.',
             ),
-            reply_markup=get_back_keyboard(db_user.language),
+            db,
+            db_user.language,
         )
         await _restore_previous_state(state)
         return
@@ -155,9 +171,11 @@ async def process_promocode(message: types.Message, db_user: User, state: FSMCon
 
     if result['success']:
         promo_limiter.record_activation(message.from_user.id)
-        await message.answer(
+        await _answer_promo_result(
+            message,
             texts.PROMOCODE_SUCCESS.format(description=result['description']),
-            reply_markup=get_back_keyboard(db_user.language),
+            db,
+            db_user.language,
         )
         await _restore_previous_state(state)
     elif result.get('error') == 'select_subscription':
@@ -231,7 +249,7 @@ async def process_promocode(message: types.Message, db_user: User, state: FSMCon
         }
 
         error_text = error_messages.get(result['error'], texts.PROMOCODE_INVALID)
-        await message.answer(error_text, reply_markup=get_back_keyboard(db_user.language))
+        await _answer_promo_result(message, error_text, db, db_user.language)
         await _restore_previous_state(state)
 
 
@@ -259,16 +277,23 @@ async def handle_promo_subscription_select(
 
         promo_limiter.record_activation(callback.from_user.id)
         if callback.message:
-            await callback.message.edit_text(
-                texts.PROMOCODE_SUCCESS.format(description=result['description']),
-                reply_markup=get_back_keyboard(db_user.language),
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.PROMOCODE_SUCCESS.format(description=result['description']),
+                keyboard=get_back_keyboard(db_user.language),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE),
             )
     else:
         error_text = texts.PROMOCODE_INVALID
         if result.get('error') == 'subscription_not_found':
             error_text = texts.t('PROMOCODE_SUBSCRIPTION_NOT_FOUND', '❌ Подписка не найдена')
         if callback.message:
-            await callback.message.edit_text(error_text, reply_markup=get_back_keyboard(db_user.language))
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=error_text,
+                keyboard=get_back_keyboard(db_user.language),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE),
+            )
     await callback.answer()
 
 

@@ -14,6 +14,7 @@ from app.database.crud.promo_offer_template import get_promo_offer_template_by_i
 from app.database.models import User
 from app.localization.texts import get_texts
 from app.services.promo_offer_service import promo_offer_service
+from app.services.section_image_service import SECTION_IMAGE_PROMOCODE, get_section_media_kwargs
 from app.utils.miniapp_buttons import build_miniapp_or_callback_button
 from app.utils.pricing_utils import (
     format_period_description,
@@ -212,7 +213,16 @@ async def claim_discount_offer(
                 ]
             ]
         )
-        await callback.message.answer(success_message, reply_markup=back_keyboard)
+        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE)
+        if media_kwargs:
+            await callback.message.answer_photo(
+                media_kwargs['media'],
+                caption=success_message,
+                reply_markup=back_keyboard,
+                parse_mode='HTML',
+            )
+        else:
+            await callback.message.answer(success_message, reply_markup=back_keyboard)
         return
 
     discount_percent = int(offer.discount_percent or 0)
@@ -373,7 +383,16 @@ async def claim_discount_offer(
             ]
         ]
     )
-    await callback.message.answer(success_message, reply_markup=buy_keyboard)
+    media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE)
+    if media_kwargs:
+        await callback.message.answer_photo(
+            media_kwargs['media'],
+            caption=success_message,
+            reply_markup=buy_keyboard,
+            parse_mode='HTML',
+        )
+    else:
+        await callback.message.answer(success_message, reply_markup=buy_keyboard)
 
 
 async def handle_promo_offer_close(

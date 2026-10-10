@@ -12,6 +12,12 @@ from app.external.telegram_stars import TelegramStarsService
 from app.localization.loader import DEFAULT_LANGUAGE
 from app.localization.texts import Texts, get_texts
 from app.services.payment_service import PaymentService
+from app.services.section_image_service import (
+    SECTION_IMAGE_MY_SUBSCRIPTIONS,
+    SECTION_IMAGE_TOPUP_SUCCESS,
+    SECTION_IMAGE_TRIAL,
+    get_section_media_kwargs,
+)
 
 
 logger = structlog.get_logger(__name__)
@@ -339,14 +345,22 @@ async def _handle_trial_payment(
             logger.warning('Ошибка отправки уведомления админам о триале', admin_error=admin_error)
 
         # Отправляем сообщение пользователю
-        await message.answer(
+        trial_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL)
+        trial_success_text = (
             f'🎉 <b>Пробная подписка активирована!</b>\n\n'
             f'⭐ Потрачено: {stars_amount} Stars\n'
             f'📅 Период: {settings.TRIAL_DURATION_DAYS} дней\n'
             f'📱 Устройств: {Texts.format_device_limit(subscription.device_limit)}\n\n'
-            f'Используйте меню для подключения к VPN.',
-            parse_mode='HTML',
+            f'Используйте меню для подключения к VPN.'
         )
+        if trial_media_kwargs:
+            await message.answer_photo(
+                trial_media_kwargs['media'],
+                caption=trial_success_text,
+                parse_mode='HTML',
+            )
+        else:
+            await message.answer(trial_success_text, parse_mode='HTML')
 
         logger.info(
             '✅ Платный триал активирован через Stars',
@@ -421,12 +435,20 @@ async def _handle_guest_purchase_payment(
         )
 
         if result is True:
-            await message.answer(
+            guest_success_text = (
                 '🎁 <b>Подарочная подписка успешно оплачена!</b>\n\n'
                 f'⭐ Потрачено: {stars_amount} Stars\n\n'
-                'Подарок будет доставлен получателю.',
-                parse_mode='HTML',
+                'Подарок будет доставлен получателю.'
             )
+            guest_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS)
+            if guest_media_kwargs:
+                await message.answer_photo(
+                    guest_media_kwargs['media'],
+                    caption=guest_success_text,
+                    parse_mode='HTML',
+                )
+            else:
+                await message.answer(guest_success_text, parse_mode='HTML')
             logger.info(
                 '✅ Guest purchase fulfilled via Stars',
                 user_id=user.id,
@@ -618,22 +640,32 @@ async def handle_successful_payment(message: types.Message, db: AsyncSession, st
 
             transaction_id_short = payment.telegram_payment_charge_id[:8]
 
-            await message.answer(
-                texts.t(
-                    'STARS_PAYMENT_SUCCESS',
-                    '🎉 <b>Платеж успешно обработан!</b>\n\n'
-                    '⭐ Потрачено звезд: {stars_spent}\n'
-                    '💰 Зачислено на баланс: {amount} ₽\n'
-                    '🆔 ID транзакции: {transaction_id}...\n\n'
-                    'Спасибо за пополнение! 🚀',
-                ).format(
-                    stars_spent=payment.total_amount,
-                    amount=amount_text,
-                    transaction_id=transaction_id_short,
-                ),
-                parse_mode='HTML',
-                reply_markup=keyboard,
+            topup_success_text = texts.t(
+                'STARS_PAYMENT_SUCCESS',
+                '🎉 <b>Платеж успешно обработан!</b>\n\n'
+                '⭐ Потрачено звезд: {stars_spent}\n'
+                '💰 Зачислено на баланс: {amount} ₽\n'
+                '🆔 ID транзакции: {transaction_id}...\n\n'
+                'Спасибо за пополнение! 🚀',
+            ).format(
+                stars_spent=payment.total_amount,
+                amount=amount_text,
+                transaction_id=transaction_id_short,
             )
+            topup_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TOPUP_SUCCESS)
+            if topup_media_kwargs:
+                await message.answer_photo(
+                    topup_media_kwargs['media'],
+                    caption=topup_success_text,
+                    parse_mode='HTML',
+                    reply_markup=keyboard,
+                )
+            else:
+                await message.answer(
+                    topup_success_text,
+                    parse_mode='HTML',
+                    reply_markup=keyboard,
+                )
 
             logger.info(
                 '✅ Stars платеж успешно обработан',

@@ -17,6 +17,8 @@ from app.services.payment_service import PaymentService
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
 
+from .topup_screen import answer_topup_screen
+
 
 logger = structlog.get_logger(__name__)
 
@@ -165,23 +167,25 @@ async def process_cloudpayments_payment_amount(
     # Validate amount
     if amount_kopeks < settings.CLOUDPAYMENTS_MIN_AMOUNT_KOPEKS:
         min_rub = settings.CLOUDPAYMENTS_MIN_AMOUNT_KOPEKS / 100
-        await message.answer(
+        await answer_topup_screen(
+            message,
             texts.t(
                 'AMOUNT_TOO_LOW',
                 'Минимальная сумма пополнения: {min_amount:.0f}₽',
             ).format(min_amount=min_rub),
-            reply_markup=get_back_keyboard(db_user.language),
+            db_user.language,
         )
         return
 
     if amount_kopeks > settings.CLOUDPAYMENTS_MAX_AMOUNT_KOPEKS:
         max_rub = settings.CLOUDPAYMENTS_MAX_AMOUNT_KOPEKS / 100
-        await message.answer(
+        await answer_topup_screen(
+            message,
             texts.t(
                 'AMOUNT_TOO_HIGH',
                 'Максимальная сумма пополнения: {max_amount:,.0f}₽',
             ).format(max_amount=max_rub),
-            reply_markup=get_back_keyboard(db_user.language),
+            db_user.language,
         )
         return
 

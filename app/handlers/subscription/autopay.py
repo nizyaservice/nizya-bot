@@ -26,12 +26,14 @@ from app.keyboards.inline import (
     get_traffic_packages_keyboard,
 )
 from app.localization.texts import get_texts
+from app.services.section_image_service import get_section_media_kwargs
 from app.services.subscription_checkout_service import (
     clear_subscription_checkout_draft,
 )
 from app.services.user_cart_service import user_cart_service
 from app.states import SubscriptionStates
 from app.utils.formatters import format_datetime
+from app.utils.photo_message import edit_or_answer_photo
 
 from .countries import (
     _build_countries_selection_text,
@@ -456,7 +458,14 @@ async def handle_sbp_recurring_menu(
         ]
     )
 
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
+    # Меню СБП-автопродления — подпункт subscription.autopay со своей картинкой.
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=text,
+        keyboard=keyboard,
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, 'subscription.autopay'),
+    )
     await callback.answer()
 
 
@@ -555,15 +564,18 @@ async def handle_sbp_recurring_enable(
         ]
     )
 
-    await callback.message.edit_text(
-        texts.t(
+    # Подтверждение в банке — подпункт subscription.autopay со своей картинкой.
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t(
             'SBP_RECURRING_ENABLE_SUCCESS',
             '⚡ <b>Автопродление через СБП</b>\n\n'
             'Подтвердите подключение в банковском приложении по кнопке ниже.\n'
             'После подтверждения автопродление станет активным.',
         ),
-        reply_markup=keyboard,
+        keyboard=keyboard,
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, 'subscription.autopay'),
     )
     await callback.answer()
 
@@ -605,14 +617,19 @@ async def handle_saved_cards_list(callback: types.CallbackQuery, db_user: User, 
     cards = await get_active_payment_methods_by_user(db, db_user.id)
 
     if not cards:
-        await callback.message.edit_text(
-            texts.t(
+        from app.utils.photo_message import edit_or_answer_photo
+        from app.services.section_image_service import get_section_media_kwargs
+
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t(
                 'SAVED_CARDS_EMPTY',
                 '💳 <b>Привязанные карты</b>\n\nНет привязанных карт.\n'
                 'Карта привяжется автоматически при следующем пополнении баланса.',
             ),
-            reply_markup=get_saved_cards_keyboard([], db_user.language),
+            keyboard=get_saved_cards_keyboard([], db_user.language),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, 'balance.cards'),
         )
     else:
         await callback.message.edit_text(
@@ -869,14 +886,17 @@ async def handle_cashera_recurring_enable(
             ]
         )
     buttons.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='subscription_autopay')])
-    await callback.message.edit_text(
-        texts.t(
+    # Подключение Cashera-автопродления — подпункт subscription.autopay.
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t(
             'CASHERA_RECURRING_ENABLE_SUCCESS',
             '⚡ <b>Автопродление Cashera</b>\n\nПодтвердите автосписания по кнопке ниже.\n'
             'После подтверждения и первого списания подписка продлится автоматически.',
         ),
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=buttons),
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=buttons),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, 'subscription.autopay'),
     )
     await callback.answer()
 

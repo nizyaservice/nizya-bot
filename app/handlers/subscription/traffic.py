@@ -25,10 +25,12 @@ from app.keyboards.inline import (
 from app.localization.texts import get_texts
 from app.services.pricing_engine import PricingEngine
 from app.services.remnawave_service import RemnaWaveService
+from app.services.section_image_service import SECTION_IMAGE_MY_SUBSCRIPTIONS, get_section_media_kwargs
 from app.services.subscription_service import SubscriptionService
 from app.services.user_cart_service import user_cart_service
 from app.states import SubscriptionStates
 from app.utils.legacy_subscription import is_legacy_subscription
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.pricing_utils import (
     calculate_prorated_price,
 )
@@ -158,9 +160,10 @@ async def handle_add_traffic(callback: types.CallbackQuery, db_user: User, db: A
             ),
         ).format(current_traffic=texts.format_traffic(current_traffic))
 
-        await callback.message.edit_text(
-            prompt_text,
-            reply_markup=get_add_traffic_keyboard_from_tariff(
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=prompt_text,
+            keyboard=get_add_traffic_keyboard_from_tariff(
                 db_user.language,
                 packages,
                 subscription.end_date,
@@ -168,6 +171,9 @@ async def handle_add_traffic(callback: types.CallbackQuery, db_user: User, db: A
                 sub_id=sub_id,
             ),
             parse_mode='HTML',
+            # Пикер докупки трафика — подпункт subscription.traffic
+            # (пустой пикер без кнопок add_traffic_* детектится в корень подписок).
+            **await get_section_media_kwargs(db, 'subscription.traffic'),
         )
 
         await callback.answer()
@@ -207,15 +213,18 @@ async def handle_add_traffic(callback: types.CallbackQuery, db_user: User, db: A
         ('📈 <b>Добавить трафик к подписке</b>\n\nТекущий лимит: {current_traffic}\nВыберите дополнительный трафик:'),
     ).format(current_traffic=texts.format_traffic(current_traffic))
 
-    await callback.message.edit_text(
-        prompt_text,
-        reply_markup=get_add_traffic_keyboard(
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=prompt_text,
+        keyboard=get_add_traffic_keyboard(
             db_user.language,
             subscription.end_date,
             traffic_discount_percent,
             sub_id=sub_id,
         ),
         parse_mode='HTML',
+        # Пикер докупки трафика — подпункт subscription.traffic (см. ветку тарифов выше).
+        **await get_section_media_kwargs(db, 'subscription.traffic'),
     )
 
     await callback.answer()
@@ -430,11 +439,13 @@ async def confirm_reset_traffic(
         await db.refresh(db_user)
         await db.refresh(subscription)
 
-        await callback.message.edit_text(
-            f'✅ Трафик успешно сброшен!\n\n'
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=f'✅ Трафик успешно сброшен!\n\n'
             f'🔄 Использованный трафик обнулен\n'
             f'📊 Лимит: {texts.format_traffic(subscription.traffic_limit_gb)}',
-            reply_markup=get_back_keyboard(db_user.language),
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, 'subscription.traffic'),
         )
 
         logger.info('✅ Пользователь сбросил трафик', telegram_id=db_user.telegram_id)
@@ -742,7 +753,12 @@ async def add_traffic(callback: types.CallbackQuery, db_user: User, db: AsyncSes
             if total_discount_value > 0:
                 success_text += f' (скидка {traffic_discount_pct}%: -{texts.format_price(total_discount_value)})'
 
-        await callback.message.edit_text(success_text, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_text,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, 'subscription.traffic'),
+        )
 
         logger.info('✅ Пользователь добавил ГБ трафика', telegram_id=db_user.telegram_id, traffic_gb=traffic_gb)
 
@@ -1040,7 +1056,12 @@ async def execute_switch_traffic(
             success_text += f'Стало: {texts.format_traffic(new_traffic_gb)}\n'
             success_text += 'ℹ️ Возврат средств не производится'
 
-        await callback.message.edit_text(success_text, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=success_text,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, 'subscription.traffic'),
+        )
 
         logger.info(
             '✅ Пользователь переключил трафик с на доплата: ₽',

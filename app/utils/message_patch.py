@@ -20,12 +20,12 @@ logger = structlog.get_logger(__name__)
 async def _auto_section_media(reply_markup) -> str | None:
     """Автодетект секции по клавиатуре: file_id баннера раздела или None."""
     try:
-        from app.services.section_image_service import get_cached_section_file_id
+        from app.services.section_image_service import resolve_cached_section_file_id
         from app.utils.menu_section_detect import detect_section_key
 
         section_key = detect_section_key(reply_markup)
         if section_key:
-            return await get_cached_section_file_id(section_key)
+            return await resolve_cached_section_file_id(section_key)
     except Exception:
         pass
     return None

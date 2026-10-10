@@ -41,7 +41,13 @@ from app.localization.texts import Texts, get_texts
 from app.services.admin_notification_service import AdminNotificationService
 from app.services.pricing_engine import pricing_engine
 from app.services.remnawave_service import RemnaWaveConfigurationError
-from app.services.section_image_service import SECTION_IMAGE_TRIAL, get_section_media_kwargs
+from app.services.section_image_service import (
+    SECTION_IMAGE_MY_SUBSCRIPTIONS,
+    SECTION_IMAGE_SUBSCRIPTION_PURCHASE,
+    SECTION_IMAGE_SUBSCRIPTION_SUCCESS,
+    SECTION_IMAGE_TRIAL,
+    get_section_media_kwargs,
+)
 from app.services.subscription_auto_purchase_service import ADDON_CART_MODES
 from app.services.subscription_checkout_service import (
     clear_subscription_checkout_draft,
@@ -217,9 +223,12 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
     subscription = db_user.subscription
 
     if not subscription:
-        await callback.message.edit_text(
-            texts.SUBSCRIPTION_NONE,
-            reply_markup=get_subscription_keyboard(db_user.language, has_subscription=False, gift_enabled=gift_enabled),
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.SUBSCRIPTION_NONE,
+            keyboard=get_subscription_keyboard(db_user.language, has_subscription=False, gift_enabled=gift_enabled),
+            parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
         )
         await callback.answer()
         return
@@ -575,9 +584,10 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
             '📱 Скопируйте ссылку и добавьте в ваше VPN приложение',
         )
 
-    await callback.message.edit_text(
-        message,
-        reply_markup=get_subscription_keyboard(
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message,
+        keyboard=get_subscription_keyboard(
             db_user.language,
             has_subscription=True,
             is_trial=subscription.is_trial,
@@ -585,6 +595,7 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
             gift_enabled=gift_enabled,
         ),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
     )
     await callback.answer()
 
@@ -601,9 +612,11 @@ async def show_trial_offer(callback: types.CallbackQuery, db_user: User, db: Asy
     if settings.TRIAL_DURATION_DAYS <= 0 or settings.is_trial_disabled_for_user(
         getattr(db_user, 'auth_type', 'telegram')
     ):
-        await callback.message.edit_text(
-            texts.t('TRIAL_DISABLED_FOR_USER_TYPE', 'Пробный период недоступен'),
-            reply_markup=get_back_keyboard(db_user.language),
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t('TRIAL_DISABLED_FOR_USER_TYPE', 'Пробный период недоступен'),
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
         )
         await callback.answer()
         return
@@ -614,7 +627,12 @@ async def show_trial_offer(callback: types.CallbackQuery, db_user: User, db: Asy
     # subscription. In multi-tariff mode a user can have multiple subscriptions, but
     # trial eligibility is still "has any subscription" so this check is correct.
     if db_user.is_trial_already_used():
-        await callback.message.edit_text(texts.TRIAL_ALREADY_USED, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.TRIAL_ALREADY_USED,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
+        )
         await callback.answer()
         return
 
@@ -790,10 +808,12 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
             keyboard.append([types.InlineKeyboardButton(text='🆘 Обжаловать', url=support_url)])
         keyboard.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='subscription')])
 
-        await callback.message.edit_text(
-            f'🚫 <b>Активация подписки ограничена</b>\n\n{reason}\n\n'
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=f'🚫 <b>Активация подписки ограничена</b>\n\n{reason}\n\n'
             'Если вы считаете это ошибкой, вы можете обжаловать решение.',
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+            keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
         )
         await callback.answer()
         return
@@ -802,9 +822,11 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
     if settings.TRIAL_DURATION_DAYS <= 0 or settings.is_trial_disabled_for_user(
         getattr(db_user, 'auth_type', 'telegram')
     ):
-        await callback.message.edit_text(
-            texts.t('TRIAL_DISABLED_FOR_USER_TYPE', 'Пробный период недоступен'),
-            reply_markup=get_back_keyboard(db_user.language),
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t('TRIAL_DISABLED_FOR_USER_TYPE', 'Пробный период недоступен'),
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
         )
         await callback.answer()
         return
@@ -814,7 +836,12 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
     # Multi-tariff note: db_user.subscription returns the first active/most recent
     # subscription. Trial eligibility is "has any subscription" so this check is correct.
     if db_user.is_trial_already_used():
-        await callback.message.edit_text(texts.TRIAL_ALREADY_USED, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.TRIAL_ALREADY_USED,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
+        )
         await callback.answer()
         return
 
@@ -1047,9 +1074,11 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
                     'Не удалось завершить активацию триала. Средства возвращены на баланс. Попробуйте позже.',
                 )
 
-            await callback.message.edit_text(
-                failure_text,
-                reply_markup=get_back_keyboard(db_user.language),
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=failure_text,
+                keyboard=get_back_keyboard(db_user.language),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
             await callback.answer()
             return
@@ -1082,9 +1111,11 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
                     'Не удалось завершить активацию триала. Средства возвращены на баланс. Попробуйте позже.',
                 )
 
-            await callback.message.edit_text(
-                failure_text,
-                reply_markup=get_back_keyboard(db_user.language),
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=failure_text,
+                keyboard=get_back_keyboard(db_user.language),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
             await callback.answer()
             return
@@ -1259,17 +1290,21 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
                     ]
                 )
 
-            await callback.message.edit_text(
-                trial_success_text,
-                reply_markup=connect_keyboard,
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=trial_success_text,
+                keyboard=connect_keyboard,
                 parse_mode='HTML',
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
         else:
             trial_success_text = f"{texts.TRIAL_ACTIVATED}\n\n⚠️ Ссылка генерируется, попробуйте перейти в раздел 'Моя подписка' через несколько секунд."
             trial_success_text += payment_note
-            await callback.message.edit_text(
-                trial_success_text,
-                reply_markup=get_back_keyboard(db_user.language),
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=trial_success_text,
+                keyboard=get_back_keyboard(db_user.language),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
 
         logger.info('✅ Активирована тестовая подписка для пользователя', telegram_id=db_user.telegram_id)
@@ -1302,7 +1337,12 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
                     'Не удалось завершить активацию триала. Средства возвращены на баланс. Попробуйте позже.',
                 )
 
-        await callback.message.edit_text(failure_text, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=failure_text,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
+        )
         await callback.answer()
         return
 
@@ -1713,12 +1753,13 @@ async def handle_extend_subscription(
 
     if settings.is_tariffs_mode():
         # У подписки нет тарифа, но режим тарифов включён - предлагаем выбрать тариф
-        await callback.message.edit_text(
-            '📦 <b>Выберите тариф для продления</b>\n\n'
+        await edit_or_answer_photo(
+            callback=callback,
+            caption='📦 <b>Выберите тариф для продления</b>\n\n'
             'Ваша текущая подписка была создана до введения тарифов.\n'
             'Для продления необходимо выбрать один из доступных тарифов.\n\n'
             '⚠️ Ваша текущая подписка продолжит действовать до окончания срока.',
-            reply_markup=types.InlineKeyboardMarkup(
+            keyboard=types.InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
                         types.InlineKeyboardButton(
@@ -1730,6 +1771,7 @@ async def handle_extend_subscription(
                 ]
             ),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -1849,10 +1891,13 @@ async def handle_extend_subscription(
 
     message_text += '💡 <i>Цена включает все ваши текущие серверы и настройки</i>'
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=get_extend_subscription_keyboard_with_prices(db_user.language, renewal_prices),
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=get_extend_subscription_keyboard_with_prices(db_user.language, renewal_prices),
         parse_mode='HTML',
+        # Экран продления — подпункт subscription.extend со своей картинкой.
+        **await get_section_media_kwargs(db, 'subscription.extend'),
     )
 
     await callback.answer()
@@ -2043,7 +2088,13 @@ async def confirm_extend_subscription(
     if promo_offer_discount > 0:
         success_message += f' (включая доп. скидку {offer_pct}%: -{texts.format_price(promo_offer_discount)})'
 
-    await callback.message.edit_text(success_message, reply_markup=get_back_keyboard(db_user.language))
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=success_message,
+        keyboard=get_back_keyboard(db_user.language),
+        # Экран продления — подпункт subscription.extend со своей картинкой.
+        **await get_section_media_kwargs(db, 'subscription.extend'),
+    )
 
     logger.info(
         '✅ Пользователь продлил подписку на дней за ₽',
@@ -2091,8 +2142,11 @@ async def select_period(callback: types.CallbackQuery, state: FSMContext, db_use
             await callback.answer('⚠️ Пакеты трафика не настроены', show_alert=True)
             return
 
-        await callback.message.edit_text(
-            texts.SELECT_TRAFFIC, reply_markup=get_traffic_packages_keyboard(db_user.language)
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.SELECT_TRAFFIC,
+            keyboard=get_traffic_packages_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await state.set_state(SubscriptionStates.selecting_traffic)
         await callback.answer()
@@ -2106,10 +2160,12 @@ async def select_period(callback: types.CallbackQuery, state: FSMContext, db_use
         await state.set_data(data)
         # Формируем текст с описаниями сквадов
         selection_text = _build_countries_selection_text(countries, texts.SELECT_COUNTRIES)
-        await callback.message.edit_text(
-            selection_text,
-            reply_markup=get_countries_keyboard(countries, preselected, db_user.language),
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=selection_text,
+            keyboard=get_countries_keyboard(countries, preselected, db_user.language),
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await state.set_state(SubscriptionStates.selecting_countries)
         await callback.answer()
@@ -2123,8 +2179,11 @@ async def select_period(callback: types.CallbackQuery, state: FSMContext, db_use
     if settings.is_devices_selection_enabled():
         selected_devices = data.get('devices', settings.DEFAULT_DEVICE_LIMIT)
 
-        await callback.message.edit_text(
-            texts.SELECT_DEVICES, reply_markup=get_devices_keyboard(selected_devices, db_user.language)
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.SELECT_DEVICES,
+            keyboard=get_devices_keyboard(selected_devices, db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await state.set_state(SubscriptionStates.selecting_devices)
         await callback.answer()
@@ -2211,10 +2270,12 @@ async def confirm_purchase(callback: types.CallbackQuery, state: FSMContext, db_
             keyboard.append([types.InlineKeyboardButton(text='🆘 Обжаловать', url=support_url)])
         keyboard.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='subscription')])
 
-        await callback.message.edit_text(
-            f'🚫 <b>Покупка/продление подписки ограничено</b>\n\n{reason}\n\n'
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=f'🚫 <b>Покупка/продление подписки ограничено</b>\n\n{reason}\n\n'
             'Если вы считаете это ошибкой, вы можете обжаловать решение.',
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+            keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -2227,9 +2288,11 @@ async def confirm_purchase(callback: types.CallbackQuery, state: FSMContext, db_
 
     period_days = data.get('period_days')
     if period_days is None:
-        await callback.message.edit_text(
-            texts.t('SUBSCRIPTION_PURCHASE_ERROR', 'Ошибка при оформлении подписки. Попробуйте начать сначала.'),
-            reply_markup=get_back_keyboard(db_user.language),
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.t('SUBSCRIPTION_PURCHASE_ERROR', 'Ошибка при оформлении подписки. Попробуйте начать сначала.'),
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
         )
         await callback.answer()
         return
@@ -2832,17 +2895,25 @@ async def confirm_purchase(callback: types.CallbackQuery, state: FSMContext, db_
                     ]
                 )
 
-            await callback.message.edit_text(success_text, reply_markup=connect_keyboard, parse_mode='HTML')
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=success_text,
+                keyboard=connect_keyboard,
+                parse_mode='HTML',
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+            )
         else:
             purchase_text = texts.SUBSCRIPTION_PURCHASED
             if discount_note:
                 purchase_text = f'{purchase_text}\n\n{discount_note}'
-            await callback.message.edit_text(
-                texts.t(
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t(
                     'SUBSCRIPTION_LINK_GENERATING_NOTICE',
                     "{purchase_text}\n\nСсылка генерируется, перейдите в раздел 'Моя подписка' через несколько секунд.",
                 ).format(purchase_text=purchase_text),
-                reply_markup=get_back_keyboard(db_user.language),
+                keyboard=get_back_keyboard(db_user.language),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
             )
 
         purchase_completed = True
@@ -2855,7 +2926,12 @@ async def confirm_purchase(callback: types.CallbackQuery, state: FSMContext, db_
 
     except Exception as e:
         logger.error('Ошибка покупки подписки', error=e)
-        await callback.message.edit_text(texts.ERROR, reply_markup=get_back_keyboard(db_user.language))
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=texts.ERROR,
+            keyboard=get_back_keyboard(db_user.language),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+        )
 
     if purchase_completed:
         await clear_subscription_checkout_draft(db_user.id)
@@ -3529,19 +3605,23 @@ async def handle_trial_pay_with_balance(callback: types.CallbackQuery, db_user: 
             connect_mode = settings.CONNECT_BUTTON_MODE
             connect_keyboard = _build_trial_success_keyboard(texts, subscription_link, connect_mode)
 
-            await callback.message.edit_text(
-                trial_success_text,
-                reply_markup=connect_keyboard,
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=trial_success_text,
+                keyboard=connect_keyboard,
                 parse_mode='HTML',
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
         else:
             trial_success_text = f"{texts.TRIAL_ACTIVATED}\n\n⚠️ Ссылка генерируется, попробуйте перейти в раздел 'Моя подписка' через несколько секунд."
             trial_success_text += payment_note
 
-            await callback.message.edit_text(
-                trial_success_text,
-                reply_markup=get_back_keyboard(db_user.language),
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=trial_success_text,
+                keyboard=get_back_keyboard(db_user.language),
                 parse_mode='HTML',
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
 
         await callback.answer()
@@ -3793,14 +3873,16 @@ async def handle_trial_payment_method(callback: types.CallbackQuery, db_user: Us
                 ],
             )
 
-            await callback.message.edit_text(
-                texts.t(
+            await edit_or_answer_photo(
+                callback=callback,
+                caption=texts.t(
                     'PAID_TRIAL_STARS_WAITING',
                     '⭐ Для оплаты пробной подписки нажмите кнопку оплаты в сообщении выше.\n\n'
                     'После успешной оплаты подписка будет активирована автоматически.',
                 ),
-                reply_markup=get_back_keyboard(db_user.language),
+                keyboard=get_back_keyboard(db_user.language),
                 parse_mode='HTML',
+                **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
             )
 
         elif payment_method == 'yookassa_sbp':
@@ -4769,7 +4851,13 @@ async def _extend_existing_subscription(
     if current_subscription.is_trial:
         success_message += '\n🎯 Триальная подписка преобразована в платную'
 
-    await callback.message.edit_text(success_message, reply_markup=get_back_keyboard(db_user.language))
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=success_message,
+        keyboard=get_back_keyboard(db_user.language),
+        # Экран продления — подпункт subscription.extend со своей картинкой.
+        **await get_section_media_kwargs(db, 'subscription.extend'),
+    )
 
     logger.info(
         '✅ Пользователь продлил подписку на дней за ₽',
