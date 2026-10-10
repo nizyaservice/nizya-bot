@@ -41,6 +41,7 @@ from app.localization.texts import Texts, get_texts
 from app.services.admin_notification_service import AdminNotificationService
 from app.services.pricing_engine import pricing_engine
 from app.services.remnawave_service import RemnaWaveConfigurationError
+from app.services.section_image_service import SECTION_IMAGE_TRIAL, get_section_media_kwargs
 from app.services.subscription_auto_purchase_service import ADDON_CART_MODES
 from app.services.subscription_checkout_service import (
     clear_subscription_checkout_draft,
@@ -59,6 +60,7 @@ from app.services.trial_activation_service import (
 from app.services.user_cart_service import user_cart_service
 from app.utils.decorators import error_handler
 from app.utils.legacy_subscription import is_legacy_subscription as _legacy_subscription
+from app.utils.photo_message import edit_or_answer_photo
 
 
 logger = structlog.get_logger(__name__)
@@ -709,7 +711,13 @@ async def show_trial_offer(callback: types.CallbackQuery, db_user: User, db: Asy
         price_line=price_line,
     )
 
-    await callback.message.edit_text(trial_text, reply_markup=get_trial_keyboard(db_user.language))
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=trial_text,
+        keyboard=get_trial_keyboard(db_user.language),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL),
+    )
     await callback.answer()
 
 

@@ -29,6 +29,16 @@ from app.services.faq_service import FaqService
 from app.services.main_menu_button_service import MainMenuButtonService
 from app.services.privacy_policy_service import PrivacyPolicyService
 from app.services.public_offer_service import PublicOfferService
+from app.services.section_image_service import (
+    SECTION_IMAGE_FAQ,
+    SECTION_IMAGE_INFO,
+    SECTION_IMAGE_LANGUAGE,
+    SECTION_IMAGE_MAIN_MENU,
+    SECTION_IMAGE_PRIVACY_POLICY,
+    SECTION_IMAGE_PUBLIC_OFFER,
+    SECTION_IMAGE_RULES,
+    get_section_media_kwargs,
+)
 from app.services.subscription_checkout_service import (
     has_subscription_checkout_draft,
     should_offer_checkout_resume,
@@ -257,6 +267,7 @@ async def show_main_menu(
             caption=menu_text,
             keyboard=keyboard,
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU),
         )
     if not skip_callback_answer:
         await callback.answer()
@@ -351,9 +362,12 @@ async def show_service_rules(callback: types.CallbackQuery, db_user: User, db: A
 
     keyboard_rows.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='back_to_menu')])
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_RULES),
     )
     await callback.answer()
 
@@ -409,6 +423,7 @@ async def show_info_menu(
             custom_pages=custom_pages,
         ),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
     )
     await callback.answer()
 
@@ -446,10 +461,12 @@ async def show_promo_groups_info(
         header = texts.t('PROMO_GROUPS_INFO_HEADER', '🎯 <b>Промогруппы</b>')
         message = f'{header}\n\n{empty_text}' if empty_text else header
 
-        await callback.message.edit_text(
-            message,
-            reply_markup=keyboard,
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=message,
+            keyboard=keyboard,
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
         )
         await callback.answer()
         return
@@ -553,10 +570,12 @@ async def show_promo_groups_info(
 
     message_text = '\n'.join(lines)
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=keyboard,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=keyboard,
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
     )
     await callback.answer()
 
@@ -617,10 +636,12 @@ async def show_faq_pages(
 
     buttons.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_info')])
 
-    await callback.message.edit_text(
-        caption,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=buttons),
-        disable_web_page_preview=settings.DISABLE_WEB_PAGE_PREVIEW,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=caption,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=buttons),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_FAQ),
     )
     await callback.answer()
 
@@ -764,10 +785,12 @@ async def show_faq_page(
     )
     keyboard_rows.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_info')])
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
-        disable_web_page_preview=settings.DISABLE_WEB_PAGE_PREVIEW,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_FAQ),
     )
     await callback.answer()
 
@@ -888,10 +911,12 @@ async def show_privacy_policy(
 
     keyboard_rows.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_info')])
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
-        disable_web_page_preview=settings.DISABLE_WEB_PAGE_PREVIEW,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_PRIVACY_POLICY),
     )
     await callback.answer()
 
@@ -1012,10 +1037,12 @@ async def show_public_offer(
 
     keyboard_rows.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_info')])
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
-        disable_web_page_preview=settings.DISABLE_WEB_PAGE_PREVIEW,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_PUBLIC_OFFER),
     )
     await callback.answer()
 
@@ -1109,10 +1136,12 @@ async def show_info_page(
 
     keyboard_rows.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_info')])
 
-    await callback.message.edit_text(
-        message_text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
-        disable_web_page_preview=settings.DISABLE_WEB_PAGE_PREVIEW,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message_text,
+        keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
     )
     await callback.answer()
 
@@ -1155,6 +1184,7 @@ async def show_language_menu(
             language=db_user.language,
         ),
         parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_LANGUAGE),
     )
     await callback.answer()
 
@@ -1251,6 +1281,7 @@ async def handle_back_to_menu(callback: types.CallbackQuery, state: FSMContext, 
             caption=menu_text,
             keyboard=keyboard,
             parse_mode='HTML',
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU),
         )
     await callback.answer()
 

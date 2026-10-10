@@ -3,16 +3,19 @@ from datetime import UTC, datetime
 
 import structlog
 from aiogram import Dispatcher, F, types
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.models import User
 from app.keyboards.inline import get_server_status_keyboard
 from app.localization.texts import get_texts
+from app.services.section_image_service import SECTION_IMAGE_SERVER_STATUS, get_section_media_kwargs
 from app.services.server_status_service import (
     ServerStatusEntry,
     ServerStatusError,
     ServerStatusService,
 )
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.timezone import format_local_datetime
 
 
@@ -21,23 +24,24 @@ logger = structlog.get_logger(__name__)
 _status_service = ServerStatusService()
 
 
-async def show_server_status(callback: types.CallbackQuery, db_user: User) -> None:
-    await _render_server_status(callback, db_user, page=1)
+async def show_server_status(callback: types.CallbackQuery, db_user: User, db: AsyncSession) -> None:
+    await _render_server_status(callback, db_user, db, page=1)
 
 
-async def change_server_status_page(callback: types.CallbackQuery, db_user: User) -> None:
+async def change_server_status_page(callback: types.CallbackQuery, db_user: User, db: AsyncSession) -> None:
     try:
         _, page_str = callback.data.split(':', 1)
         page = int(page_str)
     except (ValueError, AttributeError, IndexError):
         page = 1
 
-    await _render_server_status(callback, db_user, page=page)
+    await _render_server_status(callback, db_user, db, page=page)
 
 
 async def _render_server_status(
     callback: types.CallbackQuery,
     db_user: User,
+    db: AsyncSession,
     page: int = 1,
 ) -> None:
     texts = get_texts(db_user.language)
@@ -66,10 +70,12 @@ async def _render_server_status(
     message, total_pages, current_page = _build_status_message(servers, texts, page)
     keyboard = get_server_status_keyboard(db_user.language, current_page, total_pages)
 
-    await callback.message.edit_text(
-        message,
-        reply_markup=keyboard,
-        disable_web_page_preview=True,
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=message,
+        keyboard=keyboard,
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SERVER_STATUS),
     )
     await callback.answer()
 

@@ -51,6 +51,7 @@ from app.handlers.admin import (
     reports as admin_reports,
     required_channels as admin_required_channels,
     rules as admin_rules,
+    section_images as admin_section_images,
     servers as admin_servers,
     statistics as admin_statistics,
     subscriptions as admin_subscriptions,
@@ -203,6 +204,7 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
     admin_promocodes.register_handlers(dp)
     admin_messages.register_handlers(dp)
     admin_monitoring.register_handlers(dp)
+    admin_section_images.register_handlers(dp)
     admin_referrals.register_handlers(dp)
     admin_referral_levels.register_handlers(dp)
     admin_rules.register_handlers(dp)

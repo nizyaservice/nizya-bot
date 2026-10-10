@@ -19,6 +19,7 @@ from app.localization.texts import get_texts
 from app.services.admin_notification_service import AdminNotificationService, NotificationCategory
 from app.services.referral_reward_service import format_reward_total
 from app.services.referral_withdrawal_service import referral_withdrawal_service
+from app.services.section_image_service import SECTION_IMAGE_REFERRALS, get_section_media_kwargs
 from app.states import ReferralWithdrawalStates
 from app.utils.photo_message import edit_or_answer_photo
 from app.utils.user_utils import (
@@ -348,6 +349,7 @@ async def show_referral_info(callback: types.CallbackQuery, db_user: User, db: A
         callback,
         referral_text,
         get_referral_keyboard(db_user.language),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_REFERRALS),
     )
     await callback.answer()
 

@@ -69,6 +69,7 @@ class AdminStates(StatesGroup):
     adding_traffic = State()
     granting_subscription = State()
     editing_user_subscription = State()
+    editing_section_image = State()
     editing_user_restriction_reason = State()
 
     creating_promocode = State()

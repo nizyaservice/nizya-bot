@@ -6,6 +6,7 @@
 # Конфигурация проекта
 !.dockerignore
 !.env.example
+!.env.aperturu.example
 !.gitignore
 !.python-version
 !Dockerfile
@@ -52,6 +53,10 @@
 !locales/**
 !.github/
 !.github/**
+
+# ApertuRU: исходники секционных баннеров меню
+!menu_images/
+!menu_images/**
 
 # ========== BLACKLIST: игнорируемые внутри папок ==========
 

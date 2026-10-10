@@ -27,6 +27,7 @@ from app.localization.texts import Texts, get_texts
 from app.services.admin_notification_service import AdminNotificationService
 from app.services.panel_sync import should_create_panel_account
 from app.services.subscription_service import SubscriptionService
+from app.services.section_image_service import SECTION_IMAGE_SUBSCRIPTION_PURCHASE, get_section_media_kwargs
 from app.services.tariff_switch_policy import remaining_days_for_switch, should_reset_used_traffic
 from app.services.user_cart_service import user_cart_service
 from app.utils.decorators import error_handler
@@ -901,9 +902,14 @@ async def show_tariffs_list(
     # Формируем текст со списком тарифов и их характеристиками
     tariffs_text = format_tariffs_list_text(tariffs, db_user, has_period_discounts, purchased_tariff_ids)
 
-    await callback.message.edit_text(
-        tariffs_text,
-        reply_markup=get_tariffs_keyboard(tariffs, db_user.language, purchased_tariff_ids),
+    from app.utils.photo_message import edit_or_answer_photo
+
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=tariffs_text,
+        keyboard=get_tariffs_keyboard(tariffs, db_user.language, purchased_tariff_ids),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
     )
 
     await callback.answer()

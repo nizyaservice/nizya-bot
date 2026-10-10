@@ -16,6 +16,20 @@ from app.utils.logo_fingerprint import logo_fingerprint
 
 logger = structlog.get_logger(__name__)
 
+
+async def _auto_section_media(reply_markup) -> str | None:
+    """Автодетект секции по клавиатуре: file_id баннера раздела или None."""
+    try:
+        from app.services.section_image_service import get_cached_section_file_id
+        from app.utils.menu_section_detect import detect_section_key
+
+        section_key = detect_section_key(reply_markup)
+        if section_key:
+            return await get_cached_section_file_id(section_key)
+    except Exception:
+        pass
+    return None
+
 LOGO_PATH = Path(settings.LOGO_FILE)
 
 
@@ -305,9 +319,14 @@ async def _answer_with_photo(self: Message, text: str = None, **kwargs):
         pass
     language = _get_language(self)
 
+    section_media = await _auto_section_media(kwargs.get('reply_markup'))
     if LOGO_PATH.exists():  # noqa: ASYNC240 — stat локального файла, один системный вызов
         try:
-            result = await self.answer_photo(get_logo_media(), caption=text, **kwargs)
+            result = await self.answer_photo(
+                section_media if section_media is not None else get_logo_media(),
+                caption=text,
+                **kwargs,
+            )
             _cache_logo_file_id(result)
             return result
         except TelegramBadRequest as error:
@@ -385,7 +404,9 @@ async def _edit_with_photo(self: Message, text: str, **kwargs):
         except Exception:
             pass
         if LOGO_PATH.exists():  # noqa: ASYNC240 — stat локального файла, один системный вызов
-            media = get_logo_media()
+            media = await _auto_section_media(kwargs.get('reply_markup'))
+            if media is None:
+                media = get_logo_media()
         else:
             media = self.photo[-1].file_id
         media_kwargs = {'media': media, 'caption': text}

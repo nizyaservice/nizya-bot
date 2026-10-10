@@ -19,6 +19,12 @@ from app.database.crud.subscription import (
 )
 from app.database.models import Subscription, SubscriptionStatus, User
 from app.localization.texts import Texts, get_texts
+from app.services.section_image_service import (
+    SECTION_IMAGE_ACTIVE_SUBSCRIPTION,
+    SECTION_IMAGE_MY_SUBSCRIPTIONS,
+    resolve_section_image_file_id,
+)
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.legacy_subscription import is_legacy_subscription
 from app.utils.timezone import format_local_datetime
 
@@ -202,7 +208,17 @@ async def show_my_subscriptions(
         keyboard = _build_subscriptions_keyboard(subscriptions, db_user.language, gift_enabled=gift_enabled)
 
     if callback.message:
-        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
+        media_kwargs = {}
+        file_id = await resolve_section_image_file_id(db, SECTION_IMAGE_MY_SUBSCRIPTIONS)
+        if file_id:
+            media_kwargs['media'] = file_id
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=text,
+            keyboard=keyboard,
+            parse_mode='HTML',
+            **media_kwargs,
+        )
     await callback.answer()
 
 
@@ -255,7 +271,21 @@ async def show_subscription_detail(
     keyboard = _build_subscription_detail_keyboard(sub_id, sub=subscription)
 
     if callback.message:
-        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
+        media_kwargs = {}
+        file_id = await resolve_section_image_file_id(
+            db,
+            SECTION_IMAGE_ACTIVE_SUBSCRIPTION,
+            fallback_keys=(SECTION_IMAGE_MY_SUBSCRIPTIONS,),
+        )
+        if file_id:
+            media_kwargs['media'] = file_id
+        await edit_or_answer_photo(
+            callback=callback,
+            caption=text,
+            keyboard=keyboard,
+            parse_mode='HTML',
+            **media_kwargs,
+        )
     await callback.answer()
 
 

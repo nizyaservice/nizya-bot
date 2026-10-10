@@ -24,9 +24,28 @@ logger = structlog.get_logger(__name__)
 
 MAX_RETRIES = 3
 RETRY_DELAY = 0.5
+_MEDIA_UNSET = object()
 
 
-def _resolve_media(message: types.Message):
+async def _auto_section_media(keyboard) -> object:
+    """Если по клавиатуре распознаётся секция с загруженной картинкой — её file_id."""
+    from app.services.section_image_service import get_cached_section_file_id
+    from app.utils.menu_section_detect import detect_section_key
+
+    try:
+        section_key = detect_section_key(keyboard)
+        if section_key:
+            file_id = await get_cached_section_file_id(section_key)
+            if file_id:
+                return file_id
+    except Exception:
+        pass
+    return _MEDIA_UNSET
+
+
+def _resolve_media(message: types.Message, media=_MEDIA_UNSET):
+    if media is not _MEDIA_UNSET:
+        return media
     if isinstance(message, InaccessibleMessage):
         return get_logo_media()
     if settings.ENABLE_LOGO_MODE and not is_qr_message(message):
@@ -113,20 +132,31 @@ async def edit_or_answer_photo(
     parse_mode: str | None = 'HTML',
     *,
     force_text: bool = False,
+    media=_MEDIA_UNSET,
 ) -> None:
     resolved_parse_mode = parse_mode or 'HTML'
+    has_explicit_media = media is not _MEDIA_UNSET
+
+    # Автодетект секции по клавиатуре: подменю inherits баннер своего раздела
+    if not has_explicit_media and settings.ENABLE_LOGO_MODE:
+        auto_media = await _auto_section_media(keyboard)
+        if auto_media is not _MEDIA_UNSET:
+            media = auto_media
+            has_explicit_media = True
 
     # Если сообщение недоступно, отправляем новое сообщение
     if isinstance(callback.message, InaccessibleMessage):
         try:
-            if settings.ENABLE_LOGO_MODE and LOGO_PATH.exists():
+            resolved_media = _resolve_media(callback.message, media)
+            if resolved_media is not None and (has_explicit_media or (settings.ENABLE_LOGO_MODE and LOGO_PATH.exists())):
                 result = await callback.message.answer_photo(
-                    photo=get_logo_media(),
+                    photo=resolved_media,
                     caption=caption,
                     reply_markup=keyboard,
                     parse_mode=resolved_parse_mode,
                 )
-                _cache_logo_file_id(result)
+                if not has_explicit_media:
+                    _cache_logo_file_id(result)
             else:
                 await callback.message.answer(
                     caption,
@@ -146,7 +176,7 @@ async def edit_or_answer_photo(
         return
 
     # Если режим логотипа выключен или требуется текстовое сообщение — работаем текстом
-    if force_text or not settings.ENABLE_LOGO_MODE:
+    if force_text or (not settings.ENABLE_LOGO_MODE and not has_explicit_media):
         try:
             if callback.message.photo:
                 await callback.message.delete()
@@ -179,9 +209,9 @@ async def edit_or_answer_photo(
             await _answer_text(callback, caption, keyboard, resolved_parse_mode, error)
         return
 
-    media = _resolve_media(callback.message)
+    media = _resolve_media(callback.message, media)
 
-    # Logo file unavailable (missing / directory bind-mount) — fall back to text.
+    # Logo/section file unavailable (missing / directory bind-mount) — fall back to text.
     # See #586617: this used to surface as IsADirectoryError on every callback.
     if media is None:
         try:
@@ -247,7 +277,7 @@ async def edit_or_answer_photo(
                 await callback.message.delete()
             except Exception:
                 pass
-            logo_media = get_logo_media()
+            logo_media = media if has_explicit_media else get_logo_media()
             if logo_media is None:
                 await _answer_text(callback, caption, keyboard, resolved_parse_mode)
                 return

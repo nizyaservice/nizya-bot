@@ -10,29 +10,26 @@ from app.keyboards.inline import get_back_keyboard
 from app.localization.texts import get_texts
 from app.services.admin_notification_service import AdminNotificationService
 from app.services.promocode_service import PromoCodeService
+from app.services.section_image_service import SECTION_IMAGE_PROMOCODE, get_section_media_kwargs
 from app.states import PromoCodeStates
 from app.utils.decorators import error_handler
+from app.utils.photo_message import edit_or_answer_photo
 
 
 logger = structlog.get_logger(__name__)
 
 
 @error_handler
-async def show_promocode_menu(callback: types.CallbackQuery, db_user: User, state: FSMContext):
+async def show_promocode_menu(callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession):
     texts = get_texts(db_user.language)
 
-    # Если сообщение недоступно, отправляем новое
-    if isinstance(callback.message, InaccessibleMessage):
-        await callback.message.answer(texts.PROMOCODE_ENTER, reply_markup=get_back_keyboard(db_user.language))
-    else:
-        try:
-            await callback.message.edit_text(texts.PROMOCODE_ENTER, reply_markup=get_back_keyboard(db_user.language))
-        except TelegramBadRequest as error:
-            error_message = str(error).lower()
-            if 'there is no text in the message to edit' in error_message:
-                await callback.message.answer(texts.PROMOCODE_ENTER, reply_markup=get_back_keyboard(db_user.language))
-            else:
-                raise
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.PROMOCODE_ENTER,
+        keyboard=get_back_keyboard(db_user.language),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE),
+    )
 
     # Сохраняем предыдущее состояние, чтобы восстановить после промокода
     previous_state = await state.get_state()

@@ -18,8 +18,10 @@ from app.keyboards.inline import (
     get_payment_methods_keyboard,
 )
 from app.localization.texts import get_texts
+from app.services.section_image_service import SECTION_IMAGE_BALANCE, get_section_media_kwargs
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.timezone import format_local_datetime
 
 
@@ -264,16 +266,13 @@ async def show_balance_menu(callback: types.CallbackQuery, db_user: User, db: As
 
     reply_markup = get_balance_keyboard(db_user.language)
 
-    try:
-        if callback.message and callback.message.text:
-            await callback.message.edit_text(balance_text, reply_markup=reply_markup)
-        elif callback.message and callback.message.caption:
-            await callback.message.edit_caption(balance_text, reply_markup=reply_markup)
-        else:
-            await callback.message.answer(balance_text, reply_markup=reply_markup)
-    except TelegramBadRequest as error:
-        logger.warning('Failed to edit balance message, sending a new one instead', error=error)
-        await callback.message.answer(balance_text, reply_markup=reply_markup)
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=balance_text,
+        keyboard=reply_markup,
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_BALANCE),
+    )
     await callback.answer()
 
 
