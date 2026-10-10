@@ -74,13 +74,27 @@ SECTIONS: dict[str, dict] = {
     },
     'topup_success': {'main': ('circle-check', 'ПОПОЛНЕНО', 'PAYMENT SUCCESS', 'ПЛАТЁЖ ВЫПОЛНЕН', 'PAYMENT SUCCESS')},
     'my_subscriptions': {'main': ('devices-2', 'МОИ ПОДПИСКИ', 'MY SUBSCRIPTIONS', 'МОИ ПОДПИСКИ', 'MY SUBSCRIPTIONS')},
-    'active_subscription': {'main': ('shield-check', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION')},
+    'active_subscription': {
+        'main': ('shield-check', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION')
+    },
     'promocode': {'main': ('discount', 'ПРОМОКОД', 'PROMO CODE', 'ПРОМОКОД', 'PROMO CODE')},
     'support': {'main': ('headset', 'ПОДДЕРЖКА', 'SUPPORT', 'ПОДДЕРЖКА', 'SUPPORT')},
-    'referrals': {'main': ('users-group', 'ПАРТНЁРСКАЯ ПРОГРАММА', 'REFERRAL PROGRAM', 'ПАРТНЁРСКАЯ ПРОГРАММА', 'REFERRAL PROGRAM')},
+    'referrals': {
+        'main': (
+            'users-group',
+            'ПАРТНЁРСКАЯ ПРОГРАММА',
+            'REFERRAL PROGRAM',
+            'ПАРТНЁРСКАЯ ПРОГРАММА',
+            'REFERRAL PROGRAM',
+        )
+    },
     'subscription_purchase': {'main': ('credit-card', 'ПОКУПКА ПОДПИСКИ', 'PURCHASE', 'ОФОРМЛЕНИЕ ЗАКАЗА', 'PURCHASE')},
-    'subscription_upgrade': {'main': ('refresh', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION', 'ПРОДЛЕНИЕ • РАСШИРЕНИЕ', 'UPGRADE • EXTEND')},
-    'subscription_success': {'main': ('rosette', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION ACTIVE', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION SUCCESS')},
+    'subscription_upgrade': {
+        'main': ('refresh', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION', 'ПРОДЛЕНИЕ • РАСШИРЕНИЕ', 'UPGRADE • EXTEND')
+    },
+    'subscription_success': {
+        'main': ('rosette', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION ACTIVE', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION SUCCESS')
+    },
     'subscription': {
         'subs': {
             'devices': ('devices-2', 'УСТРОЙСТВА', 'DEVICES'),
@@ -93,7 +107,9 @@ SECTIONS: dict[str, dict] = {
     'info': {'main': ('info-circle', 'ИНФОРМАЦИЯ', 'INFORMATION', 'ИНФОРМАЦИЯ', 'INFORMATION')},
     'faq': {'main': ('question', 'ЧАСТЫЕ ВОПРОСЫ', 'FAQ', 'ЧАСТЫЕ ВОПРОСЫ', 'FAQ')},
     'rules': {'main': ('list-check', 'ПРАВИЛА СЕРВИСА', 'SERVICE RULES', 'ПРАВИЛА СЕРВИСА', 'SERVICE RULES')},
-    'privacy_policy': {'main': ('lock', 'КОНФИДЕНЦИАЛЬНОСТЬ', 'PRIVACY POLICY', 'ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ', 'PRIVACY POLICY')},
+    'privacy_policy': {
+        'main': ('lock', 'КОНФИДЕНЦИАЛЬНОСТЬ', 'PRIVACY POLICY', 'ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ', 'PRIVACY POLICY')
+    },
     'public_offer': {'main': ('file-text', 'ПУБЛИЧНАЯ ОФЕРТА', 'PUBLIC OFFER', 'ПУБЛИЧНАЯ ОФЕРТА', 'PUBLIC OFFER')},
     'language': {'main': ('world', 'ВЫБОР ЯЗЫКА', 'LANGUAGE', 'ВЫБОР ЯЗЫКА', 'LANGUAGE')},
     'server_status': {'main': ('server-2', 'СТАТУС СЕРВЕРОВ', 'SERVER STATUS', 'СТАТУС СЕРВЕРОВ', 'SERVER STATUS')},
@@ -174,11 +190,7 @@ def background(wm_cx: float, wm_cy: float, wm_size: float) -> str:
     lines = []
     for i in range(-H, W, 120):
         lines.append(f'<line x1="{i}" y1="{H}" x2="{i + H}" y2="0"/>')
-    grid = (
-        f'<g stroke="{CYAN}" stroke-opacity="0.05" stroke-width="1">'
-        + ''.join(lines)
-        + '</g>'
-    )
+    grid = f'<g stroke="{CYAN}" stroke-opacity="0.05" stroke-width="1">' + ''.join(lines) + '</g>'
     return (
         f'<rect width="{W}" height="{H}" fill="url(#bg)"/>'
         f'<rect width="{W}" height="{H}" fill="url(#glow)"/>'
@@ -246,8 +258,7 @@ def chip_block(icon: str, chip_x: float, chip_size: float) -> tuple[str, float]:
 def brand_tspans(suffix: str | None = None) -> str:
     """Строка бренда: «ApertuRU VPN» (+ «— суффикс» для главных баннеров разделов)."""
     parts = (
-        f'<tspan fill="{CYAN}">Apertu</tspan><tspan fill="#F2F7FA">RU</tspan>'
-        f'<tspan fill="#F2F7FA" dx="12">VPN</tspan>'
+        f'<tspan fill="{CYAN}">Apertu</tspan><tspan fill="#F2F7FA">RU</tspan><tspan fill="#F2F7FA" dx="12">VPN</tspan>'
     )
     if suffix:
         parts += f'<tspan fill="{GREY}" dx="16">— {escape(suffix)}</tspan>'

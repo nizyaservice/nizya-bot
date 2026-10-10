@@ -115,7 +115,9 @@ async def _edit_text_or_replace(
     )
 
 
-def _build_section_image_detail_text(texts, section_key: str, file_id: str | None, *, success_text: str | None = None) -> str:
+def _build_section_image_detail_text(
+    texts, section_key: str, file_id: str | None, *, success_text: str | None = None
+) -> str:
     section_title = html.escape(_get_section_title(texts, section_key))
     status_text = (
         texts.t('ADMIN_SECTION_IMAGE_STATUS_SET', 'установлено')

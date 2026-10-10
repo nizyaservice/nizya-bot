@@ -1120,7 +1120,9 @@ async def handle_simple_subscription_payment_method(
                     caption=message_text,
                     keyboard=keyboard,
                     parse_mode='HTML',
-                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
+                    **await get_section_media_kwargs(
+                        db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language
+                    ),
                 )
 
             await state.clear()

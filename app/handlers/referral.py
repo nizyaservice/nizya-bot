@@ -777,7 +777,10 @@ async def show_withdrawal_info(callback: types.CallbackQuery, db_user: User, db:
     keyboard.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')])
 
     await edit_or_answer_photo(
-        callback, text, types.InlineKeyboardMarkup(inline_keyboard=keyboard), **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language)
+        callback,
+        text,
+        types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+        **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language),
     )
     await callback.answer()
 
@@ -1044,7 +1047,9 @@ async def confirm_withdrawal_request(callback: types.CallbackQuery, db_user: Use
         inline_keyboard=[[types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')]]
     )
 
-    await edit_or_answer_photo(callback, text, keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language))
+    await edit_or_answer_photo(
+        callback, text, keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language)
+    )
     await callback.answer()
 
 
@@ -1059,7 +1064,10 @@ async def cancel_withdrawal_request(callback: types.CallbackQuery, db_user: User
         inline_keyboard=[[types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')]]
     )
     await edit_or_answer_photo(
-        callback, texts.t('REFERRAL_WITHDRAWAL_CANCELLED', '❌ Заявка отменена'), keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language)
+        callback,
+        texts.t('REFERRAL_WITHDRAWAL_CANCELLED', '❌ Заявка отменена'),
+        keyboard,
+        **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language),
     )
 
 

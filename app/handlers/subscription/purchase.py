@@ -2292,7 +2292,9 @@ async def confirm_purchase(callback: types.CallbackQuery, state: FSMContext, db_
     if period_days is None:
         await edit_or_answer_photo(
             callback=callback,
-            caption=texts.t('SUBSCRIPTION_PURCHASE_ERROR', 'Ошибка при оформлении подписки. Попробуйте начать сначала.'),
+            caption=texts.t(
+                'SUBSCRIPTION_PURCHASE_ERROR', 'Ошибка при оформлении подписки. Попробуйте начать сначала.'
+            ),
             keyboard=get_back_keyboard(db_user.language),
             **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )

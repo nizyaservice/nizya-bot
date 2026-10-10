@@ -154,7 +154,9 @@ async def edit_or_answer_photo(
     if isinstance(callback.message, InaccessibleMessage):
         try:
             resolved_media = _resolve_media(callback.message, media)
-            if resolved_media is not None and (has_explicit_media or (settings.ENABLE_LOGO_MODE and LOGO_PATH.exists())):
+            if resolved_media is not None and (
+                has_explicit_media or (settings.ENABLE_LOGO_MODE and LOGO_PATH.exists())
+            ):
                 result = await callback.message.answer_photo(
                     photo=resolved_media,
                     caption=caption,

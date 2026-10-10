@@ -39,6 +39,7 @@ async def _auto_section_media(reply_markup, chat_id: int | None = None) -> str |
         pass
     return None
 
+
 LOGO_PATH = Path(settings.LOGO_FILE)
 
 

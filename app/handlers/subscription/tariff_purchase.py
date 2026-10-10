@@ -1951,7 +1951,9 @@ async def confirm_tariff_purchase(
                     callback=callback,
                     caption=texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'),
                     keyboard=None,
-                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
+                    **await get_section_media_kwargs(
+                        db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language
+                    ),
                 )
             except Exception:
                 pass
@@ -2116,7 +2118,9 @@ async def confirm_tariff_purchase(
         try:
             await edit_or_answer_photo(
                 callback=callback,
-                caption=texts.t('TARIFF_PURCHASE_ALREADY_ACTIVE_SUB', '❌ У вас уже есть активная подписка на этот тариф'),
+                caption=texts.t(
+                    'TARIFF_PURCHASE_ALREADY_ACTIVE_SUB', '❌ У вас уже есть активная подписка на этот тариф'
+                ),
                 keyboard=None,
                 **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
             )

@@ -440,7 +440,9 @@ async def _handle_guest_purchase_payment(
                 f'⭐ Потрачено: {stars_amount} Stars\n\n'
                 'Подарок будет доставлен получателю.'
             )
-            guest_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language)
+            guest_media_kwargs = await get_section_media_kwargs(
+                db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language
+            )
             if guest_media_kwargs:
                 await message.answer_photo(
                     guest_media_kwargs['media'],

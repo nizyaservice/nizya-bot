@@ -33,14 +33,18 @@ _SUBRULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
     # menu_balance — навигационная кнопка «Баланс» из главного меню: корень balance,
     # а не подпункт пополнения (иначе смесь с menu_buy/menu_referrals на главном меню
     # попадает в спец-кейс нехватки средств и даёт баннер пополнения).
-    ('balance.topup', frozenset({'payment_methods_unavailable', 'balance_topup'}), (
-        'topup_',
-        'check_',
-        'pal24_method',
-        'platega_method',
-        'payment_methods',
-        'yookassa',
-    )),
+    (
+        'balance.topup',
+        frozenset({'payment_methods_unavailable', 'balance_topup'}),
+        (
+            'topup_',
+            'check_',
+            'pal24_method',
+            'platega_method',
+            'payment_methods',
+            'yookassa',
+        ),
+    ),
     ('balance.history', frozenset(), ('balance_history',)),
     ('balance.cards', frozenset(), ('saved_cards', 'unlink_card_')),
     (
