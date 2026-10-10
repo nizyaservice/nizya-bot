@@ -69,7 +69,7 @@ _SUBRULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
     ),
     ('subscription.autopay', frozenset(), ('autopay', 'subscription_autopay', 'sbp_recurring')),
     ('subscription.extend', frozenset({'subscription_extend'}), ('extend_period_', 'tariff_ext')),
-    ('subscription.revoke', frozenset({'subscription_revoke', 'subscription_revoke_confirm'}), ('sub_del', 'sr:')),
+    ('subscription.revoke', frozenset({'subscription_revoke', 'subscription_revoke_confirm'}), ('sub_del_yes', 'sr:')),
     ('referral.list', frozenset(), ('referral_list',)),
     ('referral.analytics', frozenset(), ('referral_analytics',)),
     ('referral.withdrawal', frozenset(), ('referral_withdrawal',)),
@@ -130,6 +130,8 @@ _RULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
             'subscription_change_devices',
             # Флоу подарков (gift_*) живёт внутри раздела подписок.
             'gift_',
+            # Экран «Тариф» (смена тарифа) — подраздел подписок, не покупки.
+            'instant_sw',
         ),
     ),
     # Кнопка «Баланс» главного меню — раздел баланса (инвойсы платёжек с back-кнопкой
@@ -144,7 +146,6 @@ _RULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
             'custom_traffic:',
             'custom_confirm:',
             'daily_tariff',
-            'instant_sw',
             'period_',
             # Шаг выбора пакета трафика в чекауте покупки.
             'traffic_',

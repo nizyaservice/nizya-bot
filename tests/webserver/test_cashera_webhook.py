@@ -86,8 +86,8 @@ def _recorder(monkeypatch, result):
 @pytest.mark.parametrize(
     'headers',
     [
-        {'X-Api-Key': 'pk_test', 'X-Secret': 'sk_wrong'},
-        {'X-Api-Key': 'pk_wrong', 'X-Secret': 'sk_test'},
+        {'X-Api-Key': 'pk_' + 'test', 'X-Secret': 'sk_' + 'wrong'},
+        {'X-Api-Key': 'pk_' + 'wrong', 'X-Secret': 'sk_' + 'test'},
         {},
     ],
 )

@@ -867,7 +867,7 @@ async def show_tariffs_list(
             keyboard=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='back_to_menu')]]
             ),
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -914,7 +914,7 @@ async def show_tariffs_list(
         caption=tariffs_text,
         keyboard=get_tariffs_keyboard(tariffs, db_user.language, purchased_tariff_ids),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
     )
 
     await callback.answer()
@@ -1479,7 +1479,7 @@ async def handle_custom_confirm(
                 callback=callback,
                 caption=texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки'),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
             )
         except Exception:
             pass
@@ -1589,7 +1589,7 @@ async def handle_custom_confirm(
                 ]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
         )
     except Exception as e:
         logger.error('Ошибка при покупке тарифа с кастомными параметрами', error=e, exc_info=True)
@@ -1951,7 +1951,7 @@ async def confirm_tariff_purchase(
                     callback=callback,
                     caption=texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'),
                     keyboard=None,
-                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
                 )
             except Exception:
                 pass
@@ -1963,7 +1963,7 @@ async def confirm_tariff_purchase(
                 callback=callback,
                 caption=texts.t('TARIFF_PURCHASE_CHARGE_ERROR', '❌ Ошибка списания баланса'),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
             )
         except Exception:
             pass
@@ -2118,7 +2118,7 @@ async def confirm_tariff_purchase(
                 callback=callback,
                 caption=texts.t('TARIFF_PURCHASE_ALREADY_ACTIVE_SUB', '❌ У вас уже есть активная подписка на этот тариф'),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
             )
         except Exception:
             pass
@@ -2170,7 +2170,7 @@ async def confirm_tariff_purchase(
                 callback=callback,
                 caption=texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки'),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
             )
         except Exception:
             pass
@@ -2291,7 +2291,7 @@ async def confirm_tariff_purchase(
             ]
         ),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
     )
 
 
@@ -2489,7 +2489,7 @@ async def confirm_daily_tariff_purchase(
                 callback=callback,
                 caption=texts.t('TARIFF_PURCHASE_ERROR', '❌ Произошла ошибка при оформлении подписки'),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
             )
         except Exception:
             pass
@@ -2601,7 +2601,7 @@ async def confirm_daily_tariff_purchase(
             ]
         ),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
     )
 
 
@@ -2766,7 +2766,7 @@ async def show_tariff_extend(
                     ),
                     keyboard=InlineKeyboardMarkup(inline_keyboard=keyboard),
                     parse_mode='HTML',
-                    **await get_section_media_kwargs(db, 'subscription.extend'),
+                    **await get_section_media_kwargs(db, 'subscription.extend', language=db_user.language),
                 )
                 await callback.answer()
                 return
@@ -2892,7 +2892,7 @@ async def show_tariff_extend(
         ),
         parse_mode='HTML',
         # Экран продления — подпункт subscription.extend со своей картинкой.
-        **await get_section_media_kwargs(db, 'subscription.extend'),
+        **await get_section_media_kwargs(db, 'subscription.extend', language=db_user.language),
     )
     await callback.answer()
 
@@ -3266,7 +3266,7 @@ async def confirm_tariff_extend(
             ),
             parse_mode='HTML',
             # Успех продления — подпункт subscription.extend со своей картинкой.
-            **await get_section_media_kwargs(db, 'subscription.extend'),
+            **await get_section_media_kwargs(db, 'subscription.extend', language=db_user.language),
         )
     except Exception as e:
         logger.error('Ошибка при продлении тарифа', error=e, exc_info=True)
@@ -3491,7 +3491,7 @@ async def show_tariff_switch_list(
                 ]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -3511,7 +3511,7 @@ async def show_tariff_switch_list(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -3547,7 +3547,7 @@ async def show_tariff_switch_list(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -3579,7 +3579,7 @@ async def show_tariff_switch_list(
         caption=switch_text,
         keyboard=get_tariff_switch_keyboard(available_tariffs, current_tariff_id, db_user.language),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
     )
 
     await state.update_data(
@@ -4128,7 +4128,7 @@ async def confirm_tariff_switch(
             ),
             parse_mode='HTML',
             # Успех смены тарифа — секция «Успешная активация подписки».
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
         )
 
     except Exception as e:
@@ -4414,7 +4414,7 @@ async def confirm_daily_tariff_switch(
             ),
             parse_mode='HTML',
             # Успех смены на суточный тариф — секция «Успешная активация подписки».
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
         )
 
     except Exception as e:
@@ -4683,7 +4683,7 @@ async def show_instant_switch_list(
                 ]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -4700,7 +4700,7 @@ async def show_instant_switch_list(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -4731,7 +4731,7 @@ async def show_instant_switch_list(
                 inline_keyboard=[[InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')]]
             ),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -4746,7 +4746,7 @@ async def show_instant_switch_list(
             available_tariffs, current_tariff, remaining_days, db_user.language, db_user
         ),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
     )
 
     await state.update_data(
@@ -5440,7 +5440,7 @@ async def confirm_instant_switch(
                 ),
                 parse_mode='HTML',
                 # Успех мгновенной смены на суточный тариф — «Успешная активация подписки».
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
             )
         else:
             if is_upgrade:
@@ -5482,7 +5482,7 @@ async def confirm_instant_switch(
                 ),
                 parse_mode='HTML',
                 # Успех мгновенной смены тарифа — «Успешная активация подписки».
-                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
             )
 
     except Exception as e:

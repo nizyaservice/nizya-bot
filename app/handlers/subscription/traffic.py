@@ -173,7 +173,7 @@ async def handle_add_traffic(callback: types.CallbackQuery, db_user: User, db: A
             parse_mode='HTML',
             # Пикер докупки трафика — подпункт subscription.traffic
             # (пустой пикер без кнопок add_traffic_* детектится в корень подписок).
-            **await get_section_media_kwargs(db, 'subscription.traffic'),
+            **await get_section_media_kwargs(db, 'subscription.traffic', language=db_user.language),
         )
 
         await callback.answer()
@@ -224,7 +224,7 @@ async def handle_add_traffic(callback: types.CallbackQuery, db_user: User, db: A
         ),
         parse_mode='HTML',
         # Пикер докупки трафика — подпункт subscription.traffic (см. ветку тарифов выше).
-        **await get_section_media_kwargs(db, 'subscription.traffic'),
+        **await get_section_media_kwargs(db, 'subscription.traffic', language=db_user.language),
     )
 
     await callback.answer()
@@ -445,7 +445,7 @@ async def confirm_reset_traffic(
             f'🔄 Использованный трафик обнулен\n'
             f'📊 Лимит: {texts.format_traffic(subscription.traffic_limit_gb)}',
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, 'subscription.traffic'),
+            **await get_section_media_kwargs(db, 'subscription.traffic', language=db_user.language),
         )
 
         logger.info('✅ Пользователь сбросил трафик', telegram_id=db_user.telegram_id)
@@ -757,7 +757,7 @@ async def add_traffic(callback: types.CallbackQuery, db_user: User, db: AsyncSes
             callback=callback,
             caption=success_text,
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, 'subscription.traffic'),
+            **await get_section_media_kwargs(db, 'subscription.traffic', language=db_user.language),
         )
 
         logger.info('✅ Пользователь добавил ГБ трафика', telegram_id=db_user.telegram_id, traffic_gb=traffic_gb)
@@ -1060,7 +1060,7 @@ async def execute_switch_traffic(
             callback=callback,
             caption=success_text,
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, 'subscription.traffic'),
+            **await get_section_media_kwargs(db, 'subscription.traffic', language=db_user.language),
         )
 
         logger.info(

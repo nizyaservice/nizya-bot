@@ -213,7 +213,7 @@ async def claim_discount_offer(
                 ]
             ]
         )
-        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE)
+        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE, language=db_user.language)
         if media_kwargs:
             await callback.message.answer_photo(
                 media_kwargs['media'],
@@ -383,7 +383,7 @@ async def claim_discount_offer(
             ]
         ]
     )
-    media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE)
+    media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE, language=db_user.language)
     if media_kwargs:
         await callback.message.answer_photo(
             media_kwargs['media'],

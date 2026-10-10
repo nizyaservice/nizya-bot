@@ -21,7 +21,7 @@ async def show_support_info(callback: types.CallbackQuery, db_user: User, db: As
         caption=support_info,
         keyboard=get_support_keyboard(db_user.language),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SUPPORT),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SUPPORT, language=db_user.language),
     )
     await callback.answer()
 

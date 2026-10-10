@@ -20,7 +20,7 @@ async def answer_topup_screen(
     from app.keyboards.inline import get_back_keyboard
 
     keyboard = get_back_keyboard(language) if language else None
-    file_id = await resolve_cached_section_file_id(SECTION_IMAGE_BALANCE)
+    file_id = await resolve_cached_section_file_id(SECTION_IMAGE_BALANCE, language)
     if file_id:
         await message.answer_photo(file_id, caption=text, reply_markup=keyboard)
     else:

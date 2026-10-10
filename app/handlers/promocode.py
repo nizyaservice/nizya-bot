@@ -28,7 +28,7 @@ async def show_promocode_menu(callback: types.CallbackQuery, db_user: User, stat
         caption=texts.PROMOCODE_ENTER,
         keyboard=get_back_keyboard(db_user.language),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE, language=db_user.language),
     )
 
     # Сохраняем предыдущее состояние, чтобы восстановить после промокода
@@ -91,7 +91,7 @@ _NO_SAVED_STATE = object()
 
 async def _answer_promo_result(message: types.Message, text: str, db: AsyncSession, language: str) -> None:
     """Результат активации промокода с баннером раздела (если картинка задана)."""
-    media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE)
+    media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE, language=language)
     keyboard = get_back_keyboard(language)
     if media_kwargs:
         await message.answer_photo(media_kwargs['media'], caption=text, reply_markup=keyboard)
@@ -281,7 +281,7 @@ async def handle_promo_subscription_select(
                 callback=callback,
                 caption=texts.PROMOCODE_SUCCESS.format(description=result['description']),
                 keyboard=get_back_keyboard(db_user.language),
-                **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE, language=db_user.language),
             )
     else:
         error_text = texts.PROMOCODE_INVALID
@@ -292,7 +292,7 @@ async def handle_promo_subscription_select(
                 callback=callback,
                 caption=error_text,
                 keyboard=get_back_keyboard(db_user.language),
-                **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_PROMOCODE, language=db_user.language),
             )
     await callback.answer()
 

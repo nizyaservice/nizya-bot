@@ -27,15 +27,20 @@ RETRY_DELAY = 0.5
 _MEDIA_UNSET = object()
 
 
-async def _auto_section_media(keyboard) -> object:
-    """Если по клавиатуре распознаётся секция с загруженной картинкой — её file_id."""
-    from app.services.section_image_service import resolve_cached_section_file_id
+async def _auto_section_media(keyboard, telegram_id: int | None = None) -> object:
+    """Если по клавиатуре распознаётся секция с загруженной картинкой — её file_id.
+
+    telegram_id (callback.from_user.id) даёт язык юзера: en-юзер получает
+    en-вариант баннера и в автодетекте, не только в явных проводках.
+    """
+    from app.services.section_image_service import get_user_language_cached, resolve_cached_section_file_id
     from app.utils.menu_section_detect import detect_section_key
 
     try:
         section_key = detect_section_key(keyboard)
         if section_key:
-            file_id = await resolve_cached_section_file_id(section_key)
+            language = await get_user_language_cached(telegram_id)
+            file_id = await resolve_cached_section_file_id(section_key, language)
             if file_id:
                 return file_id
     except Exception:
@@ -138,8 +143,9 @@ async def edit_or_answer_photo(
     has_explicit_media = media is not _MEDIA_UNSET
 
     # Автодетект секции по клавиатуре: подменю inherits баннер своего раздела
+    # (+ язык юзера из callback.from_user — en-юзер видит en-вариант)
     if not has_explicit_media and settings.ENABLE_LOGO_MODE:
-        auto_media = await _auto_section_media(keyboard)
+        auto_media = await _auto_section_media(keyboard, getattr(callback.from_user, 'id', None))
         if auto_media is not _MEDIA_UNSET:
             media = auto_media
             has_explicit_media = True

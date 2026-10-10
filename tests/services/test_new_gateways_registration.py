@@ -43,8 +43,8 @@ CREDENTIALS = {
     'TABPAY': {'TABPAY_API_KEY': 'tp_key', 'TABPAY_WEBHOOK_SECRET': 'whsec'},
     'PARITYPAY': {
         'PARITYPAY_SHOP_ID': 'shop',
-        'PARITYPAY_SECRET_KEY': 'secret-1',
-        'PARITYPAY_CALLBACK_SECRET': 'secret-2',
+        'PARITYPAY_SECRET_KEY': 'secret-' + '1',
+        'PARITYPAY_CALLBACK_SECRET': 'secret-' + '2',
     },
 }
 

@@ -67,6 +67,16 @@ DEFINED = {
     'subscription.extend', 'subscription.revoke',
     'referral.list', 'referral.analytics', 'referral.withdrawal',
 }
+
+# en-варианты баннеров (ui_section_image.<key>.en — русские мелкие подписи
+# для англоязычного интерфейса, инверсия языков по дизайну владельца; 62 ключа
+# в БД). В автодетекте не участвуют (там языка нет — базовый вариант); eff()
+# их не схлопывает — это самостоятельные картинки, а не иерархический фолбэк.
+DEFINED_EN = {f'{k}.en' for k in tuple(DEFINED)}
+assert len(DEFINED_EN) == 31, len(DEFINED_EN)
+assert not (DEFINED_EN & DEFINED)
+DEFINED |= DEFINED_EN
+assert len(DEFINED) == 62, len(DEFINED)
 # _SECTION_IMAGE_ALIASES из app/services/section_image_service.py
 ALIAS = {'subscription': 'my_subscriptions', 'referral': 'referrals'}
 
@@ -179,7 +189,7 @@ case('switch_success', ['sm:12', 'back_to_menu'], 'subscription_success', 'subsc
 case('daily_switch_success', ['sm:12', 'back_to_menu'], 'subscription_success', 'subscription_success')
 case('instant_list', ['instant_sw_preview:2', 'instant_sw_preview:3', 'menu_subscription'], 'subscription_purchase', 'subscription_purchase')
 case('instant_expired', ['menu_buy', 'menu_subscription'], 'subscription_purchase', 'subscription_purchase')
-case('instant_confirm', ['instant_sw_confirm:2', 'instant_switch'], 'subscription_purchase')
+case('instant_confirm', ['instant_sw_confirm:2', 'instant_switch'], 'subscription')  # экран «Тариф» — подраздел подписок
 case('instant_insufficient', ['balance_topup', 'instant_switch'], 'balance.topup')
 case('instant_success', ['sm:12', 'back_to_menu'], 'subscription_success', 'subscription_success')
 case('sbp_autorenew', ['tariff_list'], 'subscription_purchase')

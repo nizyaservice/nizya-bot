@@ -106,7 +106,7 @@ async def show_rules(callback: types.CallbackQuery, db_user: User, db: AsyncSess
         callback=callback,
         caption=rules_text,
         keyboard=get_back_keyboard(db_user.language),
-        **await get_section_media_kwargs(db, SECTION_IMAGE_RULES),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_RULES, language=db_user.language),
     )
     await callback.answer()
 

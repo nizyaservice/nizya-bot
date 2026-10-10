@@ -75,7 +75,7 @@ async def _render_server_status(
         caption=message,
         keyboard=keyboard,
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_SERVER_STATUS),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_SERVER_STATUS, language=db_user.language),
     )
     await callback.answer()
 

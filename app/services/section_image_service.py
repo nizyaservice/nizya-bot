@@ -31,6 +31,10 @@ SECTION_IMAGE_TRIAL = 'trial'
 
 _SECTION_IMAGE_SETTING_PREFIX = 'ui_section_image.'
 
+# Суффикс en-варианта баннера (русские мелкие подписи для англоязычного
+# интерфейса — инверсия языков, осознанный дизайн владельца).
+_SECTION_IMAGE_EN_SUFFIX = '.en'
+
 
 @dataclass(frozen=True)
 class SectionImageDefinition:
@@ -204,15 +208,38 @@ def get_section_image_setting_key(section_key: str) -> str:
     return f'{_SECTION_IMAGE_SETTING_PREFIX}{section_key}'
 
 
-async def get_section_image_file_id(db: AsyncSession, section_key: str) -> str | None:
+async def get_section_image_file_id(
+    db: AsyncSession,
+    section_key: str,
+    language: str | None = None,
+) -> str | None:
+    """File_id картинки раздела; при language='en' сначала ключ '<key>.en', затем база.
+
+    Базовый набор баннеров (ru/ua) — английские мелкие подписи; en-набор —
+    русские. Обратный фолбэк (база -> .en) не нужен: базовый набор обязателен.
+    """
+    if language == 'en':
+        en_file_id = await get_setting_value(
+            db, get_section_image_setting_key(f'{section_key}{_SECTION_IMAGE_EN_SUFFIX}')
+        )
+        if en_file_id:
+            return en_file_id
     if get_section_image_definition(section_key) is None:
         return None
     return await get_setting_value(db, get_section_image_setting_key(section_key))
 
 
-async def get_section_media_kwargs(db: AsyncSession, section_key: str) -> dict:
-    """Короткий хелпер для хендлеров: media=... если картинка задана, иначе {}."""
-    file_id = await get_section_image_file_id(db, section_key)
+async def get_section_media_kwargs(
+    db: AsyncSession,
+    section_key: str,
+    language: str | None = None,
+) -> dict:
+    """Короткий хелпер для хендлеров: media=... если картинка задана, иначе {}.
+
+    language='en' подбирает en-вариант баннера ('<key>.en') с фолбэком на базу;
+    None/ru/ua — только базовый вариант.
+    """
+    file_id = await get_section_image_file_id(db, section_key, language)
     if file_id:
         return {'media': file_id}
     return {}
@@ -251,8 +278,16 @@ async def get_cached_section_file_id(section_key: str) -> str | None:
 _SECTION_IMAGE_ALIASES = {'subscription': 'my_subscriptions', 'referral': 'referrals'}
 
 
-async def resolve_cached_section_file_id(section_key: str) -> str | None:
-    """File_id с фолбэком по иерархии: 'referral.analytics' → 'referral' → алиас → None."""
+async def resolve_cached_section_file_id(section_key: str, language: str | None = None) -> str | None:
+    """File_id с фолбэком по иерархии: 'referral.analytics' → 'referral' → алиас → None.
+
+    language='en' сначала пробует кеш-ключ '<key>.en' (фолбэк — обычная иерархия);
+    language=None/ru/ua — базовый вариант.
+    """
+    if language == 'en':
+        en_file_id = await get_cached_section_file_id(f'{section_key}{_SECTION_IMAGE_EN_SUFFIX}')
+        if en_file_id:
+            return en_file_id
     file_id = await get_cached_section_file_id(section_key)
     if file_id:
         return file_id
@@ -268,6 +303,38 @@ async def resolve_cached_section_file_id(section_key: str) -> str | None:
     return None
 
 
+# Кеш языка юзера для автодетекта (telegram_id -> language), TTL 5 минут:
+# автодетект в message_patch/photo_message не имеет db_user под рукой.
+_USER_LANG_CACHE: dict[int, tuple[float, str | None]] = {}
+_USER_LANG_TTL = 300.0
+
+
+async def get_user_language_cached(telegram_id: int | None) -> str | None:
+    """Язык юзера из users по telegram_id (кеш 5 мин). None — не нашли/группа."""
+    if not telegram_id:
+        return None
+    import time as _time
+
+    now = _time.monotonic()
+    hit = _USER_LANG_CACHE.get(telegram_id)
+    if hit and now - hit[0] < _USER_LANG_TTL:
+        return hit[1]
+    from app.database.database import AsyncSessionLocal
+    from sqlalchemy import text as _text
+
+    try:
+        async with AsyncSessionLocal() as db:
+            row = await db.execute(
+                _text('SELECT language FROM users WHERE telegram_id = :tid'),
+                {'tid': telegram_id},
+            )
+            value = row.scalar_one_or_none()
+    except Exception:
+        return hit[1] if hit else None
+    _USER_LANG_CACHE[telegram_id] = (now, value)
+    return value
+
+
 async def invalidate_section_cache() -> None:
     """Сброс кеша (вызывается после загрузки/удаления картинки в админке)."""
     global _CACHE_TS
@@ -280,13 +347,15 @@ async def resolve_section_image_file_id(
     section_key: str,
     *,
     fallback_keys: tuple[str, ...] = (),
+    language: str | None = None,
 ) -> str | None:
-    file_id = await get_section_image_file_id(db, section_key)
+    """File_id с фолбэками; при language='en' каждый ключ сперва пробуется как '<key>.en'."""
+    file_id = await get_section_image_file_id(db, section_key, language)
     if file_id:
         return file_id
 
     for fallback_key in fallback_keys:
-        fallback_file_id = await get_section_image_file_id(db, fallback_key)
+        fallback_file_id = await get_section_image_file_id(db, fallback_key, language)
         if fallback_file_id:
             return fallback_file_id
 

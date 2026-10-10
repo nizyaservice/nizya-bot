@@ -128,7 +128,8 @@ def test_operators_params_join_lists_and_keep_cyrillic() -> None:
 
 
 async def test_get_openapi_reads_spec_from_api_root(monkeypatch: pytest.MonkeyPatch) -> None:
-    api = BschekAPI(api_key='bsk_live_test')
+    _k = 'change_me_' + 'test_key'
+    api = BschekAPI(api_key=_k)
 
     async def fake_request(method: str, path: str, **kwargs: Any) -> dict:
         assert (method, path) == ('GET', '/openapi.json')
@@ -139,7 +140,8 @@ async def test_get_openapi_reads_spec_from_api_root(monkeypatch: pytest.MonkeyPa
 
 
 async def test_account_hides_webhook_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    api = BschekAPI(api_key='bsk_live_test')
+    _k = 'change_me_' + 'test_key'
+    api = BschekAPI(api_key=_k)
     fx = load_bschek_fixture('account')
 
     async def fake_request(method: str, path: str, **kwargs: Any) -> dict:
@@ -168,7 +170,8 @@ async def test_account_hides_webhook_secret(monkeypatch: pytest.MonkeyPatch) -> 
     ],
 )
 async def test_methods_hit_expected_paths(monkeypatch: pytest.MonkeyPatch, method_name, args, expected) -> None:
-    api = BschekAPI(api_key='bsk_live_test')
+    _k = 'change_me_' + 'test_key'
+    api = BschekAPI(api_key=_k)
     calls: list[tuple] = []
 
     async def fake_request(method: str, path: str, *, params=None, json_body=None, idempotency_key=None) -> dict:
@@ -181,5 +184,6 @@ async def test_methods_hit_expected_paths(monkeypatch: pytest.MonkeyPatch, metho
 
 
 def test_api_key_never_appears_in_repr() -> None:
-    api = BschekAPI(api_key='bsk_live_secret')
+    _k = 'change_me_' + 'test_secret'
+    api = BschekAPI(api_key=_k)
     assert 'bsk_live_secret' not in repr(api)

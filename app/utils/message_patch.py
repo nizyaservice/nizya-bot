@@ -17,15 +17,24 @@ from app.utils.logo_fingerprint import logo_fingerprint
 logger = structlog.get_logger(__name__)
 
 
-async def _auto_section_media(reply_markup) -> str | None:
-    """Автодетект секции по клавиатуре: file_id баннера раздела или None."""
+async def _auto_section_media(reply_markup, chat_id: int | None = None) -> str | None:
+    """Автодетект секции по клавиатуре: file_id баннера раздела или None.
+
+    chat_id в приватном чате бота = telegram_id юзера → его язык (en-вариант).
+    """
     try:
-        from app.services.section_image_service import resolve_cached_section_file_id
+        from app.services.section_image_service import (
+            get_user_language_cached,
+            resolve_cached_section_file_id,
+        )
         from app.utils.menu_section_detect import detect_section_key
 
         section_key = detect_section_key(reply_markup)
         if section_key:
-            return await resolve_cached_section_file_id(section_key)
+            language = None
+            if chat_id and chat_id > 0:  # приватный чат: chat_id = telegram_id
+                language = await get_user_language_cached(chat_id)
+            return await resolve_cached_section_file_id(section_key, language)
     except Exception:
         pass
     return None
@@ -319,7 +328,7 @@ async def _answer_with_photo(self: Message, text: str = None, **kwargs):
         pass
     language = _get_language(self)
 
-    section_media = await _auto_section_media(kwargs.get('reply_markup'))
+    section_media = await _auto_section_media(kwargs.get('reply_markup'), getattr(self.chat, 'id', None))
     if LOGO_PATH.exists():  # noqa: ASYNC240 — stat локального файла, один системный вызов
         try:
             result = await self.answer_photo(
@@ -404,7 +413,7 @@ async def _edit_with_photo(self: Message, text: str, **kwargs):
         except Exception:
             pass
         if LOGO_PATH.exists():  # noqa: ASYNC240 — stat локального файла, один системный вызов
-            media = await _auto_section_media(kwargs.get('reply_markup'))
+            media = await _auto_section_media(kwargs.get('reply_markup'), getattr(self.chat, 'id', None))
             if media is None:
                 media = get_logo_media()
         else:

@@ -345,7 +345,7 @@ async def _handle_trial_payment(
             logger.warning('Ошибка отправки уведомления админам о триале', admin_error=admin_error)
 
         # Отправляем сообщение пользователю
-        trial_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL)
+        trial_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TRIAL, language=user.language)
         trial_success_text = (
             f'🎉 <b>Пробная подписка активирована!</b>\n\n'
             f'⭐ Потрачено: {stars_amount} Stars\n'
@@ -440,7 +440,7 @@ async def _handle_guest_purchase_payment(
                 f'⭐ Потрачено: {stars_amount} Stars\n\n'
                 'Подарок будет доставлен получателю.'
             )
-            guest_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS)
+            guest_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language)
             if guest_media_kwargs:
                 await message.answer_photo(
                     guest_media_kwargs['media'],
@@ -652,7 +652,7 @@ async def handle_successful_payment(message: types.Message, db: AsyncSession, st
                 amount=amount_text,
                 transaction_id=transaction_id_short,
             )
-            topup_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TOPUP_SUCCESS)
+            topup_media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TOPUP_SUCCESS, language=user.language)
             if topup_media_kwargs:
                 await message.answer_photo(
                     topup_media_kwargs['media'],

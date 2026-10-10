@@ -464,7 +464,7 @@ async def handle_sbp_recurring_menu(
         caption=text,
         keyboard=keyboard,
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, 'subscription.autopay'),
+        **await get_section_media_kwargs(db, 'subscription.autopay', language=db_user.language),
     )
     await callback.answer()
 
@@ -575,7 +575,7 @@ async def handle_sbp_recurring_enable(
         ),
         keyboard=keyboard,
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, 'subscription.autopay'),
+        **await get_section_media_kwargs(db, 'subscription.autopay', language=db_user.language),
     )
     await callback.answer()
 
@@ -629,7 +629,7 @@ async def handle_saved_cards_list(callback: types.CallbackQuery, db_user: User, 
             ),
             keyboard=get_saved_cards_keyboard([], db_user.language),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, 'balance.cards'),
+            **await get_section_media_kwargs(db, 'balance.cards', language=db_user.language),
         )
     else:
         await callback.message.edit_text(
@@ -896,7 +896,7 @@ async def handle_cashera_recurring_enable(
         ),
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=buttons),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, 'subscription.autopay'),
+        **await get_section_media_kwargs(db, 'subscription.autopay', language=db_user.language),
     )
     await callback.answer()
 

@@ -48,20 +48,22 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
 
     await callback.answer()
     async with AsyncSessionLocal() as db:
+        user = await get_user_by_telegram_id(db, callback.from_user.id)
         await edit_or_answer_photo(
             callback=callback,
             caption='⏳ Активируем подарок...',
             keyboard=None,
-            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+            **await get_section_media_kwargs(
+                db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language if user else None
+            ),
         )
 
-        user = await get_user_by_telegram_id(db, callback.from_user.id)
         if not user:
             await edit_or_answer_photo(
                 callback=callback,
                 caption=_GIFT_NOT_FOUND,
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
             )
             return
 
@@ -78,7 +80,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                 callback=callback,
                 caption=texts.t('GIFT_ACTIVATION_NOT_FOUND', _GIFT_NOT_FOUND),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
             )
             return
         except GiftClaimSelfActivationError:
@@ -89,7 +91,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                     '⚠️ Нельзя активировать свой собственный подарок.\nОтправьте код другу!',
                 ),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
             )
             return
         except GiftClaimNotActivatableError:
@@ -97,7 +99,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                 callback=callback,
                 caption=texts.t('GIFT_ACTIVATION_NOT_ACTIVATABLE_ERROR', '❌ Этот подарок невозможно активировать.'),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
             )
             return
         except GuestPurchaseError as exc:
@@ -115,7 +117,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                         'Произошла ошибка при активации. Попробуйте позже.',
                     ),
                     keyboard=None,
-                    **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
                 )
             else:
                 await edit_or_answer_photo(
@@ -125,7 +127,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                         'Не удалось активировать подарок: {error}',
                     ).format(error=html_mod.escape(exc.message)),
                     keyboard=None,
-                    **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
                 )
             return
         except Exception:
@@ -141,7 +143,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                     'Произошла ошибка при активации. Попробуйте позже.',
                 ),
                 keyboard=None,
-                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+                **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
             )
             return
 
@@ -159,7 +161,7 @@ async def handle_gift_activate(callback: types.CallbackQuery) -> None:
                 tariff_text=tariff_text,
             ),
             keyboard=None,
-            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=user.language),
         )
 
 

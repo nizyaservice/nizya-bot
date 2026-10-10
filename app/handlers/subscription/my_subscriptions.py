@@ -180,7 +180,9 @@ async def show_my_subscriptions(
         return
 
     texts = get_texts(db_user.language)
-    gift_enabled = True
+    from app.services.gift_purchase_service import is_gift_enabled
+
+    gift_enabled = await is_gift_enabled(db)
     subscriptions = await get_all_subscriptions_by_user_id(db, db_user.id)
 
     if not subscriptions:
@@ -209,7 +211,7 @@ async def show_my_subscriptions(
 
     if callback.message:
         media_kwargs = {}
-        file_id = await resolve_section_image_file_id(db, SECTION_IMAGE_MY_SUBSCRIPTIONS)
+        file_id = await resolve_section_image_file_id(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=db_user.language)
         if file_id:
             media_kwargs['media'] = file_id
         await edit_or_answer_photo(
@@ -276,6 +278,7 @@ async def show_subscription_detail(
             db,
             SECTION_IMAGE_ACTIVE_SUBSCRIPTION,
             fallback_keys=(SECTION_IMAGE_MY_SUBSCRIPTIONS,),
+            language=db_user.language,
         )
         if file_id:
             media_kwargs['media'] = file_id

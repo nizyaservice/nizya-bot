@@ -536,7 +536,7 @@ async def confirm_change_devices(
         ),
         # Подтверждение смены числа устройств — подпункт subscription.devices
         # (кнопка confirm_change_devices_* не матчится детектором — медиа явно).
-        **await get_section_media_kwargs(db, 'subscription.devices'),
+        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
     )
 
     await callback.answer()
@@ -815,7 +815,7 @@ async def execute_change_devices(
             callback=callback,
             caption=success_text,
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, 'subscription.devices'),
+            **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
         )
 
         logger.info(
@@ -873,7 +873,7 @@ async def handle_device_management(
                         callback=callback,
                         caption=texts.t('DEVICE_NONE_CONNECTED', 'ℹ️ У вас нет подключенных устройств'),
                         keyboard=get_back_keyboard(db_user.language),
-                        **await get_section_media_kwargs(db, 'subscription.devices'),
+                        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                     )
                     await callback.answer()
                     return
@@ -1436,7 +1436,7 @@ async def handle_all_devices_reset_from_management(
                         ).format(count=success_count),
                         keyboard=get_back_keyboard(db_user.language),
                         parse_mode='HTML',
-                        **await get_section_media_kwargs(db, 'subscription.devices'),
+                        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                     )
                     logger.info(
                         '✅ Пользователь успешно сбросил устройств',
@@ -1457,7 +1457,7 @@ async def handle_all_devices_reset_from_management(
                         ).format(success=success_count, failed=failed_count),
                         keyboard=get_back_keyboard(db_user.language),
                         parse_mode='HTML',
-                        **await get_section_media_kwargs(db, 'subscription.devices'),
+                        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                     )
                     logger.warning(
                         '⚠️ Частичный сброс у пользователя /',
@@ -1478,7 +1478,7 @@ async def handle_all_devices_reset_from_management(
                     ).format(total=len(devices_list)),
                     keyboard=get_back_keyboard(db_user.language),
                     parse_mode='HTML',
-                    **await get_section_media_kwargs(db, 'subscription.devices'),
+                    **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                 )
                 logger.error(
                     '❌ Не удалось сбросить ни одного устройства у пользователя', telegram_id=db_user.telegram_id
@@ -1752,7 +1752,7 @@ async def confirm_add_devices(callback: types.CallbackQuery, db_user: User, db: 
             callback=callback,
             caption=success_text,
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, 'subscription.devices'),
+            **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
         )
 
         logger.info(

@@ -307,7 +307,7 @@ async def handle_open_subscription_link(
             redirect_link=redirect_link,
         )
 
-        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS)
+        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=db_user.language)
         if media_kwargs:
             await callback.message.answer_photo(
                 media_kwargs['media'],

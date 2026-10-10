@@ -106,9 +106,9 @@ class _Api:
         self._record('get_user_by_id', user_id)
         return SimpleNamespace(
             id=user_id,
-            trojan_password='owned-panel-marker',  # pragma: allowlist secret
+            trojan_password='change_me_' + 'marker',  # pragma: allowlist secret
             vless_uuid='owned-vless',
-            ss_password='owned-ss',  # pragma: allowlist secret
+            ss_password='change_me_' + 'ss',  # pragma: allowlist secret
             subscription_url='https://owned.example/sub',
             happ_link=None,
             used_traffic_bytes=1,

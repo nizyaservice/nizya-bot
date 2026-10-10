@@ -299,7 +299,7 @@ def _split_start_param_subid(param: str | None) -> tuple[str | None, str | None]
     return head, tail
 
 
-async def answer_menu_with_media(message, text: str, keyboard, db) -> None:
+async def answer_menu_with_media(message, text: str, keyboard, db, language: str | None = None) -> None:
     """Отвечает меню с медиа-шапкой на входящее сообщение (например, /start).
 
     Отличается от :func:`send_menu_with_media` тем, что при отсутствии видео
@@ -333,7 +333,7 @@ async def answer_menu_with_media(message, text: str, keyboard, db) -> None:
         # случайный раздел (или общий логотип).
         from app.services.section_image_service import SECTION_IMAGE_MAIN_MENU, get_section_media_kwargs
 
-        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU)
+        media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU, language=language)
         if media_kwargs:
             try:
                 await message.answer_photo(
@@ -1661,7 +1661,7 @@ async def cmd_start(message: types.Message, state: FSMContext, db: AsyncSession,
         )
         if not await try_answer_rich_main_menu(message, user, texts, db, keyboard):
             menu_text = await get_main_menu_text(user, texts, db)
-            await answer_menu_with_media(message, menu_text, keyboard, db)
+            await answer_menu_with_media(message, menu_text, keyboard, db, language=user.language)
 
         if pinned_message and not pinned_message.send_before_menu:
             await _send_pinned_message(message.bot, db, user, pinned_message)
@@ -2334,7 +2334,7 @@ async def complete_registration_from_callback(callback: types.CallbackQuery, sta
                 await _send_pinned_message(callback.bot, db, existing_user, pinned_message)
             if not await try_answer_rich_main_menu(callback.message, existing_user, texts, db, keyboard):
                 menu_text = await get_main_menu_text(existing_user, texts, db)
-                await answer_menu_with_media(callback.message, menu_text, keyboard, db)
+                await answer_menu_with_media(callback.message, menu_text, keyboard, db, language=existing_user.language)
             if pinned_message and not pinned_message.send_before_menu:
                 await _send_pinned_message(callback.bot, db, existing_user, pinned_message)
         except Exception as e:
@@ -2619,7 +2619,7 @@ async def complete_registration_from_callback(callback: types.CallbackQuery, sta
                 await _send_pinned_message(callback.bot, db, user, pinned_message)
             if not await try_answer_rich_main_menu(callback.message, user, texts, db, keyboard):
                 menu_text = await get_main_menu_text(user, texts, db)
-                await answer_menu_with_media(callback.message, menu_text, keyboard, db)
+                await answer_menu_with_media(callback.message, menu_text, keyboard, db, language=user.language)
             if pinned_message and not pinned_message.send_before_menu:
                 await _send_pinned_message(callback.bot, db, user, pinned_message)
             logger.info('✅ Главное меню показано пользователю', telegram_id=user.telegram_id)
@@ -2692,7 +2692,7 @@ async def complete_registration(message: types.Message, state: FSMContext, db: A
                 await _send_pinned_message(message.bot, db, existing_user, pinned_message)
             if not await try_answer_rich_main_menu(message, existing_user, texts, db, keyboard):
                 menu_text = await get_main_menu_text(existing_user, texts, db)
-                await answer_menu_with_media(message, menu_text, keyboard, db)
+                await answer_menu_with_media(message, menu_text, keyboard, db, language=existing_user.language)
             if pinned_message and not pinned_message.send_before_menu:
                 await _send_pinned_message(message.bot, db, existing_user, pinned_message)
         except Exception as e:

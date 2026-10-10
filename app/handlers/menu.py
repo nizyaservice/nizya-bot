@@ -267,7 +267,7 @@ async def show_main_menu(
             caption=menu_text,
             keyboard=keyboard,
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU, language=db_user.language),
         )
     if not skip_callback_answer:
         await callback.answer()
@@ -367,7 +367,7 @@ async def show_service_rules(callback: types.CallbackQuery, db_user: User, db: A
         caption=message_text,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_RULES),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_RULES, language=db_user.language),
     )
     await callback.answer()
 
@@ -423,7 +423,7 @@ async def show_info_menu(
             custom_pages=custom_pages,
         ),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO, language=db_user.language),
     )
     await callback.answer()
 
@@ -466,7 +466,7 @@ async def show_promo_groups_info(
             caption=message,
             keyboard=keyboard,
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_INFO, language=db_user.language),
         )
         await callback.answer()
         return
@@ -575,7 +575,7 @@ async def show_promo_groups_info(
         caption=message_text,
         keyboard=keyboard,
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO, language=db_user.language),
     )
     await callback.answer()
 
@@ -641,7 +641,7 @@ async def show_faq_pages(
         caption=caption,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=buttons),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_FAQ),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_FAQ, language=db_user.language),
     )
     await callback.answer()
 
@@ -790,7 +790,7 @@ async def show_faq_page(
         caption=message_text,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_FAQ),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_FAQ, language=db_user.language),
     )
     await callback.answer()
 
@@ -916,7 +916,7 @@ async def show_privacy_policy(
         caption=message_text,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_PRIVACY_POLICY),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_PRIVACY_POLICY, language=db_user.language),
     )
     await callback.answer()
 
@@ -1042,7 +1042,7 @@ async def show_public_offer(
         caption=message_text,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_PUBLIC_OFFER),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_PUBLIC_OFFER, language=db_user.language),
     )
     await callback.answer()
 
@@ -1141,7 +1141,7 @@ async def show_info_page(
         caption=message_text,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_INFO, language=db_user.language),
     )
     await callback.answer()
 
@@ -1184,7 +1184,7 @@ async def show_language_menu(
             language=db_user.language,
         ),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_LANGUAGE),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_LANGUAGE, language=db_user.language),
     )
     await callback.answer()
 
@@ -1281,7 +1281,7 @@ async def handle_back_to_menu(callback: types.CallbackQuery, state: FSMContext, 
             caption=menu_text,
             keyboard=keyboard,
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU, language=db_user.language),
         )
     await callback.answer()
 

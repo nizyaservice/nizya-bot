@@ -275,7 +275,7 @@ async def show_balance_menu(callback: types.CallbackQuery, db_user: User, db: As
         caption=balance_text,
         keyboard=reply_markup,
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, SECTION_IMAGE_BALANCE),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_BALANCE, language=db_user.language),
     )
     await callback.answer()
 
@@ -318,7 +318,7 @@ async def show_balance_history(callback: types.CallbackQuery, db_user: User, db:
             callback=callback,
             caption='📊 История операций пуста',
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, 'balance.history'),
+            **await get_section_media_kwargs(db, 'balance.history', language=db_user.language),
         )
         await callback.answer()
         return
@@ -352,7 +352,7 @@ async def show_balance_history(callback: types.CallbackQuery, db_user: User, db:
         caption=text,
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode='HTML',
-        **await get_section_media_kwargs(db, 'balance.history'),
+        **await get_section_media_kwargs(db, 'balance.history', language=db_user.language),
     )
     await callback.answer()
 
@@ -494,7 +494,7 @@ async def handle_successful_topup_with_cart(user_id: int, amount_kopeks: int, bo
                 f'Хотите продолжить оформление?'
             )
 
-            media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TOPUP_SUCCESS)
+            media_kwargs = await get_section_media_kwargs(db, SECTION_IMAGE_TOPUP_SUCCESS, language=user.language)
             if media_kwargs:
                 await bot.send_photo(
                     chat_id=user.telegram_id,

@@ -353,7 +353,7 @@ async def show_referral_info(callback: types.CallbackQuery, db_user: User, db: A
         callback,
         referral_text,
         get_referral_keyboard(db_user.language),
-        **await get_section_media_kwargs(db, SECTION_IMAGE_REFERRALS),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_REFERRALS, language=db_user.language),
     )
     await callback.answer()
 
@@ -429,7 +429,7 @@ async def show_detailed_referral_list(callback: types.CallbackQuery, db_user: Us
                 inline_keyboard=[[types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')]]
             ),
             parse_mode=None,
-            **await get_section_media_kwargs(db, 'referral.list'),
+            **await get_section_media_kwargs(db, 'referral.list', language=db_user.language),
         )
         await callback.answer()
         return
@@ -528,7 +528,7 @@ async def show_detailed_referral_list(callback: types.CallbackQuery, db_user: Us
         callback,
         text,
         types.InlineKeyboardMarkup(inline_keyboard=keyboard),
-        **await get_section_media_kwargs(db, 'referral.list'),
+        **await get_section_media_kwargs(db, 'referral.list', language=db_user.language),
     )
     await callback.answer()
 
@@ -636,7 +636,7 @@ async def show_referral_analytics(callback: types.CallbackQuery, db_user: User, 
         types.InlineKeyboardMarkup(
             inline_keyboard=[[types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')]]
         ),
-        **await get_section_media_kwargs(db, 'referral.analytics'),
+        **await get_section_media_kwargs(db, 'referral.analytics', language=db_user.language),
     )
     await callback.answer()
 
@@ -721,7 +721,7 @@ async def create_invite_message(callback: types.CallbackQuery, db_user: User, db
             f'<blockquote>{invite_html}</blockquote>'
         ),
         keyboard,
-        **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU),
+        **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU, language=db_user.language),
     )
     await callback.answer()
 
@@ -777,7 +777,7 @@ async def show_withdrawal_info(callback: types.CallbackQuery, db_user: User, db:
     keyboard.append([types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')])
 
     await edit_or_answer_photo(
-        callback, text, types.InlineKeyboardMarkup(inline_keyboard=keyboard), **await get_section_media_kwargs(db, 'referral.withdrawal')
+        callback, text, types.InlineKeyboardMarkup(inline_keyboard=keyboard), **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language)
     )
     await callback.answer()
 
@@ -1044,7 +1044,7 @@ async def confirm_withdrawal_request(callback: types.CallbackQuery, db_user: Use
         inline_keyboard=[[types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')]]
     )
 
-    await edit_or_answer_photo(callback, text, keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal'))
+    await edit_or_answer_photo(callback, text, keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language))
     await callback.answer()
 
 
@@ -1059,7 +1059,7 @@ async def cancel_withdrawal_request(callback: types.CallbackQuery, db_user: User
         inline_keyboard=[[types.InlineKeyboardButton(text=texts.BACK, callback_data='menu_referrals')]]
     )
     await edit_or_answer_photo(
-        callback, texts.t('REFERRAL_WITHDRAWAL_CANCELLED', '❌ Заявка отменена'), keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal')
+        callback, texts.t('REFERRAL_WITHDRAWAL_CANCELLED', '❌ Заявка отменена'), keyboard, **await get_section_media_kwargs(db, 'referral.withdrawal', language=db_user.language)
     )
 
 

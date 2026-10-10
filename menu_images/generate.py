@@ -12,13 +12,25 @@
   menu_images/<section>/<sub>.png      ключ '<section>.<sub>' (баннер подпункта)
 
 SVG-исходники зеркальны: svg/main_menu.svg, svg/<section>/_main.svg,
-svg/<section>/<sub>.svg. Папки subscription/ и referral/ существуют только
-для подпунктов (ключи 'subscription.*', 'referral.*'); сами разделы
-называются my_subscriptions и referrals.
+svg/<section>/<sub>.svg; en-вариант — svg_en/ с суффиксом _en. Папки
+subscription/ и referral/ существуют только для подпунктов (ключи
+'subscription.*', 'referral.*'); сами разделы называются my_subscriptions
+и referrals.
 
 Дизайн подпункта: над большим заголовком подпункта — маленькая «плашка»
 с иконкой раздела и подписью «РАЗДЕЛ ›»; строка бренда без тире-суффикса.
 Главный баннер раздела (_main) — прежний макет с подзаголовком.
+
+Система языков (правило владельца): ОСНОВНОЙ заголовок — на выбранном
+языке (ru/ua — русский, как в исходном дизайне; en — английский).
+МЕЛКИЕ подписи инвертированы: в ru/ua — английские («— MY SUBSCRIPTIONS»,
+пилюля всегда русская «ПОДПИСКИ ›»), в en — русские («— МОИ ПОДПИСКИ»).
+Теглайн главного меню — на выбранном языке (ru — русский, en — английский).
+
+  main_menu.png / main_menu_en.png            ключи 'main_menu' / 'main_menu.en'
+  vpn_logo.png (1920)                         только базовый, не дублируется
+  <section>/_main.png | _main_en.png          '<section>' | '<section>.en'
+  <section>/<sub>.png | <sub>_en.png          '<section>.<sub>' | '<section>.<sub>.en'
 
 Запуск:  python3 menu_images/generate.py
 Скрипт сам рендерит PNG через rsvg-convert (-w 1280; vpn_logo — 1920).
@@ -34,6 +46,7 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent
 ICONS = BASE / 'svg' / 'icons'
 OUT = BASE / 'svg'
+OUT_EN = BASE / 'svg_en'
 
 CYAN = '#3BC9DB'
 CYAN_DARK = '#0E7490'
@@ -45,60 +58,65 @@ GREY = '#8AA0AD'
 FONT = 'DejaVu Sans, Arial, sans-serif'
 FONT_BOLD_FILE = '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf'
 
-# section -> {'main': (icon, title_ru, subtitle_en), 'subs': {sub: (icon, title_ru)}}
-# Папка без 'main' (subscription, referral) — только подпункты; сам раздел
-# живёт под другим ключом (my_subscriptions / referrals).
+# section -> {'main': (icon, title_ru, title_en, subtitle_ru, subtitle_en), 'subs': {sub: (icon, title_ru, title_en)}}
+# Правило локализации: заголовок — на выбранном языке (ru — русский, en — англ.),
+# мелкие подписи: в ru — английские (как в исходном дизайне), в en — русские.
+# Пилюля подпункта всегда русская. Папки без 'main' — только подпункты.
 SECTIONS: dict[str, dict] = {
-    'profile': {'main': ('user', 'ПРОФИЛЬ', 'PROFILE')},
+    'profile': {'main': ('user', 'ПРОФИЛЬ', 'PROFILE', 'ПРОФИЛЬ', 'PROFILE')},
     'balance': {
-        'main': ('wallet', 'БАЛАНС', 'BALANCE • TOP-UP'),
+        'main': ('wallet', 'БАЛАНС', 'BALANCE', 'БАЛАНС • ПОПОЛНЕНИЕ', 'BALANCE • TOP-UP'),
         'subs': {
-            'history': ('history', 'ИСТОРИЯ ОПЕРАЦИЙ'),
-            'cards': ('credit-card', 'СОХРАНЁННЫЕ КАРТЫ'),
-            'topup': ('credit-card', 'ПОПОЛНЕНИЕ'),
+            'history': ('history', 'ИСТОРИЯ ОПЕРАЦИЙ', 'TRANSACTION HISTORY'),
+            'cards': ('credit-card', 'СОХРАНЁННЫЕ КАРТЫ', 'SAVED CARDS'),
+            'topup': ('credit-card', 'ПОПОЛНЕНИЕ', 'TOP UP'),
         },
     },
-    'topup_success': {'main': ('circle-check', 'ПОПОЛНЕНО', 'PAYMENT SUCCESS')},
-    'my_subscriptions': {'main': ('devices-2', 'МОИ ПОДПИСКИ', 'MY SUBSCRIPTIONS')},
-    'active_subscription': {'main': ('shield-check', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION')},
-    'promocode': {'main': ('discount', 'ПРОМОКОД', 'PROMO CODE')},
-    'support': {'main': ('headset', 'ПОДДЕРЖКА', 'SUPPORT')},
-    'referrals': {'main': ('users-group', 'ПАРТНЁРСКАЯ ПРОГРАММА', 'REFERRAL PROGRAM')},
-    'subscription_purchase': {'main': ('credit-card', 'ПОКУПКА ПОДПИСКИ', 'PURCHASE')},
-    'subscription_upgrade': {'main': ('refresh', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'UPGRADE • EXTEND')},
-    'subscription_success': {'main': ('rosette', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION SUCCESS')},
+    'topup_success': {'main': ('circle-check', 'ПОПОЛНЕНО', 'PAYMENT SUCCESS', 'ПЛАТЁЖ ВЫПОЛНЕН', 'PAYMENT SUCCESS')},
+    'my_subscriptions': {'main': ('devices-2', 'МОИ ПОДПИСКИ', 'MY SUBSCRIPTIONS', 'МОИ ПОДПИСКИ', 'MY SUBSCRIPTIONS')},
+    'active_subscription': {'main': ('shield-check', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION', 'АКТИВНАЯ ПОДПИСКА', 'ACTIVE SUBSCRIPTION')},
+    'promocode': {'main': ('discount', 'ПРОМОКОД', 'PROMO CODE', 'ПРОМОКОД', 'PROMO CODE')},
+    'support': {'main': ('headset', 'ПОДДЕРЖКА', 'SUPPORT', 'ПОДДЕРЖКА', 'SUPPORT')},
+    'referrals': {'main': ('users-group', 'ПАРТНЁРСКАЯ ПРОГРАММА', 'REFERRAL PROGRAM', 'ПАРТНЁРСКАЯ ПРОГРАММА', 'REFERRAL PROGRAM')},
+    'subscription_purchase': {'main': ('credit-card', 'ПОКУПКА ПОДПИСКИ', 'PURCHASE', 'ОФОРМЛЕНИЕ ЗАКАЗА', 'PURCHASE')},
+    'subscription_upgrade': {'main': ('refresh', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION', 'ПРОДЛЕНИЕ • РАСШИРЕНИЕ', 'UPGRADE • EXTEND')},
+    'subscription_success': {'main': ('rosette', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION ACTIVE', 'ПОДПИСКА АКТИВНА', 'SUBSCRIPTION SUCCESS')},
     'subscription': {
         'subs': {
-            'devices': ('devices-2', 'УСТРОЙСТВА'),
-            'traffic': ('chart-arrows', 'ДОП. ТРАФИК'),
-            'autopay': ('calendar-repeat', 'АВТОПРОДЛЕНИЕ'),
-            'extend': ('clock-plus', 'ПРОДЛЕНИЕ ПОДПИСКИ'),
-            'revoke': ('refresh-off', 'ПЕРЕВЫПУСК'),
+            'devices': ('devices-2', 'УСТРОЙСТВА', 'DEVICES'),
+            'traffic': ('chart-arrows', 'ДОП. ТРАФИК', 'EXTRA TRAFFIC'),
+            'autopay': ('calendar-repeat', 'АВТОПРОДЛЕНИЕ', 'AUTO-RENEWAL'),
+            'extend': ('clock-plus', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION'),
+            'revoke': ('refresh-off', 'ПЕРЕВЫПУСК', 'RE-ISSUE'),
         },
     },
-    'info': {'main': ('info-circle', 'ИНФОРМАЦИЯ', 'INFORMATION')},
-    'faq': {'main': ('question', 'ЧАСТЫЕ ВОПРОСЫ', 'FAQ')},
-    'rules': {'main': ('list-check', 'ПРАВИЛА СЕРВИСА', 'SERVICE RULES')},
-    'privacy_policy': {'main': ('lock', 'КОНФИДЕНЦИАЛЬНОСТЬ', 'PRIVACY POLICY')},
-    'public_offer': {'main': ('file-text', 'ПУБЛИЧНАЯ ОФЕРТА', 'PUBLIC OFFER')},
-    'language': {'main': ('world', 'ВЫБОР ЯЗЫКА', 'LANGUAGE')},
-    'server_status': {'main': ('server-2', 'СТАТУС СЕРВЕРОВ', 'SERVER STATUS')},
-    'trial': {'main': ('gift', 'ПРОБНЫЙ ПЕРИОД', 'FREE TRIAL')},
+    'info': {'main': ('info-circle', 'ИНФОРМАЦИЯ', 'INFORMATION', 'ИНФОРМАЦИЯ', 'INFORMATION')},
+    'faq': {'main': ('question', 'ЧАСТЫЕ ВОПРОСЫ', 'FAQ', 'ЧАСТЫЕ ВОПРОСЫ', 'FAQ')},
+    'rules': {'main': ('list-check', 'ПРАВИЛА СЕРВИСА', 'SERVICE RULES', 'ПРАВИЛА СЕРВИСА', 'SERVICE RULES')},
+    'privacy_policy': {'main': ('lock', 'КОНФИДЕНЦИАЛЬНОСТЬ', 'PRIVACY POLICY', 'ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ', 'PRIVACY POLICY')},
+    'public_offer': {'main': ('file-text', 'ПУБЛИЧНАЯ ОФЕРТА', 'PUBLIC OFFER', 'ПУБЛИЧНАЯ ОФЕРТА', 'PUBLIC OFFER')},
+    'language': {'main': ('world', 'ВЫБОР ЯЗЫКА', 'LANGUAGE', 'ВЫБОР ЯЗЫКА', 'LANGUAGE')},
+    'server_status': {'main': ('server-2', 'СТАТУС СЕРВЕРОВ', 'SERVER STATUS', 'СТАТУС СЕРВЕРОВ', 'SERVER STATUS')},
+    'trial': {'main': ('gift', 'ПРОБНЫЙ ПЕРИОД', 'FREE TRIAL', 'БЕСПЛАТНЫЙ ПЕРИОД', 'FREE TRIAL')},
     'referral': {
         'subs': {
-            'list': ('list', 'СПИСОК РЕФЕРАЛОВ'),
-            'analytics': ('chart-bar', 'АНАЛИТИКА'),
-            'withdrawal': ('cash', 'ВЫВОД СРЕДСТВ'),
+            'list': ('list', 'СПИСОК РЕФЕРАЛОВ', 'REFERRAL LIST'),
+            'analytics': ('chart-bar', 'АНАЛИТИКА', 'ANALYTICS'),
+            'withdrawal': ('cash', 'ВЫВОД СРЕДСТВ', 'WITHDRAWALS'),
         },
     },
 }
 
-# Плашка подпункта: (иконка раздела, надпись «РАЗДЕЛ ›») для родительской папки.
-SUBSECTION_META: dict[str, tuple[str, str]] = {
-    'balance': ('wallet', 'БАЛАНС'),
-    'subscription': ('devices-2', 'ПОДПИСКИ'),
-    'referral': ('users-group', 'ПАРТНЁРКА'),
+# Плашка подпункта: (иконка раздела, пилюля RU, пилюля EN). Пилюля всегда русская.
+SUBSECTION_META: dict[str, tuple[str, str, str]] = {
+    'balance': ('wallet', 'БАЛАНС', 'BALANCE'),
+    'subscription': ('devices-2', 'ПОДПИСКИ', 'SUBSCRIPTIONS'),
+    'referral': ('users-group', 'ПАРТНЁРКА', 'REFERRALS'),
 }
+
+# Теглайн главного меню (и vpn_logo): на выбранном языке (ru — рус., en — англ.).
+TAGLINE_EN = 'SECURE INTERNET WITHOUT BORDERS'
+TAGLINE_RU = 'БЕЗОПАСНЫЙ ИНТЕРНЕТ БЕЗ ГРАНИЦ'
 
 W, H = 1280, 720
 
@@ -220,7 +238,7 @@ def chip_block(icon: str, chip_x: float, chip_size: float) -> tuple[str, float]:
         block = (
             f'<rect x="{chip_x}" y="{chip_y:.0f}" width="{chip_size}" height="{chip_size}" rx="60" '
             f'fill="{CYAN}" fill-opacity="0.07" stroke="url(#accent)" stroke-width="3"/>'
-            f'{icon_group(icon, chip_cx, H / 2, 170, CYAN_LIGHT, 1.7)}'
+            f'{icon_group(icon, chip_cx, H / 2, 170, CYAN_LIGHT, 2.9)}'
         )
     return block, chip_cx
 
@@ -312,7 +330,7 @@ def subsection_svg(icon: str, title: str, section_icon: str, section_label: str)
     )
 
 
-def main_menu_svg() -> str:
+def main_menu_svg(tagline: str) -> str:
     cx = W / 2
     icon_y = 225
     icon_size = 310
@@ -322,12 +340,12 @@ def main_menu_svg() -> str:
     bg = background(W - 175, 175, 280)
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">{defs()}
   {bg}
-  {aperture_group(cx, icon_y, icon_size, CYAN_LIGHT, 1.6, 1.0)}
-  {aperture_group(cx, icon_y, icon_size + 64, CYAN, 1, 0.25)}
+  {aperture_group(cx, icon_y, icon_size, CYAN_LIGHT, 4.2, 1.0)}
+  {aperture_group(cx, icon_y, icon_size + 64, CYAN, 2.2, 0.25)}
   <text x="{cx}" y="{wordmark_y}" font-family="{FONT}" font-weight="bold" font-size="108"
         text-anchor="middle" letter-spacing="6"><tspan fill="{CYAN}">Apertu</tspan><tspan fill="#F2F7FA">RU</tspan><tspan fill="#F2F7FA" dx="20">VPN</tspan></text>
   <text x="{cx}" y="{tagline_y}" font-family="{FONT}" font-size="34" fill="{GREY}"
-        text-anchor="middle" letter-spacing="8">БЕЗОПАСНЫЙ ИНТЕРНЕТ БЕЗ ГРАНИЦ</text>
+        text-anchor="middle" letter-spacing="8">{escape(tagline)}</text>
 </svg>
 '''
 
@@ -342,35 +360,56 @@ def render_png(svg_path: Path, png_path: Path, width: int = 1280) -> None:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    OUT_EN.mkdir(parents=True, exist_ok=True)
     svg_files: list[tuple[Path, Path, int]] = []  # (svg, png, render_width)
 
-    # Главное меню (плоский файл) + общий логотип (тот же макет, рендер 1920)
-    main_svg = OUT / 'main_menu.svg'
-    main_svg.write_text(main_menu_svg(), encoding='utf-8')
-    svg_files.append((main_svg, BASE / 'main_menu.png', 1280))
-    svg_files.append((main_svg, BASE / 'vpn_logo.png', 1920))
+    # Локализация (правило владельца): ОСНОВНОЙ заголовок — на выбранном
+    # языке (ru — как было, en — английский). МЕЛКИЕ подписи: в ru —
+    # английские (исходный дизайн), в en — русские. Пилюля всегда русская.
+    # Теглайн главного меню — на выбранном языке.
+    variants: list[tuple[str, Path, bool]] = (
+        # (суффикс файла, корень SVG, is_en)
+        ('', OUT, False),
+        ('_en', OUT_EN, True),
+    )
 
-    for sec, spec in SECTIONS.items():
-        if 'main' in spec:
-            icon, title, subtitle = spec['main']
-            svg_path = OUT / sec / '_main.svg'
-            svg_path.parent.mkdir(parents=True, exist_ok=True)
-            svg_path.write_text(section_svg(icon, title, subtitle), encoding='utf-8')
-            svg_files.append((svg_path, BASE / sec / '_main.png', 1280))
-        for sub, (icon, title) in spec.get('subs', {}).items():
-            sec_icon, sec_label = SUBSECTION_META[sec]
-            svg_path = OUT / sec / f'{sub}.svg'
-            svg_path.parent.mkdir(parents=True, exist_ok=True)
-            svg_path.write_text(subsection_svg(icon, title, sec_icon, sec_label), encoding='utf-8')
-            svg_files.append((svg_path, BASE / sec / f'{sub}.png', 1280))
+    for suffix, svg_root, is_en in variants:
+        # Главное меню (плоский файл); vpn_logo только в базовом наборе (1920)
+        main_svg = svg_root / f'main_menu{suffix}.svg'
+        main_svg.parent.mkdir(parents=True, exist_ok=True)
+        main_svg.write_text(main_menu_svg(TAGLINE_EN if is_en else TAGLINE_RU), encoding='utf-8')
+        svg_files.append((main_svg, BASE / f'main_menu{suffix}.png', 1280))
+        if not suffix:
+            svg_files.append((main_svg, BASE / 'vpn_logo.png', 1920))
+
+        for sec, spec in SECTIONS.items():
+            if 'main' in spec:
+                icon, title_ru, title_en, sub_ru, sub_en = spec['main']
+                title, subtitle = (title_en, sub_ru) if is_en else (title_ru, sub_en)
+                svg_path = svg_root / sec / f'_main{suffix}.svg'
+                svg_path.parent.mkdir(parents=True, exist_ok=True)
+                svg_path.write_text(section_svg(icon, title, subtitle), encoding='utf-8')
+                svg_files.append((svg_path, BASE / sec / f'_main{suffix}.png', 1280))
+            for sub, (icon, title_ru, title_en) in spec.get('subs', {}).items():
+                sec_icon, pill_ru, pill_en = SUBSECTION_META[sec]
+                pill = pill_ru
+                title = title_en if is_en else title_ru
+                svg_path = svg_root / sec / f'{sub}{suffix}.svg'
+                svg_path.parent.mkdir(parents=True, exist_ok=True)
+                svg_path.write_text(subsection_svg(icon, title, sec_icon, pill), encoding='utf-8')
+                svg_files.append((svg_path, BASE / sec / f'{sub}{suffix}.png', 1280))
 
     for svg_path, png_path, width in svg_files:
         render_png(svg_path, png_path, width)
 
-    n_svg = 1 + sum(
+    per_variant = 1 + sum(
         (1 if 'main' in spec else 0) + len(spec.get('subs', {})) for spec in SECTIONS.values()
-    )  # + main_menu
-    print(f'generated {n_svg} svg -> {OUT}; rendered {len(svg_files)} png (incl. vpn_logo 1920)')
+    )  # main_menu + разделы/подпункты
+    print(
+        f'generated {2 * per_variant} svg ({per_variant} base + {per_variant} en) '
+        f'-> {OUT} + {OUT_EN}; rendered {len(svg_files)} png '
+        f'(incl. vpn_logo 1920, en-варианты с суффиксом _en)'
+    )
 
 
 if __name__ == '__main__':

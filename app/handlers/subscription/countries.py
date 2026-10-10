@@ -494,7 +494,7 @@ async def apply_countries_changes(callback: types.CallbackQuery, db_user: User, 
             caption=success_text,
             keyboard=get_back_keyboard(db_user.language),
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=db_user.language),
         )
 
         await state.clear()
@@ -969,7 +969,7 @@ async def confirm_add_countries_to_subscription(
             callback=callback,
             caption=success_text,
             keyboard=get_back_keyboard(db_user.language),
-            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=db_user.language),
         )
 
         logger.info(

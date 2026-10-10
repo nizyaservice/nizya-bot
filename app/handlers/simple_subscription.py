@@ -67,7 +67,7 @@ async def start_simple_subscription_purchase(
             caption=f'🚫 <b>Покупка подписки ограничена</b>\n\n{reason}\n\n'
             'Если вы считаете это ошибкой, вы можете обжаловать решение.',
             keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
         )
         await callback.answer()
         return
@@ -668,7 +668,7 @@ async def handle_simple_subscription_pay_with_balance(
             caption=success_message,
             keyboard=keyboard,
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
         )
 
         # Отправляем уведомление админам
@@ -1120,7 +1120,7 @@ async def handle_simple_subscription_payment_method(
                     caption=message_text,
                     keyboard=keyboard,
                     parse_mode='HTML',
-                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE),
+                    **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_PURCHASE, language=db_user.language),
                 )
 
             await state.clear()
@@ -2428,7 +2428,7 @@ async def confirm_simple_subscription_purchase(
             caption=success_message,
             keyboard=keyboard,
             parse_mode='HTML',
-            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS),
+            **await get_section_media_kwargs(db, SECTION_IMAGE_SUBSCRIPTION_SUCCESS, language=db_user.language),
         )
 
         # Отправляем уведомление админам
