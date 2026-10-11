@@ -406,23 +406,16 @@ async def show_payment_methods(callback: types.CallbackQuery, db_user: User, db:
 
     keyboard = get_payment_methods_keyboard(amount_kopeks, db_user.language)
 
-    # Если сообщение недоступно, отправляем новое
-    if isinstance(callback.message, InaccessibleMessage):
-        await callback.message.answer(full_text, reply_markup=keyboard, parse_mode='HTML')
-        await callback.answer()
-        return
-
-    try:
-        await callback.message.edit_text(full_text, reply_markup=keyboard, parse_mode='HTML')
-    except TelegramBadRequest:
-        try:
-            await callback.message.edit_caption(full_text, reply_markup=keyboard, parse_mode='HTML')
-        except TelegramBadRequest:
-            try:
-                await callback.message.delete()
-            except TelegramBadRequest:
-                pass
-            await callback.message.answer(full_text, reply_markup=keyboard, parse_mode='HTML')
+    # Баннер пополнения — явно с языком юзера (balance.topup / balance.topup.en),
+    # как на соседних экранах баланса: у экрана есть своя секция, автодетект
+    # по клавиатуре не нужен (и не должен решать язык по chat.id).
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=full_text,
+        keyboard=keyboard,
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, 'balance.topup', language=db_user.language),
+    )
 
     await callback.answer()
 
@@ -632,7 +625,7 @@ async def process_topup_amount(message: types.Message, db_user: User, state: FSM
                 return
 
         if not await route_payment_by_method(message, db_user, amount_kopeks, state, payment_method):
-            await _answer_with_balance_banner(message, 'Неизвестный способ оплаты')
+            await _answer_with_balance_banner(message, 'Неизвестный способ оплаты', db_user.language)
 
     except ValueError:
         await _answer_with_balance_banner(message, texts.INVALID_AMOUNT, db_user.language)
@@ -690,10 +683,10 @@ async def handle_sbp_payment(callback: types.CallbackQuery, db: AsyncSession):
         await callback.answer('❌ Ошибка обработки платежа', show_alert=True)
 
 
-async def _reply_after_answer(callback: types.CallbackQuery, text: str) -> None:
+async def _reply_after_answer(callback: types.CallbackQuery, text: str, language: str | None = None) -> None:
     """Нажатие уже подтверждено — второй answer() Telegram отвергнет, поэтому пишем сообщением."""
     if isinstance(callback.message, types.Message):
-        await _answer_with_balance_banner(callback.message, text)
+        await _answer_with_balance_banner(callback.message, text, language)
 
 
 @error_handler
@@ -776,13 +769,13 @@ async def handle_topup_amount_callback(
             await state.update_data(payment_method=method)
             await state.set_state(BalanceStates.waiting_for_amount)
             if not await route_payment_by_method(callback.message, db_user, amount_kopeks, state, method):
-                await _reply_after_answer(callback, '❌ Неизвестный способ оплаты')
+                await _reply_after_answer(callback, '❌ Неизвестный способ оплаты', db_user.language)
 
     except TelegramBadRequest:
         raise  # устаревший запрос и прочие ответы Telegram классифицирует @error_handler
     except Exception as error:
         logger.error('Ошибка быстрого пополнения', error=error)
-        await _reply_after_answer(callback, '❌ Ошибка обработки запроса')
+        await _reply_after_answer(callback, '❌ Ошибка обработки запроса', db_user.language)
 
 
 def register_balance_handlers(dp: Dispatcher):

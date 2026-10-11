@@ -28,6 +28,7 @@ SECTION_IMAGE_PUBLIC_OFFER = 'public_offer'
 SECTION_IMAGE_LANGUAGE = 'language'
 SECTION_IMAGE_SERVER_STATUS = 'server_status'
 SECTION_IMAGE_TRIAL = 'trial'
+SECTION_IMAGE_ADMIN = 'admin'
 
 _SECTION_IMAGE_SETTING_PREFIX = 'ui_section_image.'
 
@@ -144,6 +145,11 @@ SECTION_IMAGE_DEFINITIONS: tuple[SectionImageDefinition, ...] = (
         title_key='ADMIN_SECTION_IMAGE_TRIAL',
         title_default='🎁 Пробный период',
     ),
+    SectionImageDefinition(
+        key=SECTION_IMAGE_ADMIN,
+        title_key='ADMIN_SECTION_IMAGE_ADMIN',
+        title_default='⚙️ Админ-панель',
+    ),
     # Подпункты разделов (ключи вида '<section>.<sub>' — фолбэк на картинку раздела)
     SectionImageDefinition(
         key='balance.history',
@@ -154,6 +160,11 @@ SECTION_IMAGE_DEFINITIONS: tuple[SectionImageDefinition, ...] = (
         key='balance.cards',
         title_key='ADMIN_SECTION_IMAGE_BALANCE_CARDS',
         title_default='💰 Баланс → Сохранённые карты',
+    ),
+    SectionImageDefinition(
+        key='balance.topup',
+        title_key='ADMIN_SECTION_IMAGE_BALANCE_TOPUP',
+        title_default='💰 Баланс → Пополнение',
     ),
     SectionImageDefinition(
         key='subscription.settings',

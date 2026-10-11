@@ -21,6 +21,18 @@ _INFO_COMBO = {
     'menu_info_promo_groups',
 }
 
+# Корневой экран админ-панели: несколько кнопок-подменю одновременно
+# (get_admin_main_keyboard). Внутренние админ-экраны держат лишь одну
+# кнопку «назад в подменю», поэтому комбо их не зацепляет.
+_ADMIN_COMBO = {
+    'admin_submenu_users',
+    'admin_submenu_promo',
+    'admin_submenu_support',
+    'admin_submenu_communications',
+    'admin_submenu_settings',
+    'admin_submenu_system',
+}
+
 # Подпункты: специфичнее разделов, матчатся первыми.
 _SUBRULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
     # Экран «Настройки подписки»: «Управление устройствами» (subscription_manage_devices)
@@ -211,6 +223,10 @@ def detect_section_key(reply_markup: InlineKeyboardMarkup | ReplyKeyboardMarkup 
     # Экран «Информация»: несколько info-кнопок одновременно — до индивидуальных правил.
     if len(_INFO_COMBO & callbacks) >= 2:
         return 'info'
+
+    # Корневая админ-панель: несколько кнопок-подменю сразу — до индивидуальных правил.
+    if len(_ADMIN_COMBO & callbacks) >= 2:
+        return 'admin'
 
     keys = {key for key in (_match_callback(cb) for cb in callbacks) if key}
     if not keys:

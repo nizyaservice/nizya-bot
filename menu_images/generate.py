@@ -18,8 +18,10 @@ subscription/ и referral/ существуют только для подпун
 и referrals.
 
 Дизайн подпункта: над большим заголовком подпункта — маленькая «плашка»
-с иконкой раздела и подписью «РАЗДЕЛ ›»; строка бренда без тире-суффикса.
-Главный баннер раздела (_main) — прежний макет с подзаголовком.
+с иконкой раздела и подписью «РАЗДЕЛ ›»; под заголовком — мелкий субтайтл
+в стиле субтайтла главного баннера (то же правило инверсии); строка бренда
+без тире-суффикса. Главный баннер раздела (_main) — прежний макет с
+подзаголовком.
 
 Система языков (правило владельца): ОСНОВНОЙ заголовок — на выбранном
 языке (ru/ua — русский, как в исходном дизайне; en — английский).
@@ -58,18 +60,19 @@ GREY = '#8AA0AD'
 FONT = 'DejaVu Sans, Arial, sans-serif'
 FONT_BOLD_FILE = '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf'
 
-# section -> {'main': (icon, title_ru, title_en, subtitle_ru, subtitle_en), 'subs': {sub: (icon, title_ru, title_en)}}
+# section -> {'main': (icon, title_ru, title_en, subtitle_ru, subtitle_en),
+#              'subs': {sub: (icon, title_ru, title_en, sub_ru, sub_en)}}
 # Правило локализации: заголовок — на выбранном языке (ru — русский, en — англ.),
-# мелкие подписи: в ru — английские (как в исходном дизайне), в en — русские.
-# Пилюля подпункта всегда русская. Папки без 'main' — только подпункты.
+# мелкие подписи (субтайтлы): в ru — английские (как в исходном дизайне), в en —
+# русские. Пилюля подпункта всегда русская. Папки без 'main' — только подпункты.
 SECTIONS: dict[str, dict] = {
     'profile': {'main': ('user', 'ПРОФИЛЬ', 'PROFILE', 'ПРОФИЛЬ', 'PROFILE')},
     'balance': {
         'main': ('wallet', 'БАЛАНС', 'BALANCE', 'БАЛАНС • ПОПОЛНЕНИЕ', 'BALANCE • TOP-UP'),
         'subs': {
-            'history': ('history', 'ИСТОРИЯ ОПЕРАЦИЙ', 'TRANSACTION HISTORY'),
-            'cards': ('credit-card', 'СОХРАНЁННЫЕ КАРТЫ', 'SAVED CARDS'),
-            'topup': ('credit-card', 'ПОПОЛНЕНИЕ', 'TOP UP'),
+            'history': ('history', 'ИСТОРИЯ ОПЕРАЦИЙ', 'TRANSACTION HISTORY', 'ИСТОРИЯ ПЛАТЕЖЕЙ', 'PAYMENT HISTORY'),
+            'cards': ('credit-card', 'СОХРАНЁННЫЕ КАРТЫ', 'SAVED CARDS', 'ПЛАТЁЖНЫЕ КАРТЫ', 'PAYMENT CARDS'),
+            'topup': ('credit-card', 'ПОПОЛНЕНИЕ', 'TOP UP', 'ПОПОЛНЕНИЕ БАЛАНСА', 'BALANCE TOP-UP'),
         },
     },
     'topup_success': {'main': ('circle-check', 'ПОПОЛНЕНО', 'PAYMENT SUCCESS', 'ПЛАТЁЖ ВЫПОЛНЕН', 'PAYMENT SUCCESS')},
@@ -79,6 +82,7 @@ SECTIONS: dict[str, dict] = {
     },
     'promocode': {'main': ('discount', 'ПРОМОКОД', 'PROMO CODE', 'ПРОМОКОД', 'PROMO CODE')},
     'support': {'main': ('headset', 'ПОДДЕРЖКА', 'SUPPORT', 'ПОДДЕРЖКА', 'SUPPORT')},
+    'admin': {'main': ('shield-cog', 'АДМИН-ПАНЕЛЬ', 'ADMIN PANEL', 'ПУЛЬТ УПРАВЛЕНИЯ', 'CONTROL CENTER')},
     'referrals': {
         'main': (
             'users-group',
@@ -97,12 +101,12 @@ SECTIONS: dict[str, dict] = {
     },
     'subscription': {
         'subs': {
-            'settings': ('adjustments', 'НАСТРОЙКИ', 'SETTINGS'),
-            'devices': ('devices-2', 'УСТРОЙСТВА', 'DEVICES'),
-            'traffic': ('chart-arrows', 'ДОП. ТРАФИК', 'EXTRA TRAFFIC'),
-            'autopay': ('calendar-repeat', 'АВТОПРОДЛЕНИЕ', 'AUTO-RENEWAL'),
-            'extend': ('clock-plus', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION'),
-            'revoke': ('refresh-off', 'ПЕРЕВЫПУСК', 'RE-ISSUE'),
+            'settings': ('adjustments', 'НАСТРОЙКИ', 'SETTINGS', 'УПРАВЛЕНИЕ ПОДПИСКОЙ', 'SUBSCRIPTION CONTROLS'),
+            'devices': ('devices-2', 'УСТРОЙСТВА', 'DEVICES', 'УПРАВЛЕНИЕ УСТРОЙСТВАМИ', 'DEVICE MANAGEMENT'),
+            'traffic': ('chart-arrows', 'ДОП. ТРАФИК', 'EXTRA TRAFFIC', 'ДОПОЛНИТЕЛЬНЫЙ ТРАФИК', 'EXTRA TRAFFIC PACKS'),
+            'autopay': ('calendar-repeat', 'АВТОПРОДЛЕНИЕ', 'AUTO-RENEWAL', 'АВТОМАТИЧЕСКОЕ ПРОДЛЕНИЕ', 'AUTOMATIC RENEWAL'),
+            'extend': ('clock-plus', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION', 'ПРОДЛЕНИЕ • РАСШИРЕНИЕ', 'UPGRADE • EXTEND'),
+            'revoke': ('refresh-off', 'ПЕРЕВЫПУСК', 'RE-ISSUE', 'ПЕРЕВЫПУСК ПОДКЛЮЧЕНИЯ', 'RE-ISSUE CONNECTION'),
         },
     },
     'info': {'main': ('info-circle', 'ИНФОРМАЦИЯ', 'INFORMATION', 'ИНФОРМАЦИЯ', 'INFORMATION')},
@@ -117,9 +121,9 @@ SECTIONS: dict[str, dict] = {
     'trial': {'main': ('gift', 'ПРОБНЫЙ ПЕРИОД', 'FREE TRIAL', 'БЕСПЛАТНЫЙ ПЕРИОД', 'FREE TRIAL')},
     'referral': {
         'subs': {
-            'list': ('list', 'СПИСОК РЕФЕРАЛОВ', 'REFERRAL LIST'),
-            'analytics': ('chart-bar', 'АНАЛИТИКА', 'ANALYTICS'),
-            'withdrawal': ('cash', 'ВЫВОД СРЕДСТВ', 'WITHDRAWALS'),
+            'list': ('list', 'СПИСОК РЕФЕРАЛОВ', 'REFERRAL LIST', 'ПАРТНЁРСКИЕ ПРИГЛАШЕНИЯ', 'REFERRAL INVITES'),
+            'analytics': ('chart-bar', 'АНАЛИТИКА', 'ANALYTICS', 'СТАТИСТИКА ПАРТНЁРКИ', 'REFERRAL STATS'),
+            'withdrawal': ('cash', 'ВЫВОД СРЕДСТВ', 'WITHDRAWALS', 'ВЫВОД ПАРТНЁРСКИХ СРЕДСТВ', 'REFERRAL PAYOUTS'),
         },
     },
 }
@@ -294,20 +298,49 @@ def section_svg(icon: str, title: str, subtitle: str) -> str:
 
 # --- плашка подпункта ---------------------------------------------------------
 
-PILL_Y = 228
+PILL_Y = 212
 PILL_H = 56
 PILL_LS = 3
 PILL_FONT = 27
 
+# Субтайтл подпункта: мелкая строка под большим заголовком, в стиле субтайтла
+# главного баннера (bold + разрядка + GREY). Лестница размеров не даёт длинным
+# строкам («ВЫВОД ПАРТНЁРСКИХ СРЕДСТВ») выйти за TEXT_MAX_END и наехать на
+# водяной знак/рамку; базовые линии всех строк фиксированы — заголовок и
+# субтайтл не пересекаются ни при каком размере заголовка с лестницы.
+SUB_LADDER = (26, 24, 22, 20)
+SUB_LS = 3
+SUB_GAP = 60  # базовая линия заголовка → базовая линия субтайтла
+BAR_GAP = 30  # базовая линия субтайтла → верх циан-линии
+BRAND_GAP = 56  # циан-линия → базовая линия бренда
 
-def subsection_svg(icon: str, title: str, section_icon: str, section_label: str) -> str:
+
+def sub_size_for(subtitle: str, text_x: float) -> int:
+    """Наибольший размер субтайтла с лестницы, при котором он не выходит
+    за TEXT_MAX_END (тот же принцип, что title_size_for)."""
+    budget = TEXT_MAX_END - text_x
+    for size in SUB_LADDER:
+        if text_width(subtitle, size, SUB_LS) <= budget:
+            return size
+    return SUB_LADDER[-1]
+
+
+def subsection_svg(icon: str, title: str, subtitle: str, section_icon: str, section_label: str) -> str:
     """Баннер подпункта: чип с иконкой подпункта + плашка «РАЗДЕЛ ›» над большим
-    заголовком. Иерархия читается визуально: подпункт — крупно, раздел — мелко."""
+    заголовком, под заголовком — мелкий субтайтл (та же инверсия языков, что у
+    субтайтла главного баннера). Иерархия читается визуально: подпункт — крупно,
+    раздел — мелко. Заголовок и субтайтл выровнены по общей левой кромке
+    (text_x), циан-линия отделяет блок «заголовок+субтайтл» от бренд-строки."""
     chip_x, chip_size = 72, 284
     text_x = 416
     title_size = title_size_for(title, text_x)
+    sub_size = sub_size_for(subtitle, text_x)
+    title_y = 382
+    sub_y = title_y + SUB_GAP
+    bar_y = sub_y + BAR_GAP
+    brand_y = bar_y + BRAND_GAP
 
-    # плачка-«таблетка»: мини-иконка раздела + «РАЗДЕЛ ›»
+    # плашка-«таблетка»: мини-иконка раздела + «РАЗДЕЛ ›»
     label = f'{section_label} ›'
     pill_cy = PILL_Y + PILL_H / 2
     icon_cx = text_x + 36
@@ -321,14 +354,13 @@ def subsection_svg(icon: str, title: str, section_icon: str, section_label: str)
         f'font-size="{PILL_FONT}" fill="{GREY}" letter-spacing="{PILL_LS}">{escape(label)}</text>'
     )
 
-    title_y = 400
-    bar_y = title_y + 32
-    brand_y = title_y + 102
     icon_block, _chip_cx = chip_block(icon, chip_x, chip_size)
     texts = (
         f'{pill}'
         f'<text x="{text_x}" y="{title_y:.0f}" font-family="{FONT}" font-weight="bold" '
         f'font-size="{title_size}" fill="#F2F7FA" letter-spacing="{TITLE_LS}">{escape(title)}</text>'
+        f'<text x="{text_x}" y="{sub_y:.0f}" font-family="{FONT}" font-weight="bold" '
+        f'font-size="{sub_size}" fill="{GREY}" letter-spacing="{SUB_LS}">{escape(subtitle)}</text>'
         f'<rect x="{text_x + 2}" y="{bar_y:.0f}" width="170" height="6" rx="3" fill="url(#accent)"/>'
         f'<text x="{text_x}" y="{brand_y:.0f}" font-family="{FONT}" font-weight="bold" '
         f'font-size="26" letter-spacing="2">{brand_tspans()}</text>'
@@ -402,13 +434,15 @@ def main() -> None:
                 svg_path.parent.mkdir(parents=True, exist_ok=True)
                 svg_path.write_text(section_svg(icon, title, subtitle), encoding='utf-8')
                 svg_files.append((svg_path, BASE / sec / f'_main{suffix}.png', 1280))
-            for sub, (icon, title_ru, title_en) in spec.get('subs', {}).items():
-                sec_icon, pill_ru, pill_en = SUBSECTION_META[sec]
-                pill = pill_ru
+            for sub, (icon, title_ru, title_en, sub_ru, sub_en) in spec.get('subs', {}).items():
+                sec_icon, pill, _pill_en = SUBSECTION_META[sec]
                 title = title_en if is_en else title_ru
+                # субтайтл подпункта — та же инверсия, что у главных баннеров:
+                # base-набор = sub_en, en-набор = sub_ru
+                subtitle = sub_ru if is_en else sub_en
                 svg_path = svg_root / sec / f'{sub}{suffix}.svg'
                 svg_path.parent.mkdir(parents=True, exist_ok=True)
-                svg_path.write_text(subsection_svg(icon, title, sec_icon, pill), encoding='utf-8')
+                svg_path.write_text(subsection_svg(icon, title, subtitle, sec_icon, pill), encoding='utf-8')
                 svg_files.append((svg_path, BASE / sec / f'{sub}{suffix}.png', 1280))
 
     for svg_path, png_path, width in svg_files:

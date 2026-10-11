@@ -77,7 +77,8 @@ DEFINED = {
     'language',
     'server_status',
     'trial',
-    # Подпункты — у каждого своя картинка (32 ключа в БД), НЕ схлопывать.
+    'admin',
+    # Подпункты — у каждого своя картинка (всего 33 ключа в БД), НЕ схлопывать.
     'balance.history',
     'balance.cards',
     'balance.topup',
@@ -93,14 +94,14 @@ DEFINED = {
 }
 
 # en-варианты баннеров (ui_section_image.<key>.en — русские мелкие подписи
-# для англоязычного интерфейса, инверсия языков по дизайну владельца; 64 ключа
+# для англоязычного интерфейса, инверсия языков по дизайну владельца; 66 ключа
 # в БД). В автодетекте не участвуют (там языка нет — базовый вариант); eff()
 # их не схлопывает — это самостоятельные картинки, а не иерархический фолбэк.
 DEFINED_EN = {f'{k}.en' for k in tuple(DEFINED)}
-assert len(DEFINED_EN) == 32, len(DEFINED_EN)
+assert len(DEFINED_EN) == 33, len(DEFINED_EN)
 assert not (DEFINED_EN & DEFINED)
 DEFINED |= DEFINED_EN
-assert len(DEFINED) == 64, len(DEFINED)
+assert len(DEFINED) == 66, len(DEFINED)
 # _SECTION_IMAGE_ALIASES из app/services/section_image_service.py
 ALIAS = {'subscription': 'my_subscriptions', 'referral': 'referrals'}
 
@@ -145,6 +146,28 @@ case(
     'main_menu',
     'main_menu',
 )
+# Корневая админ-панель (get_admin_main_keyboard, admin/main.py): комбо
+# кнопок-подменю; внутренние админ-экраны (одна кнопка «назад в подменю»)
+# баннером не становятся — см. admin_users_submenu ниже.
+case(
+    'admin_panel_root',
+    [
+        'admin_submenu_users',
+        'admin_servers',
+        'admin_tariffs',
+        'admin_pricing',
+        'admin_submenu_promo',
+        'admin_submenu_support',
+        'admin_submenu_communications',
+        'admin_submenu_settings',
+        'admin_submenu_system',
+        'admin_trials',
+        'admin_payments',
+        'back_to_menu',
+    ],
+    'admin',
+)
+case('admin_users_submenu', ['admin_users', 'admin_referrals', 'admin_subscriptions', 'admin_panel'], None)
 case(
     'info_menu',
     [
@@ -674,6 +697,7 @@ case(
     'payment_methods',
     ['topup_stars', 'topup_yookassa_sbp', 'topup_yookassa', 'topup_cryptobot', 'topup_support', 'menu_balance'],
     'balance.topup',
+    'balance.topup',  # явная проводка с языком юзера (show_payment_methods)
 )
 case(
     'payment_methods_cart',
@@ -685,6 +709,7 @@ case(
         'menu_balance',
     ],
     'balance.topup',
+    'balance.topup',  # тот же хендлер с автоподстановкой суммы из корзины
 )
 case('payment_methods_unavailable', ['payment_methods_unavailable', 'menu_balance'], 'balance.topup')
 case('payment_methods_restricted', ['menu_balance'], 'balance')  # осознанный фолбэк на раздел
