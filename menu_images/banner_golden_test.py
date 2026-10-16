@@ -16,6 +16,7 @@
 import importlib.util
 import sys
 import types
+from pathlib import Path
 
 t = types.ModuleType('aiogram.types')
 aiogram = types.ModuleType('aiogram')
@@ -39,9 +40,10 @@ t.InlineKeyboardMarkup = IKM
 t.ReplyKeyboardMarkup = RKM
 sys.modules['aiogram'] = aiogram
 sys.modules['aiogram.types'] = t
+# Путь берётся от самого файла — тест работает в любой копии репозитория.
 spec = importlib.util.spec_from_file_location(
     'msd',
-    '/home/klimy/Документы/ApertuRU_VPN/bedolaga-live/app/utils/menu_section_detect.py',
+    str(Path(__file__).resolve().parent.parent / 'app' / 'utils' / 'menu_section_detect.py'),
 )
 msd = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(msd)

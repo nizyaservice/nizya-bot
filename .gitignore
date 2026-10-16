@@ -23,6 +23,7 @@
 
 # Документация
 !README.md
+!CLAUDE.md
 !LICENSE
 !CONTRIBUTING.md
 !SECURITY.md
@@ -55,7 +56,7 @@
 !.github/
 !.github/**
 
-# ApertuRU: исходники секционных баннеров меню
+# Nizya: исходники секционных баннеров меню
 !menu_images/
 !menu_images/**
 
