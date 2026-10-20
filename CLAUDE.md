@@ -42,7 +42,7 @@ make docs-structure          # перегенерить docs/project_structure_r
 `CMD ["python", "main.py"]`, healthcheck `GET :8080/health`.
 
 Деплой: push в `main` → `.github/workflows/deploy-vps.yml` (rsync на VPS в
-`/root/remnawave-bedolaga-telegram-bot/`, `docker compose up -d --build`,
+`/opt/nizya-bot/` (SSH-порт из секрета `DEPLOY_PORT`), `docker compose up -d --build`,
 ожидание healthy). `.env*` при rsync исключён — прод-конфиг живёт только на VPS.
 
 ## Архитектура (app/)
