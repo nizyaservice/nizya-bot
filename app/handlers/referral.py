@@ -1053,7 +1053,7 @@ async def confirm_withdrawal_request(callback: types.CallbackQuery, db_user: Use
     await callback.answer()
 
 
-async def cancel_withdrawal_request(callback: types.CallbackQuery, db_user: User, state: FSMContext):
+async def cancel_withdrawal_request(callback: types.CallbackQuery, db_user: User, db: AsyncSession, state: FSMContext):
     """Отменяет процесс создания заявки на вывод."""
     await state.clear()
     texts = get_texts(db_user.language)

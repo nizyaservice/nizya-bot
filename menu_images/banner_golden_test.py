@@ -18,6 +18,7 @@ import sys
 import types
 from pathlib import Path
 
+
 t = types.ModuleType('aiogram.types')
 aiogram = types.ModuleType('aiogram')
 
@@ -613,7 +614,11 @@ case(
     'app_selection', ['app_ios_v2ray', 'app_ios_streisand', 'subscription_connect', 'menu_subscription'], 'subscription'
 )
 case('specific_app_guide', ['app_list_ios', 'subscription_connect:5', 'sm:5'], 'subscription')
-case('connection_help', ['device_connection_help', 'subscription_manage_devices', 'menu_subscription'], 'subscription.settings')
+case(
+    'connection_help',
+    ['device_connection_help', 'subscription_manage_devices', 'menu_subscription'],
+    'subscription.settings',
+)
 case(
     'autopay_menu',
     [
