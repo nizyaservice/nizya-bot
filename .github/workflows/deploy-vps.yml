@@ -41,6 +41,15 @@ jobs:
             --exclude='__pycache__/' --exclude='.venv/' --exclude='*.pyc' \
             ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/nizya-bot/"
 
+      - name: Prepare host directories
+        # Docker создаёт недостающие каталоги бинд-маунтов от root, а процесс в
+        # контейнере работает под UID 1000 (пользователь app из Dockerfile) —
+        # без этого шага бот падает на PermissionError: /app/data/backups.
+        run: >
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST"
+          'mkdir -p /opt/nizya-bot/data /opt/nizya-bot/logs /opt/nizya-bot/uploads
+          && chown -R 1000:1000 /opt/nizya-bot/data /opt/nizya-bot/logs /opt/nizya-bot/uploads'
+
       - name: Rebuild and restart containers
         run: >
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST"
