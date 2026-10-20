@@ -20,7 +20,7 @@ jobs:
       # Порт SSH. Секрет необязательный: если он не задан, берётся обычный 22.
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: SSH setup
         run: |

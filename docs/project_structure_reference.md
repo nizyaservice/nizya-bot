@@ -75,7 +75,6 @@
 ### .github/workflows
 
 - `.github/workflows/deploy-vps.yml` — файл
-- `.github/workflows/docker-registry.yml` — файл
 - `.github/workflows/lint.yml` — файл
 - `.github/workflows/pg-upgrade.yml` — файл
 - `.github/workflows/secret-scan.yml` — файл
