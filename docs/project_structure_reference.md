@@ -74,15 +74,10 @@
 
 ### .github/workflows
 
-- `.github/workflows/codeql.yml` — файл
 - `.github/workflows/deploy-vps.yml` — файл
-- `.github/workflows/docker-hub.yml` — файл
 - `.github/workflows/docker-registry.yml` — файл
 - `.github/workflows/lint.yml` — файл
 - `.github/workflows/pg-upgrade.yml` — файл
-- `.github/workflows/release-please.yml` — файл
-- `.github/workflows/release-pr-guard.yml` — файл
-- `.github/workflows/release.yml` — файл
 - `.github/workflows/secret-scan.yml` — файл
 - `.github/workflows/security-audit.yml` — файл
 - `.github/workflows/tests.yml` — файл

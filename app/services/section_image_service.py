@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -335,8 +335,9 @@ async def get_user_language_cached(telegram_id: int | None) -> str | None:
     hit = _USER_LANG_CACHE.get(telegram_id)
     if hit and now - hit[0] < _USER_LANG_TTL:
         return hit[1]
-    from app.database.database import AsyncSessionLocal
     from sqlalchemy import text as _text
+
+    from app.database.database import AsyncSessionLocal
 
     try:
         async with AsyncSessionLocal() as db:

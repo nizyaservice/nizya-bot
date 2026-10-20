@@ -46,6 +46,7 @@ import xml.etree.ElementTree as ET
 from html import escape
 from pathlib import Path
 
+
 BASE = Path(__file__).resolve().parent
 ICONS = BASE / 'svg' / 'icons'
 OUT = BASE / 'svg'
@@ -112,8 +113,20 @@ SECTIONS: dict[str, dict] = {
             'settings': ('adjustments', 'НАСТРОЙКИ', 'SETTINGS', 'УПРАВЛЕНИЕ ПОДПИСКОЙ', 'SUBSCRIPTION CONTROLS'),
             'devices': ('devices-2', 'УСТРОЙСТВА', 'DEVICES', 'УПРАВЛЕНИЕ УСТРОЙСТВАМИ', 'DEVICE MANAGEMENT'),
             'traffic': ('chart-arrows', 'ДОП. ТРАФИК', 'EXTRA TRAFFIC', 'ДОПОЛНИТЕЛЬНЫЙ ТРАФИК', 'EXTRA TRAFFIC PACKS'),
-            'autopay': ('calendar-repeat', 'АВТОПРОДЛЕНИЕ', 'AUTO-RENEWAL', 'АВТОМАТИЧЕСКОЕ ПРОДЛЕНИЕ', 'AUTOMATIC RENEWAL'),
-            'extend': ('clock-plus', 'ПРОДЛЕНИЕ ПОДПИСКИ', 'EXTEND SUBSCRIPTION', 'ПРОДЛЕНИЕ • РАСШИРЕНИЕ', 'UPGRADE • EXTEND'),
+            'autopay': (
+                'calendar-repeat',
+                'АВТОПРОДЛЕНИЕ',
+                'AUTO-RENEWAL',
+                'АВТОМАТИЧЕСКОЕ ПРОДЛЕНИЕ',
+                'AUTOMATIC RENEWAL',
+            ),
+            'extend': (
+                'clock-plus',
+                'ПРОДЛЕНИЕ ПОДПИСКИ',
+                'EXTEND SUBSCRIPTION',
+                'ПРОДЛЕНИЕ • РАСШИРЕНИЕ',
+                'UPGRADE • EXTEND',
+            ),
             'revoke': ('refresh-off', 'ПЕРЕВЫПУСК', 'RE-ISSUE', 'ПЕРЕВЫПУСК ПОДКЛЮЧЕНИЯ', 'RE-ISSUE CONNECTION'),
         },
     },
@@ -154,7 +167,8 @@ TEXT_MAX_END = 1170
 
 
 def icon_paths(name: str) -> list[str]:
-    root = ET.parse(ICONS / f'{name}.svg').getroot()
+    # S314: читаются только иконки из svg/icons/ в репозитории, не внешний ввод.
+    root = ET.parse(ICONS / f'{name}.svg').getroot()  # noqa: S314
     return [child.attrib['d'] for child in root if child.tag.endswith('}path') and 'd' in child.attrib]
 
 
@@ -176,7 +190,7 @@ def aperture_group(cx: float, cy: float, size: float, stroke: str, width: float,
 
 
 def defs() -> str:
-    return f'''
+    return f"""
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="{BG_TOP}"/>
@@ -191,7 +205,7 @@ def defs() -> str:
       <stop offset="0.5" stop-color="{BRAND}" stop-opacity="0.04"/>
       <stop offset="1" stop-color="{BRAND}" stop-opacity="0"/>
     </radialGradient>
-  </defs>'''
+  </defs>"""
 
 
 def background(wm_cx: float, wm_cy: float, wm_size: float) -> str:
@@ -384,7 +398,7 @@ def main_menu_svg(tagline: str) -> str:
     tagline_y = 645
     # водяной знак — правый верхний угол, целиком внутри рамки, над словесным знаком
     bg = background(W - 175, 175, 280)
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">{defs()}
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">{defs()}
   {bg}
   {aperture_group(cx, icon_y, icon_size, BRAND_LIGHT, 4.2, 1.0)}
   {aperture_group(cx, icon_y, icon_size + 64, BRAND, 2.2, 0.25)}
@@ -393,13 +407,15 @@ def main_menu_svg(tagline: str) -> str:
   <text x="{cx}" y="{tagline_y}" font-family="{FONT}" font-size="34" fill="{GREY}"
         text-anchor="middle" letter-spacing="8">{escape(tagline)}</text>
 </svg>
-'''
+"""
 
 
 def render_png(svg_path: Path, png_path: Path, width: int = 1280) -> None:
     png_path.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        ['rsvg-convert', '-w', str(width), str(svg_path), '-o', str(png_path)],
+    # S603/S607: rsvg-convert берётся из PATH, аргументы формирует сам скрипт —
+    # пользовательского ввода в команде нет.
+    subprocess.run(  # noqa: S603
+        ['rsvg-convert', '-w', str(width), str(svg_path), '-o', str(png_path)],  # noqa: S607
         check=True,
     )
 

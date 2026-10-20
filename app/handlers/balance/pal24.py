@@ -12,15 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.database import AsyncSessionLocal
 from app.database.models import User
-from app.keyboards.inline import get_back_keyboard
 from app.keyboards.topup_amounts import get_topup_amount_keyboard
 from app.localization.texts import get_texts
 from app.services.payment_service import PaymentService
-
-from .topup_screen import answer_topup_screen
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
 from app.utils.timezone import format_local_datetime
+
+from .topup_screen import answer_topup_screen
 
 
 logger = structlog.get_logger(__name__)

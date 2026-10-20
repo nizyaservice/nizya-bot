@@ -234,6 +234,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Золотой тест баннеров — отдельный скрипт (python3 menu_images/banner_golden_test.py),
+# а не модуль pytest: assert в нём и есть проверка.
+'menu_images/banner_golden_test.py' = ['S101']
 'tests/**/*.py' = [
     'S101',
     'ARG',

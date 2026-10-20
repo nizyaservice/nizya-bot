@@ -24,8 +24,8 @@ from app.services.section_image_service import (
     SECTION_IMAGE_MY_SUBSCRIPTIONS,
     resolve_section_image_file_id,
 )
-from app.utils.photo_message import edit_or_answer_photo
 from app.utils.legacy_subscription import is_legacy_subscription
+from app.utils.photo_message import edit_or_answer_photo
 from app.utils.timezone import format_local_datetime
 
 

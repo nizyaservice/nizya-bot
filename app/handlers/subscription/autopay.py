@@ -617,8 +617,8 @@ async def handle_saved_cards_list(callback: types.CallbackQuery, db_user: User, 
     cards = await get_active_payment_methods_by_user(db, db_user.id)
 
     if not cards:
-        from app.utils.photo_message import edit_or_answer_photo
         from app.services.section_image_service import get_section_media_kwargs
+        from app.utils.photo_message import edit_or_answer_photo
 
         await edit_or_answer_photo(
             callback=callback,

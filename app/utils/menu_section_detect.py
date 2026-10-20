@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
+
 _INFO_COMBO = {
     'menu_faq',
     'menu_rules',
