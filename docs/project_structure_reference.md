@@ -10,12 +10,15 @@
 ## Общая структура корня
 
 - `.dockerignore` — файл
+- `.env.aperturu.example` — файл
 - `.env.example` — файл
 - `.github/`
 - `.gitignore` — файл
+- `.gitleaks.toml` — файл
 - `.python-version` — файл
 - `.release-please-manifest.json` — файл
 - `CHANGELOG.md` — файл
+- `CLAUDE.md` — файл
 - `CONTRIBUTING.md` — файл
 - `Dockerfile` — файл
 - `LICENSE` — файл
@@ -25,13 +28,16 @@
 - `alembic.ini` — файл
 - `app/`
 - `assets/`
+- `custom_emoji_ids.json` — файл
 - `docker/`
 - `docker-compose.local.yml` — файл
 - `docker-compose.yml` — файл
 - `docs/`
+- `locales/`
 - `main.py` — Python-модуль
   Классы: `GracefulExit` (2 методов)
   Функции: `main`
+- `menu_images/`
 - `migrations/`
 - `pyproject.toml` — файл
 - `release-please-config.json` — файл
@@ -69,6 +75,7 @@
 ### .github/workflows
 
 - `.github/workflows/codeql.yml` — файл
+- `.github/workflows/deploy-vps.yml` — файл
 - `.github/workflows/docker-hub.yml` — файл
 - `.github/workflows/docker-registry.yml` — файл
 - `.github/workflows/lint.yml` — файл
@@ -76,6 +83,7 @@
 - `.github/workflows/release-please.yml` — файл
 - `.github/workflows/release-pr-guard.yml` — файл
 - `.github/workflows/release.yml` — файл
+- `.github/workflows/secret-scan.yml` — файл
 - `.github/workflows/security-audit.yml` — файл
 - `.github/workflows/tests.yml` — файл
 
@@ -89,7 +97,7 @@
   Функции: `create_bot` — Create a Bot instance with SOCKS5 proxy and/or custom Telegram API server.
 - `app/cabinet/`
 - `app/config.py` — Python-модуль
-  Классы: `Settings` (414 методов)
+  Классы: `Settings` (416 методов)
   Функции: `transliterate_cyrillic` — Заменяет кириллические буквы латинскими, сохраняя регистр («Шмель» → «Shmel»)., `set_period_prices_from_db` — Устанавливает периоды/цены из БД., `get_db_period_prices` — Возвращает периоды/цены из БД если они загружены., `clear_db_period_prices` — Очищает кеш цен из тарифов (при переключении в classic mode)., `refresh_period_prices` — Rebuild cached period price mapping., `refresh_classic_period_prices` — Rebuild CLASSIC_PERIOD_PRICES from current settings., `get_traffic_prices`, `refresh_traffic_prices`
 - `app/database/`
 - `app/external/`
@@ -1094,6 +1102,9 @@
 - `app/handlers/admin/rules.py` — Python-модуль
   Классы: нет
   Функции: `show_rules_management`, `cycle_rules_display_mode`, `view_current_rules`, `start_edit_rules`, `process_rules_edit`, `save_rules`, `clear_rules_confirmation`, `confirm_clear_rules`, `show_html_help`, `register_handlers`
+- `app/handlers/admin/section_images.py` — Python-модуль
+  Классы: нет
+  Функции: `show_section_images_panel`, `show_section_image_detail`, `start_section_image_edit`, `cancel_section_image_edit`, `delete_section_image`, `save_section_image`, `reject_non_photo_section_image`, `register_handlers`
 - `app/handlers/admin/servers.py` — Python-модуль
   Классы: нет
   Функции: `show_servers_menu`, `show_servers_list`, `sync_servers_with_remnawave`, `show_server_edit_menu`, `show_server_users`, `toggle_server_availability`, `toggle_server_trial_assignment`, `start_server_edit_price`, `process_server_price_edit`, `start_server_edit_name`, `process_server_name_edit`, `delete_server_confirm`, `delete_server_execute`, `show_server_detailed_stats`, `start_server_edit_country`, `process_server_country_edit`, `start_server_edit_limit`, `process_server_limit_edit`, `start_server_edit_description`, `process_server_description_edit`, `start_server_edit_promo_groups`, `toggle_server_promo_group`, `save_server_promo_groups`, `sync_server_user_counts_handler`, `handle_servers_pagination`, `register_handlers`
@@ -1223,6 +1234,9 @@
 - `app/handlers/balance/tabpay.py` — Python-модуль
   Классы: нет
   Функции: `process_tabpay_payment_amount` — Обрабатывает сумму, введённую пользователем для TabPay., `start_tabpay_topup`, `start_tabpay_card_topup`, `start_tabpay_sbp_topup`
+- `app/handlers/balance/topup_screen.py` — Python-модуль
+  Классы: нет
+  Функции: `answer_topup_screen` — Отправляет текстовый экран пополнения с баннером раздела «Баланс» (если картинка задана).
 - `app/handlers/balance/tribute.py` — Python-модуль
   Классы: нет
   Функции: `start_tribute_payment`
@@ -1422,6 +1436,9 @@
   Функции: нет
 - `app/middlewares/context_binding.py` — Python-модуль
   Классы: `ContextVarsMiddleware` (1 методов)
+  Функции: нет
+- `app/middlewares/custom_emoji.py` — Python-модуль
+  Классы: `CustomEmojiMiddleware` (3 методов)
   Функции: нет
 - `app/middlewares/display_name_restriction.py` — Python-модуль
   Классы: `DisplayNameRestrictionMiddleware` (5 методов)
@@ -1786,6 +1803,9 @@
 - `app/services/s2s_postback_service.py` — Python-модуль
   Классы: нет
   Функции: `send_postback` — Send S2S postback for an event.
+- `app/services/section_image_service.py` — Python-модуль
+  Классы: `SectionImageDefinition`
+  Функции: `get_section_image_definition`, `get_section_image_setting_key`, `get_section_image_file_id` — File_id картинки раздела; при language='en' сначала ключ '<key>.en', затем база., `get_section_media_kwargs` — Короткий хелпер для хендлеров: media=... если картинка задана, иначе {}., `get_cached_section_file_id` — File_id секции из кеша (массовая загрузка всех ui_section_image.* раз в минуту)., `resolve_cached_section_file_id` — File_id с фолбэком по иерархии: 'referral.analytics' → 'referral' → алиас → None., `get_user_language_cached` — Язык юзера из users по telegram_id (кеш 5 мин). None — не нашли/группа., `invalidate_section_cache` — Сброс кеша (вызывается после загрузки/удаления картинки в админке)., `resolve_section_image_file_id` — File_id с фолбэками; при language='en' каждый ключ сперва пробуется как '<key>.en'., `set_section_image_file_id`, `delete_section_image_file_id`
 - `app/services/server_status_service.py` — Python-модуль
   Классы: `ServerStatusEntry`, `ServerStatusError`, `ServerStatusService` (7 методов)
   Функции: нет
@@ -2240,6 +2260,9 @@
 - `app/utils/currency_converter.py` — Python-модуль
   Классы: `CurrencyConverter` (8 методов)
   Функции: нет
+- `app/utils/custom_emoji.py` — Python-модуль
+  Классы: нет
+  Функции: `get_custom_emoji_map` — {эмодзи: custom_emoji_id}. Пустая карта = функция выключена., `reset_cache` — Сбросить кеш карты (после правки файла и в тестах)., `apply_to_html` — Обернуть известные эмодзи в <tg-emoji>. Только для parse_mode=HTML., `split_leading_emoji` — (custom_emoji_id, текст без ведущего эмодзи) либо (None, исходный текст)., `apply_to_markup` — Ведущий эмодзи подписи кнопки -> icon_custom_emoji_id.
 - `app/utils/decorators.py` — Python-модуль
   Классы: нет
   Функции: `admin_required`, `auth_required` — Простая проверка на наличие пользователя в апдейте. Middleware уже подтягивает db_user,, `error_handler`, `state_cleanup`, `typing_action`, `rate_limit`
@@ -2279,6 +2302,9 @@
 - `app/utils/menu_layout_cache.py` — Python-модуль
   Классы: нет
   Функции: `get_cached_menu_layout` — Return the current layout config (DB overrides + defaults)., `load_menu_layout_cache` — Load menu layout from DB and refresh the module cache.
+- `app/utils/menu_section_detect.py` — Python-модуль
+  Классы: нет
+  Функции: `detect_section_key` — Ключ баннера по клавиатуре: подпункт, раздел или None (общий логотип).
 - `app/utils/message_patch.py` — Python-модуль
   Классы: нет
   Функции: `caption_exceeds_telegram_limit` — Check if text exceeds Telegram's caption limit (1024 parsed chars)., `get_logo_media` — Возвращает кешированный file_id или FSInputFile для логотипа., `is_qr_message`, `append_privacy_hint`, `prepare_privacy_safe_kwargs`, `is_privacy_restricted_error`, `is_topic_required_error` — Проверяет, является ли ошибка связанной с топиками/форумами., `patch_message_methods`
@@ -2663,6 +2689,7 @@
 - `docs/apple-iap-ios-requirements.md` — файл
 - `docs/broadcast_audiences.md` — файл
 - `docs/contests-api.md` — файл
+- `docs/emoji_hot_paths.md` — файл
 - `docs/grace-access.md` — файл
 - `docs/handoffs/`
 - `docs/menu_stats_api_usage.md` — файл
@@ -2681,6 +2708,471 @@
 
 - `docs/handoffs/handoff-2026-08-31-1659.md` — файл
 - `docs/handoffs/handoff-2026-08-31-1944.md` — файл
+
+## locales
+
+- `locales/en.json` — файл
+- `locales/fa.json` — файл
+- `locales/ru.json` — файл
+- `locales/ua.json` — файл
+- `locales/zh.json` — файл
+
+## menu_images
+
+- `menu_images/MENU_MAP.md` — файл
+- `menu_images/README.md` — файл
+- `menu_images/active_subscription/`
+- `menu_images/admin/`
+- `menu_images/balance/`
+- `menu_images/banner_golden_test.py` — Python-модуль
+  Классы: `IKM` (1 методов), `RKM`, `B` (1 методов)
+  Функции: `kb`, `detect`, `eff` — Ключ фактической картинки: подпункт без своей картинки -> родитель -> алиас., `case`
+- `menu_images/faq/`
+- `menu_images/generate.py` — Python-модуль
+  Классы: нет
+  Функции: `icon_paths`, `icon_group` — Иконка Tabler (viewBox 24) вписана в квадрат size×size с центром cx,cy., `aperture_group`, `defs`, `background` — Фон: градиент, свечение, диагональная сетка, водяной знак-апертура, рамка., `title_size_for` — Наибольший размер с лестницы, при котором заголовок не выходит за TEXT_MAX_END., `chip_block` — Квадратный чип с иконкой; возвращает (svg, центр по x)., `brand_tspans` — Строка бренда: «Nizya VPN» (+ «— суффикс» для главных баннеров разделов)., `section_svg` — Главный баннер раздела: чип + большой заголовок + бренд-строка с суффиксом., `sub_size_for` — Наибольший размер субтайтла с лестницы, при котором он не выходит, `subsection_svg` — Баннер подпункта: чип с иконкой подпункта + плашка «РАЗДЕЛ ›» над большим, `main_menu_svg`, `render_png`, `main`
+- `menu_images/info/`
+- `menu_images/language/`
+- `menu_images/main_menu.png` — файл
+- `menu_images/main_menu_en.png` — файл
+- `menu_images/my_subscriptions/`
+- `menu_images/privacy_policy/`
+- `menu_images/profile/`
+- `menu_images/promocode/`
+- `menu_images/public_offer/`
+- `menu_images/referral/`
+- `menu_images/referrals/`
+- `menu_images/rules/`
+- `menu_images/server_status/`
+- `menu_images/subscription/`
+- `menu_images/subscription_purchase/`
+- `menu_images/subscription_success/`
+- `menu_images/subscription_upgrade/`
+- `menu_images/support/`
+- `menu_images/svg/`
+- `menu_images/svg_en/`
+- `menu_images/topup_success/`
+- `menu_images/trial/`
+- `menu_images/vpn_logo.png` — файл
+
+### menu_images/active_subscription
+
+- `menu_images/active_subscription/_main.png` — файл
+- `menu_images/active_subscription/_main_en.png` — файл
+
+### menu_images/admin
+
+- `menu_images/admin/_main.png` — файл
+- `menu_images/admin/_main_en.png` — файл
+
+### menu_images/balance
+
+- `menu_images/balance/_main.png` — файл
+- `menu_images/balance/_main_en.png` — файл
+- `menu_images/balance/cards.png` — файл
+- `menu_images/balance/cards_en.png` — файл
+- `menu_images/balance/history.png` — файл
+- `menu_images/balance/history_en.png` — файл
+- `menu_images/balance/topup.png` — файл
+- `menu_images/balance/topup_en.png` — файл
+
+### menu_images/faq
+
+- `menu_images/faq/_main.png` — файл
+- `menu_images/faq/_main_en.png` — файл
+
+### menu_images/info
+
+- `menu_images/info/_main.png` — файл
+- `menu_images/info/_main_en.png` — файл
+
+### menu_images/language
+
+- `menu_images/language/_main.png` — файл
+- `menu_images/language/_main_en.png` — файл
+
+### menu_images/my_subscriptions
+
+- `menu_images/my_subscriptions/_main.png` — файл
+- `menu_images/my_subscriptions/_main_en.png` — файл
+
+### menu_images/privacy_policy
+
+- `menu_images/privacy_policy/_main.png` — файл
+- `menu_images/privacy_policy/_main_en.png` — файл
+
+### menu_images/profile
+
+- `menu_images/profile/_main.png` — файл
+- `menu_images/profile/_main_en.png` — файл
+
+### menu_images/promocode
+
+- `menu_images/promocode/_main.png` — файл
+- `menu_images/promocode/_main_en.png` — файл
+
+### menu_images/public_offer
+
+- `menu_images/public_offer/_main.png` — файл
+- `menu_images/public_offer/_main_en.png` — файл
+
+### menu_images/referral
+
+- `menu_images/referral/analytics.png` — файл
+- `menu_images/referral/analytics_en.png` — файл
+- `menu_images/referral/list.png` — файл
+- `menu_images/referral/list_en.png` — файл
+- `menu_images/referral/withdrawal.png` — файл
+- `menu_images/referral/withdrawal_en.png` — файл
+
+### menu_images/referrals
+
+- `menu_images/referrals/_main.png` — файл
+- `menu_images/referrals/_main_en.png` — файл
+
+### menu_images/rules
+
+- `menu_images/rules/_main.png` — файл
+- `menu_images/rules/_main_en.png` — файл
+
+### menu_images/server_status
+
+- `menu_images/server_status/_main.png` — файл
+- `menu_images/server_status/_main_en.png` — файл
+
+### menu_images/subscription
+
+- `menu_images/subscription/autopay.png` — файл
+- `menu_images/subscription/autopay_en.png` — файл
+- `menu_images/subscription/devices.png` — файл
+- `menu_images/subscription/devices_en.png` — файл
+- `menu_images/subscription/extend.png` — файл
+- `menu_images/subscription/extend_en.png` — файл
+- `menu_images/subscription/revoke.png` — файл
+- `menu_images/subscription/revoke_en.png` — файл
+- `menu_images/subscription/settings.png` — файл
+- `menu_images/subscription/settings_en.png` — файл
+- `menu_images/subscription/traffic.png` — файл
+- `menu_images/subscription/traffic_en.png` — файл
+
+### menu_images/subscription_purchase
+
+- `menu_images/subscription_purchase/_main.png` — файл
+- `menu_images/subscription_purchase/_main_en.png` — файл
+
+### menu_images/subscription_success
+
+- `menu_images/subscription_success/_main.png` — файл
+- `menu_images/subscription_success/_main_en.png` — файл
+
+### menu_images/subscription_upgrade
+
+- `menu_images/subscription_upgrade/_main.png` — файл
+- `menu_images/subscription_upgrade/_main_en.png` — файл
+
+### menu_images/support
+
+- `menu_images/support/_main.png` — файл
+- `menu_images/support/_main_en.png` — файл
+
+### menu_images/svg
+
+- `menu_images/svg/active_subscription/`
+- `menu_images/svg/admin/`
+- `menu_images/svg/balance/`
+- `menu_images/svg/faq/`
+- `menu_images/svg/icons/`
+- `menu_images/svg/info/`
+- `menu_images/svg/language/`
+- `menu_images/svg/main_menu.svg` — файл
+- `menu_images/svg/my_subscriptions/`
+- `menu_images/svg/privacy_policy/`
+- `menu_images/svg/profile/`
+- `menu_images/svg/promocode/`
+- `menu_images/svg/public_offer/`
+- `menu_images/svg/referral/`
+- `menu_images/svg/referrals/`
+- `menu_images/svg/rules/`
+- `menu_images/svg/server_status/`
+- `menu_images/svg/subscription/`
+- `menu_images/svg/subscription_purchase/`
+- `menu_images/svg/subscription_success/`
+- `menu_images/svg/subscription_upgrade/`
+- `menu_images/svg/support/`
+- `menu_images/svg/topup_success/`
+- `menu_images/svg/trial/`
+
+#### menu_images/svg/active_subscription
+
+- `menu_images/svg/active_subscription/_main.svg` — файл
+
+#### menu_images/svg/admin
+
+- `menu_images/svg/admin/_main.svg` — файл
+
+#### menu_images/svg/balance
+
+- `menu_images/svg/balance/_main.svg` — файл
+- `menu_images/svg/balance/cards.svg` — файл
+- `menu_images/svg/balance/history.svg` — файл
+- `menu_images/svg/balance/topup.svg` — файл
+
+#### menu_images/svg/faq
+
+- `menu_images/svg/faq/_main.svg` — файл
+
+#### menu_images/svg/icons
+
+- `menu_images/svg/icons/adjustments.svg` — файл
+- `menu_images/svg/icons/aperture.svg` — файл
+- `menu_images/svg/icons/calendar-repeat.svg` — файл
+- `menu_images/svg/icons/cash.svg` — файл
+- `menu_images/svg/icons/chart-arrows.svg` — файл
+- `menu_images/svg/icons/chart-bar.svg` — файл
+- `menu_images/svg/icons/circle-check.svg` — файл
+- `menu_images/svg/icons/clock-plus.svg` — файл
+- `menu_images/svg/icons/credit-card.svg` — файл
+- `menu_images/svg/icons/device-mobile.svg` — файл
+- `menu_images/svg/icons/devices-2.svg` — файл
+- `menu_images/svg/icons/discount.svg` — файл
+- `menu_images/svg/icons/file-text.svg` — файл
+- `menu_images/svg/icons/gift.svg` — файл
+- `menu_images/svg/icons/headset.svg` — файл
+- `menu_images/svg/icons/help-circle.svg` — файл
+- `menu_images/svg/icons/history.svg` — файл
+- `menu_images/svg/icons/info-circle.svg` — файл
+- `menu_images/svg/icons/language.svg` — файл
+- `menu_images/svg/icons/list-check.svg` — файл
+- `menu_images/svg/icons/list.svg` — файл
+- `menu_images/svg/icons/lock.svg` — файл
+- `menu_images/svg/icons/refresh-off.svg` — файл
+- `menu_images/svg/icons/refresh.svg` — файл
+- `menu_images/svg/icons/rosette.svg` — файл
+- `menu_images/svg/icons/rotate.svg` — файл
+- `menu_images/svg/icons/scale.svg` — файл
+- `menu_images/svg/icons/server-2.svg` — файл
+- `menu_images/svg/icons/server.svg` — файл
+- `menu_images/svg/icons/shield-check.svg` — файл
+- `menu_images/svg/icons/shield-cog.svg` — файл
+- `menu_images/svg/icons/ticket.svg` — файл
+- `menu_images/svg/icons/user.svg` — файл
+- `menu_images/svg/icons/users-group.svg` — файл
+- `menu_images/svg/icons/users.svg` — файл
+- `menu_images/svg/icons/wallet.svg` — файл
+- `menu_images/svg/icons/world.svg` — файл
+
+#### menu_images/svg/info
+
+- `menu_images/svg/info/_main.svg` — файл
+
+#### menu_images/svg/language
+
+- `menu_images/svg/language/_main.svg` — файл
+
+#### menu_images/svg/my_subscriptions
+
+- `menu_images/svg/my_subscriptions/_main.svg` — файл
+
+#### menu_images/svg/privacy_policy
+
+- `menu_images/svg/privacy_policy/_main.svg` — файл
+
+#### menu_images/svg/profile
+
+- `menu_images/svg/profile/_main.svg` — файл
+
+#### menu_images/svg/promocode
+
+- `menu_images/svg/promocode/_main.svg` — файл
+
+#### menu_images/svg/public_offer
+
+- `menu_images/svg/public_offer/_main.svg` — файл
+
+#### menu_images/svg/referral
+
+- `menu_images/svg/referral/analytics.svg` — файл
+- `menu_images/svg/referral/list.svg` — файл
+- `menu_images/svg/referral/withdrawal.svg` — файл
+
+#### menu_images/svg/referrals
+
+- `menu_images/svg/referrals/_main.svg` — файл
+
+#### menu_images/svg/rules
+
+- `menu_images/svg/rules/_main.svg` — файл
+
+#### menu_images/svg/server_status
+
+- `menu_images/svg/server_status/_main.svg` — файл
+
+#### menu_images/svg/subscription
+
+- `menu_images/svg/subscription/autopay.svg` — файл
+- `menu_images/svg/subscription/devices.svg` — файл
+- `menu_images/svg/subscription/extend.svg` — файл
+- `menu_images/svg/subscription/revoke.svg` — файл
+- `menu_images/svg/subscription/settings.svg` — файл
+- `menu_images/svg/subscription/traffic.svg` — файл
+
+#### menu_images/svg/subscription_purchase
+
+- `menu_images/svg/subscription_purchase/_main.svg` — файл
+
+#### menu_images/svg/subscription_success
+
+- `menu_images/svg/subscription_success/_main.svg` — файл
+
+#### menu_images/svg/subscription_upgrade
+
+- `menu_images/svg/subscription_upgrade/_main.svg` — файл
+
+#### menu_images/svg/support
+
+- `menu_images/svg/support/_main.svg` — файл
+
+#### menu_images/svg/topup_success
+
+- `menu_images/svg/topup_success/_main.svg` — файл
+
+#### menu_images/svg/trial
+
+- `menu_images/svg/trial/_main.svg` — файл
+
+### menu_images/svg_en
+
+- `menu_images/svg_en/active_subscription/`
+- `menu_images/svg_en/admin/`
+- `menu_images/svg_en/balance/`
+- `menu_images/svg_en/faq/`
+- `menu_images/svg_en/info/`
+- `menu_images/svg_en/language/`
+- `menu_images/svg_en/main_menu_en.svg` — файл
+- `menu_images/svg_en/my_subscriptions/`
+- `menu_images/svg_en/privacy_policy/`
+- `menu_images/svg_en/profile/`
+- `menu_images/svg_en/promocode/`
+- `menu_images/svg_en/public_offer/`
+- `menu_images/svg_en/referral/`
+- `menu_images/svg_en/referrals/`
+- `menu_images/svg_en/rules/`
+- `menu_images/svg_en/server_status/`
+- `menu_images/svg_en/subscription/`
+- `menu_images/svg_en/subscription_purchase/`
+- `menu_images/svg_en/subscription_success/`
+- `menu_images/svg_en/subscription_upgrade/`
+- `menu_images/svg_en/support/`
+- `menu_images/svg_en/topup_success/`
+- `menu_images/svg_en/trial/`
+
+#### menu_images/svg_en/active_subscription
+
+- `menu_images/svg_en/active_subscription/_main_en.svg` — файл
+
+#### menu_images/svg_en/admin
+
+- `menu_images/svg_en/admin/_main_en.svg` — файл
+
+#### menu_images/svg_en/balance
+
+- `menu_images/svg_en/balance/_main_en.svg` — файл
+- `menu_images/svg_en/balance/cards_en.svg` — файл
+- `menu_images/svg_en/balance/history_en.svg` — файл
+- `menu_images/svg_en/balance/topup_en.svg` — файл
+
+#### menu_images/svg_en/faq
+
+- `menu_images/svg_en/faq/_main_en.svg` — файл
+
+#### menu_images/svg_en/info
+
+- `menu_images/svg_en/info/_main_en.svg` — файл
+
+#### menu_images/svg_en/language
+
+- `menu_images/svg_en/language/_main_en.svg` — файл
+
+#### menu_images/svg_en/my_subscriptions
+
+- `menu_images/svg_en/my_subscriptions/_main_en.svg` — файл
+
+#### menu_images/svg_en/privacy_policy
+
+- `menu_images/svg_en/privacy_policy/_main_en.svg` — файл
+
+#### menu_images/svg_en/profile
+
+- `menu_images/svg_en/profile/_main_en.svg` — файл
+
+#### menu_images/svg_en/promocode
+
+- `menu_images/svg_en/promocode/_main_en.svg` — файл
+
+#### menu_images/svg_en/public_offer
+
+- `menu_images/svg_en/public_offer/_main_en.svg` — файл
+
+#### menu_images/svg_en/referral
+
+- `menu_images/svg_en/referral/analytics_en.svg` — файл
+- `menu_images/svg_en/referral/list_en.svg` — файл
+- `menu_images/svg_en/referral/withdrawal_en.svg` — файл
+
+#### menu_images/svg_en/referrals
+
+- `menu_images/svg_en/referrals/_main_en.svg` — файл
+
+#### menu_images/svg_en/rules
+
+- `menu_images/svg_en/rules/_main_en.svg` — файл
+
+#### menu_images/svg_en/server_status
+
+- `menu_images/svg_en/server_status/_main_en.svg` — файл
+
+#### menu_images/svg_en/subscription
+
+- `menu_images/svg_en/subscription/autopay_en.svg` — файл
+- `menu_images/svg_en/subscription/devices_en.svg` — файл
+- `menu_images/svg_en/subscription/extend_en.svg` — файл
+- `menu_images/svg_en/subscription/revoke_en.svg` — файл
+- `menu_images/svg_en/subscription/settings_en.svg` — файл
+- `menu_images/svg_en/subscription/traffic_en.svg` — файл
+
+#### menu_images/svg_en/subscription_purchase
+
+- `menu_images/svg_en/subscription_purchase/_main_en.svg` — файл
+
+#### menu_images/svg_en/subscription_success
+
+- `menu_images/svg_en/subscription_success/_main_en.svg` — файл
+
+#### menu_images/svg_en/subscription_upgrade
+
+- `menu_images/svg_en/subscription_upgrade/_main_en.svg` — файл
+
+#### menu_images/svg_en/support
+
+- `menu_images/svg_en/support/_main_en.svg` — файл
+
+#### menu_images/svg_en/topup_success
+
+- `menu_images/svg_en/topup_success/_main_en.svg` — файл
+
+#### menu_images/svg_en/trial
+
+- `menu_images/svg_en/trial/_main_en.svg` — файл
+
+### menu_images/topup_success
+
+- `menu_images/topup_success/_main.png` — файл
+- `menu_images/topup_success/_main_en.png` — файл
+
+### menu_images/trial
+
+- `menu_images/trial/_main.png` — файл
+- `menu_images/trial/_main_en.png` — файл
 
 ## migrations
 
@@ -3131,9 +3623,15 @@
 - `tests/test_config_languages.py` — Python-модуль
   Классы: нет
   Функции: `test_available_languages_default_contains_fa`, `test_available_languages_normalizes_and_deduplicates`
+- `tests/test_config_placeholder_values.py` — Python-модуль
+  Классы: нет
+  Функции: `build_settings` — Settings из переменных окружения, без чтения реального .env., `test_placeholder_numeric_value_reads_as_unset`, `test_whole_disabled_gateway_block_does_not_break_startup` — Ровно тот набор значений, на котором контейнер падал с 8 ошибками., `test_real_numeric_values_still_parsed`, `test_string_fields_keep_their_value` — Чистка касается только числовых полей: строки не должны тихо обнуляться., `test_invalid_numeric_value_still_rejected` — Опечатка в числе — по-прежнему ошибка, а не молчаливый None., `test_placeholder_database_url_falls_back_to_postgres_settings` — Заглушка в DATABASE_URL не должна подменять собой адрес из POSTGRES_*., `test_real_database_url_is_used_as_is`, `test_special_characters_in_password_survive_dsn` — Пароль — часть URI: спецсимволы кодируются и читаются обратно без потерь., `test_alembic_config_survives_percent_in_password` — ConfigParser внутри Alembic видит '%' как подстановку — адрес должен дойти целым., `test_alembic_url_doubles_every_percent` — Оба места, где адрес уходит в Alembic, берут его из одного метода.
 - `tests/test_coupon_deeplink_pins.py` — Python-модуль
   Классы: нет
   Функции: `test_cmd_start_parses_coupon_deep_link`, `test_coupon_redeem_called_at_every_gift_activation_site`, `test_coupon_branch_only_swallows_existing_coupons` — `start_parameter = None` must sit INSIDE the is_coupon_token() guard AND, `test_redeem_flips_status_before_remnawave_sync`, `test_redeem_claims_under_row_lock_and_rechecks`, `test_redeem_aborts_when_remnawave_sync_returns_none`, `test_revoke_confirm_registered_before_revoke_prefix`, `test_create_confirm_is_guarded_against_stale_buttons_and_double_taps`, `test_admin_states_for_coupon_creation_exist`
+- `tests/test_custom_emoji.py` — Python-модуль
+  Классы: нет
+  Функции: `test_known_emoji_wrapped_in_tag`, `test_unknown_emoji_untouched`, `test_variation_selector_variants_both_match`, `test_tag_attributes_are_not_touched`, `test_applying_twice_changes_nothing`, `test_button_leading_emoji_moves_to_icon`, `test_button_without_known_emoji_untouched`, `test_button_with_own_icon_untouched`, `test_emoji_only_button_keeps_its_label` — Иконка вместо текста оставила бы кнопку без подписи — не трогаем., `test_real_project_map_is_valid` — Карта в корне проекта на месте, из неё читаются числовые id., `test_rich_message_html_is_processed` — Главное меню уходит через sendRichMessage: текст лежит в rich_message.html., `test_plain_message_text_is_processed`, `test_edit_message_media_caption_is_processed` — Типы aiogram заморожены: подпись меняется копией, иначе ValidationError., `test_decoration_failure_does_not_break_request` — Сбой подстановки не должен превращаться в «Произошла ошибка» у пользователя.
 - `tests/test_declared_dependencies.py` — Python-модуль
   Классы: нет
   Функции: `test_every_imported_package_is_declared` — Прямой импорт — прямая зависимость., `test_dependency_names_are_unique` — Один пакет не должен быть объявлен дважды с разными ограничениями., `test_previously_transitive_imports_stay_declared` — Именно эти пять держались на транзитивности — закрепляем результат.

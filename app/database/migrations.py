@@ -19,7 +19,9 @@ def _get_alembic_config() -> Config:
     from app.config import settings
 
     cfg = Config(str(_ALEMBIC_INI))
-    cfg.set_main_option('sqlalchemy.url', settings.get_database_url())
+    # ConfigParser внутри Alembic трактует '%' как начало подстановки, поэтому
+    # процент в пароле (или в его %-кодировке) роняет миграции на старте.
+    cfg.set_main_option('sqlalchemy.url', settings.get_alembic_database_url())
     return cfg
 
 
