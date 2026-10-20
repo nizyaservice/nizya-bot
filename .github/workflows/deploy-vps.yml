@@ -14,6 +14,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      # Порт SSH. Секрет необязательный: если он не задан, берётся обычный 22.
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -22,30 +27,33 @@ jobs:
           install -m 700 -d ~/.ssh
           install -m 600 /dev/null ~/.ssh/id_ed25519
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          # На нестандартном порту ключ хоста пишется как [host]:port —
+          # ssh потом ищет его именно в таком виде.
+          ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
       - name: Rsync code to VPS
-        run: >
-          rsync -az --delete --info=stats1
-          --exclude='.git/'
-          --exclude='.env*' --exclude='.mimosa/'
-          --exclude='data/' --exclude='logs/' --exclude='backups/'
-          --exclude='__pycache__/' --exclude='.venv/' --exclude='*.pyc'
-          ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/root/remnawave-bedolaga-telegram-bot/"
+        run: |
+          rsync -az --delete --info=stats1 \
+            -e "ssh -p $DEPLOY_PORT" \
+            --exclude='.git/' \
+            --exclude='.env*' --exclude='.mimosa/' \
+            --exclude='data/' --exclude='logs/' --exclude='backups/' \
+            --exclude='__pycache__/' --exclude='.venv/' --exclude='*.pyc' \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/nizya-bot/"
 
       - name: Rebuild and restart containers
         run: >
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
-          'cd /root/remnawave-bedolaga-telegram-bot && docker compose up -d --build 2>&1 | tail -20'
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST"
+          'cd /opt/nizya-bot && docker compose up -d --build 2>&1 | tail -20'
 
       - name: Wait for bot health
         run: |
           for i in $(seq 1 30); do
-            st=$(ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            st=$(ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
               "docker inspect -f '{{.State.Health.Status}}' remnawave_bot 2>/dev/null" || true)
             echo "try $i: ${st:-no-container}"
             [ "$st" = "healthy" ] && echo "remnawave_bot healthy" && exit 0
             sleep 10
           done
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'docker logs remnawave_bot --tail 50'
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" 'docker logs remnawave_bot --tail 50'
           exit 1

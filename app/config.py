@@ -4,12 +4,12 @@ import re
 from collections import defaultdict
 from datetime import time
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal, get_args
 from urllib.parse import quote as _url_quote, urlparse
 from zoneinfo import ZoneInfo
 
 import structlog
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -79,6 +79,29 @@ def transliterate_cyrillic(value: str) -> str:
 
 
 logger = structlog.get_logger(__name__)
+
+
+# Заглушки, которыми шаблон .env и руки администратора заполняют ненужные поля.
+PLACEHOLDER_VALUE_PREFIXES: tuple[str, ...] = ('change_me', '#')
+PLACEHOLDER_VALUE_WORDS: frozenset[str] = frozenset({'none', 'null', 'nil', '-', 'todo'})
+
+
+def _is_placeholder_value(value: object) -> bool:
+    """True для строк, которые на деле означают «значение не задано»."""
+    if not isinstance(value, str):
+        return False
+    normalized = value.strip().lower()
+    if not normalized or normalized in PLACEHOLDER_VALUE_WORDS:
+        return True
+    return normalized.startswith(PLACEHOLDER_VALUE_PREFIXES)
+
+
+def _is_optional_number(annotation: object) -> bool:
+    """True для аннотаций вида `int | None` и `float | None`."""
+    args = get_args(annotation)
+    if type(None) not in args:
+        return False
+    return all(arg is type(None) or arg in (int, float) for arg in args)
 
 
 class Settings(BaseSettings):
@@ -1306,6 +1329,9 @@ class Settings(BaseSettings):
     INCY_CRYPTOLINK_PROVIDER_NAME: str | None = None
     HIDE_SUBSCRIPTION_LINK: bool = False
     ENABLE_LOGO_MODE: bool = True
+    # Подмена стандартных эмодзи кастомными из custom_emoji_ids.json
+    # (<tg-emoji> в тексте, icon_custom_emoji_id у кнопок).
+    CUSTOM_EMOJI_ENABLED: bool = True
     LOGO_FILE: str = 'vpn_logo.png'
     SKIP_RULES_ACCEPT: bool = False
     SKIP_REFERRAL_CODE: bool = False
@@ -1642,6 +1668,21 @@ class Settings(BaseSettings):
     # Examples: Cloudflare Worker proxy, self-hosted telegram-bot-api (tdlib), nginx reverse proxy
     TELEGRAM_API_URL: str | None = None
 
+    # Шаблон .env раскатывается с заглушками (change_me_*, None, пустая строка,
+    # комментарий в хвосте строки — его docker compose отдаёт как значение). Для
+    # необязательных числовых полей всё это означает «не задано»: без этого бот
+    # не стартует из-за выключенного шлюза, который никто и не настраивал —
+    # Settings() валидирует все поля на импорте, до проверки флагов *_ENABLED.
+    @field_validator('*', mode='before')
+    @classmethod
+    def ignore_placeholder_numeric_values(cls, value: Any, info: ValidationInfo) -> Any:
+        if not _is_placeholder_value(value):
+            return value
+        field = cls.model_fields.get(info.field_name or '')
+        if field is None or not _is_optional_number(field.annotation):
+            return value
+        return None
+
     @field_validator('PROXY_URL', 'NALOGO_PROXY_URL', mode='before')
     @classmethod
     def validate_proxy_url(cls, value: str | None) -> str | None:
@@ -1829,7 +1870,14 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         if self.DATABASE_URL and self.DATABASE_URL.strip():
-            return self.DATABASE_URL
+            # Заглушка из шаблона — не DSN; иначе бот молча уходит в неработающий адрес.
+            if _is_placeholder_value(self.DATABASE_URL):
+                logger.warning(
+                    'DATABASE_URL looks like a template placeholder, falling back to POSTGRES_* settings',
+                    database_url=self.DATABASE_URL,
+                )
+            else:
+                return self.DATABASE_URL
 
         mode = self.DATABASE_MODE.lower()
 
@@ -1843,16 +1891,27 @@ class Settings(BaseSettings):
             return self._get_sqlite_url()
         return self._get_auto_database_url()
 
+    def get_alembic_database_url(self) -> str:
+        """Адрес БД для Alembic.
+
+        Alembic хранит его в ConfigParser, где '%' — начало подстановки, поэтому
+        процент (в пароле или в его %-кодировке) обязан быть удвоен. Иначе
+        миграции падают на старте: ValueError: invalid interpolation syntax.
+        """
+        return self.get_database_url().replace('%', '%%')
+
     def _get_sqlite_url(self) -> str:
         sqlite_path = Path(self.SQLITE_PATH)
         sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         return f'sqlite+aiosqlite:///{sqlite_path.absolute()}'
 
     def _get_postgresql_url(self) -> str:
-        return (
-            f'postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}'
-            f'@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}'
-        )
+        # Логин и пароль — части URI: '%', '@', ':', '/' в них обязаны быть
+        # процентно-закодированы, иначе адрес разбирается неправильно или не
+        # разбирается вовсе. SQLAlchemy раскодирует их обратно при подключении.
+        user = _url_quote(self.POSTGRES_USER, safe='')
+        password = _url_quote(self.POSTGRES_PASSWORD, safe='')
+        return f'postgresql+asyncpg://{user}:{password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}'
 
     def _get_auto_database_url(self) -> str:
         if os.getenv('DOCKER_ENV') == 'true' or os.path.exists('/.dockerenv'):

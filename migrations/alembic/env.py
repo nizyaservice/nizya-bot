@@ -28,7 +28,7 @@ target_metadata = Base.metadata
 
 # URL also set in app/database/migrations.py for programmatic usage;
 # this line is needed for CLI invocation (make migrate, make migration).
-config.set_main_option('sqlalchemy.url', settings.get_database_url())
+config.set_main_option('sqlalchemy.url', settings.get_alembic_database_url())
 
 
 def run_migrations_offline() -> None:
