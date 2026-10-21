@@ -257,8 +257,8 @@ async def test_external_squad_list_marks_current_and_offers_none(monkeypatch) ->
     labels = [b.text for row in keyboard.inline_keyboard for b in row]
     callbacks = _callbacks(keyboard)
     assert any('✅' in label and 'Alpha' in label for label in labels)
-    assert 'admin_tariff_set_ext_squad:7:ext-2' in callbacks
-    assert 'admin_tariff_set_ext_squad:7:-' in callbacks
+    assert f'{mod._SET_EXTERNAL_SQUAD_PREFIX}:7:ext-2' in callbacks
+    assert f'{mod._SET_EXTERNAL_SQUAD_PREFIX}:7:-' in callbacks
 
 
 async def test_set_external_squad_writes_and_schedules_sync(monkeypatch) -> None:
@@ -273,7 +273,7 @@ async def test_set_external_squad_writes_and_schedules_sync(monkeypatch) -> None
     monkeypatch.setattr(mod, 'load_external_squads', AsyncMock(return_value=[]))
 
     await _unwrap(mod.set_external_squad)(
-        _callback('admin_tariff_set_ext_squad:7:-'), SimpleNamespace(language='ru', id=1), MagicMock()
+        _callback(f'{mod._SET_EXTERNAL_SQUAD_PREFIX}:7:-'), SimpleNamespace(language='ru', id=1), MagicMock()
     )
 
     assert updates == [{'external_squad_uuid': None}]
@@ -292,8 +292,67 @@ async def test_set_same_external_squad_does_not_resync(monkeypatch) -> None:
     monkeypatch.setattr(mod, 'load_external_squads', AsyncMock(return_value=[]))
 
     await _unwrap(mod.set_external_squad)(
-        _callback('admin_tariff_set_ext_squad:7:ext-1'), SimpleNamespace(language='ru', id=1), MagicMock()
+        _callback(f'{mod._SET_EXTERNAL_SQUAD_PREFIX}:7:ext-1'), SimpleNamespace(language='ru', id=1), MagicMock()
     )
 
     assert updates == []
     assert scheduled == []
+
+
+async def test_external_squad_buttons_fit_telegram_callback_limit(monkeypatch) -> None:
+    """callback_data каждой кнопки укладывается в 64 байта — с НАСТОЯЩИМ UUID.
+
+    Прод-инцидент: префикс 'admin_tariff_set_ext_squad' (26 байт) плюс id тарифа
+    и UUID сквада (36 символов) давали 65 байт, Telegram отвечал
+    BUTTON_DATA_INVALID, и экран «Внешний сквад» не открывался вовсе. Тесты выше
+    это пропускали, потому что подставляли короткие заглушки 'ext-1'.
+
+    Поэтому здесь — реальные 36-символьные UUID и четырёхзначный id тарифа.
+    """
+    tariff = _tariff(id=1234, external_squad_uuid='3f2b7c18-5a41-4e0d-9c6b-2d8e1f0a7b53')
+    squads = [
+        SimpleNamespace(uuid='3f2b7c18-5a41-4e0d-9c6b-2d8e1f0a7b53', name='Нидерланды'),
+        SimpleNamespace(uuid='a81e4c90-7d22-4b36-8f15-6c0a9e3d7142', name='Германия'),
+    ]
+    monkeypatch.setattr(mod, 'get_tariff_by_id', AsyncMock(return_value=tariff))
+    monkeypatch.setattr(mod, 'load_external_squads', AsyncMock(return_value=squads))
+    callback = _callback(f'admin_tariff_edit_ext_squad:{tariff.id}')
+
+    await _unwrap(mod.start_edit_external_squad)(callback, SimpleNamespace(language='ru'), MagicMock(), _state())
+
+    keyboard = callback.message.edit_text.await_args.kwargs['reply_markup']
+    oversized = {
+        data: len(data.encode()) for data in _callbacks(keyboard) if len(data.encode()) > mod.CALLBACK_DATA_LIMIT
+    }
+    assert not oversized, f'callback_data длиннее {mod.CALLBACK_DATA_LIMIT} байт: {oversized}'
+
+
+async def test_every_external_squad_button_has_a_registered_handler(monkeypatch) -> None:
+    """Каждую кнопку экрана ловит зарегистрированный фильтр.
+
+    Укоротить префикс в клавиатуре и забыть про `register_panel_settings_handlers`
+    — значит получить кнопку, на которую никто не отвечает: без ошибки, без лога,
+    просто ничего не происходит. Поэтому фильтры здесь не сравниваются как строки,
+    а честно применяются к callback_data, которые отдала сама клавиатура.
+    """
+    tariff = _tariff(id=1234)
+    squads = [SimpleNamespace(uuid='a81e4c90-7d22-4b36-8f15-6c0a9e3d7142', name='Германия')]
+    monkeypatch.setattr(mod, 'get_tariff_by_id', AsyncMock(return_value=tariff))
+    monkeypatch.setattr(mod, 'load_external_squads', AsyncMock(return_value=squads))
+    callback = _callback(f'admin_tariff_edit_ext_squad:{tariff.id}')
+
+    await _unwrap(mod.start_edit_external_squad)(callback, SimpleNamespace(language='ru'), MagicMock(), _state())
+    keyboard = callback.message.edit_text.await_args.kwargs['reply_markup']
+
+    filters: list = []
+    dispatcher = MagicMock()
+    dispatcher.callback_query.register = lambda handler, *args, **kwargs: filters.extend(args)
+    dispatcher.message.register = lambda *args, **kwargs: None
+    mod.register_panel_settings_handlers(dispatcher)
+
+    unhandled = [
+        data for data in _callbacks(keyboard) if not any(f.resolve(SimpleNamespace(data=data)) for f in filters)
+    ]
+    # «Назад» уходит на экран тарифа, его обработчик живёт в другом модуле.
+    unhandled = [data for data in unhandled if not data.startswith('admin_tariff_edit_more:')]
+    assert not unhandled, f'кнопки без обработчика: {unhandled}'

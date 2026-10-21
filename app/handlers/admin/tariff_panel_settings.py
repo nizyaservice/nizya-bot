@@ -26,6 +26,16 @@ logger = structlog.get_logger(__name__)
 
 _NO_EXTERNAL_SQUAD = '-'
 
+# Префикс кнопки выбора внешнего сквада. Намеренно короткий: Telegram режет
+# callback_data на 64 байтах, а к префиксу добавляются id тарифа и UUID сквада
+# (36 символов). Прежний 'admin_tariff_set_ext_squad' давал 65 байт даже при
+# однозначном id — панель отвечала BUTTON_DATA_INVALID, и экран не открывался.
+# Внутренние сквады по той же причине живут на 'trf_sq:' (handlers/admin/tariffs.py).
+_SET_EXTERNAL_SQUAD_PREFIX = 'trf_xsq'
+
+# Лимит Telegram на callback_data, в байтах.
+CALLBACK_DATA_LIMIT = 64
+
 
 def _yes_no(value: bool) -> str:
     return '✅ Да' if value else '❌ Нет'
@@ -315,7 +325,7 @@ def _external_squad_keyboard(tariff: Tariff, squads: list, language: str) -> Inl
         [
             InlineKeyboardButton(
                 text=f'{"✅" if current is None else "⬜"} Без внешнего сквада',
-                callback_data=f'admin_tariff_set_ext_squad:{tariff.id}:{_NO_EXTERNAL_SQUAD}',
+                callback_data=f'{_SET_EXTERNAL_SQUAD_PREFIX}:{tariff.id}:{_NO_EXTERNAL_SQUAD}',
             )
         ]
     ]
@@ -324,7 +334,8 @@ def _external_squad_keyboard(tariff: Tariff, squads: list, language: str) -> Inl
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=f'{prefix} {squad.name}', callback_data=f'admin_tariff_set_ext_squad:{tariff.id}:{squad.uuid}'
+                    text=f'{prefix} {squad.name}',
+                    callback_data=f'{_SET_EXTERNAL_SQUAD_PREFIX}:{tariff.id}:{squad.uuid}',
                 )
             ]
         )
@@ -393,7 +404,7 @@ def register_panel_settings_handlers(dp: Dispatcher) -> None:
     dp.callback_query.register(start_edit_lava_product, F.data.startswith('admin_tariff_edit_lava:'))
     dp.callback_query.register(start_edit_display_order, F.data.startswith('admin_tariff_edit_order:'))
     dp.callback_query.register(start_edit_external_squad, F.data.startswith('admin_tariff_edit_ext_squad:'))
-    dp.callback_query.register(set_external_squad, F.data.startswith('admin_tariff_set_ext_squad:'))
+    dp.callback_query.register(set_external_squad, F.data.startswith(f'{_SET_EXTERNAL_SQUAD_PREFIX}:'))
     dp.message.register(process_panel_tag_input, AdminStates.editing_tariff_panel_tag)
     dp.message.register(process_lava_product_input, AdminStates.editing_tariff_lava_product)
     dp.message.register(process_display_order_input, AdminStates.editing_tariff_display_order)
