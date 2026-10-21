@@ -114,7 +114,7 @@ def test_screen_lists_allowed_squads_with_limits() -> None:
 
     assert any('Amsterdam' in label and '50' in label for label in labels)
     assert not any('Berlin' in label for label in labels)  # не в allowed_squads
-    assert 'admin_tariff_srv_limit:7:sq-1' in callbacks
+    assert f'{mod._SERVER_LIMIT_PREFIX}:7:sq-1' in callbacks
     assert 'admin_tariff_view:7' in callbacks
 
 

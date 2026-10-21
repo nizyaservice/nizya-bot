@@ -8,6 +8,10 @@ import app.handlers.admin.tariff_panel_settings as mod
 from app.handlers.admin.tariffs import format_tariff_info, get_tariff_view_keyboard
 
 
+# Лимит Telegram на callback_data, в байтах.
+CALLBACK_DATA_LIMIT = 64
+
+
 def _unwrap(fn):
     while hasattr(fn, '__wrapped__'):
         fn = fn.__wrapped__
@@ -321,10 +325,8 @@ async def test_external_squad_buttons_fit_telegram_callback_limit(monkeypatch) -
     await _unwrap(mod.start_edit_external_squad)(callback, SimpleNamespace(language='ru'), MagicMock(), _state())
 
     keyboard = callback.message.edit_text.await_args.kwargs['reply_markup']
-    oversized = {
-        data: len(data.encode()) for data in _callbacks(keyboard) if len(data.encode()) > mod.CALLBACK_DATA_LIMIT
-    }
-    assert not oversized, f'callback_data длиннее {mod.CALLBACK_DATA_LIMIT} байт: {oversized}'
+    oversized = {data: len(data.encode()) for data in _callbacks(keyboard) if len(data.encode()) > CALLBACK_DATA_LIMIT}
+    assert not oversized, f'callback_data длиннее {CALLBACK_DATA_LIMIT} байт: {oversized}'
 
 
 async def test_every_external_squad_button_has_a_registered_handler(monkeypatch) -> None:
