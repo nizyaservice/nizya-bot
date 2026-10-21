@@ -3611,6 +3611,9 @@
 - `tests/middlewares/`
 - `tests/migrations/`
 - `tests/services/`
+- `tests/test_callback_data_fits_telegram_limit.py` — Python-модуль
+  Классы: нет
+  Функции: `test_callback_data_with_uuid_fits_the_limit` — Ни одна кнопка с UUID не перебирает 64 байта., `test_the_scan_actually_finds_callback_data_with_uuid` — Страховка от молчаливой проверки.
 - `tests/test_compose_postgres_service.py` — Python-модуль
   Классы: нет
   Функции: `test_postgres_18_with_new_volume_at_the_18_mount_point`, `test_guard_is_the_entrypoint_and_sees_the_old_volume_read_only`, `test_compose_files_agree_on_the_postgres_service`, `test_initdb_args_and_healthcheck_preserved`, `guard_env` — Окружение как в контейнере: PGDATA нового кластера, старый том, подставной entrypoint., `test_guard_starts_a_fresh_install`, `test_guard_refuses_empty_18_while_15_data_exists`, `test_guard_starts_after_migration_even_if_old_volume_remains`

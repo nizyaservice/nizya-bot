@@ -33,9 +33,6 @@ _NO_EXTERNAL_SQUAD = '-'
 # Внутренние сквады по той же причине живут на 'trf_sq:' (handlers/admin/tariffs.py).
 _SET_EXTERNAL_SQUAD_PREFIX = 'trf_xsq'
 
-# Лимит Telegram на callback_data, в байтах.
-CALLBACK_DATA_LIMIT = 64
-
 
 def _yes_no(value: bool) -> str:
     return '✅ Да' if value else '❌ Нет'

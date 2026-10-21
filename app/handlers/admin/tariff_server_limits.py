@@ -16,6 +16,14 @@ from app.states import AdminStates
 from app.utils.decorators import admin_required, error_handler
 
 
+# Префикс кнопки выбора сервера. Короткий намеренно: к нему добавляются id
+# тарифа и UUID сквада (36 символов), а Telegram режет callback_data на 64
+# байтах. Прежний 'admin_tariff_srv_limit' давал 61 байт при однозначном id и
+# перевалил бы за лимит на пятизначном — той же ошибкой BUTTON_DATA_INVALID,
+# что уже ловил экран внешнего сквада.
+_SERVER_LIMIT_PREFIX = 'trf_lim'
+
+
 def _limits(tariff: Tariff) -> dict[str, Any]:
     return dict(getattr(tariff, 'server_traffic_limits', None) or {})
 
@@ -58,7 +66,7 @@ def get_server_limits_keyboard(tariff: Tariff, squads: list, language: str) -> I
         limit = limit_for(tariff, squad.squad_uuid)
         label = f'{squad.display_name}: {limit} ГБ' if limit else f'{squad.display_name}: по тарифу'
         buttons.append(
-            [InlineKeyboardButton(text=label, callback_data=f'admin_tariff_srv_limit:{tariff.id}:{squad.squad_uuid}')]
+            [InlineKeyboardButton(text=label, callback_data=f'{_SERVER_LIMIT_PREFIX}:{tariff.id}:{squad.squad_uuid}')]
         )
     buttons.append([InlineKeyboardButton(text=texts.BACK, callback_data=f'admin_tariff_view:{tariff.id}')])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -147,5 +155,5 @@ async def process_server_limit_input(message: types.Message, db_user: User, db: 
 
 def register_server_limits_handlers(dp: Dispatcher) -> None:
     dp.callback_query.register(show_server_limits, F.data.startswith('admin_tariff_edit_server_limits:'))
-    dp.callback_query.register(start_edit_server_limit, F.data.startswith('admin_tariff_srv_limit:'))
+    dp.callback_query.register(start_edit_server_limit, F.data.startswith(f'{_SERVER_LIMIT_PREFIX}:'))
     dp.message.register(process_server_limit_input, AdminStates.editing_tariff_server_limit)
