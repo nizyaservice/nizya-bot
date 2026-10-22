@@ -12,6 +12,7 @@ from app.handlers.admin.display_mode_button import cycle_display_mode_setting
 from app.localization.texts import get_texts
 from app.services.public_offer_service import PublicOfferService
 from app.states import AdminStates
+from app.utils.admin_text_input import read_long_text
 from app.utils.decorators import admin_required, error_handler
 from app.utils.display_mode import display_mode_label
 from app.utils.telegram_html import stored_html_to_telegram_pages
@@ -299,7 +300,7 @@ async def start_edit_public_offer(
 
     prompt = texts.t(
         'ADMIN_PUBLIC_OFFER_EDIT_PROMPT',
-        'Отправьте новый текст публичной оферты. Допускается HTML-разметка.',
+        'Отправьте новый текст публичной оферты сообщением или файлом .txt — файлом, если текст длиннее 4000 символов. Допускается HTML-разметка.',
     )
 
     hint = texts.t(
@@ -368,14 +369,18 @@ async def process_public_offer_edit(
     db: AsyncSession,
 ):
     texts = get_texts(db_user.language)
-    new_text = message.text or ''
 
-    if len(new_text) > 4000:
+    new_text, input_error = await read_long_text(message, texts)
+    if input_error:
+        await message.answer(input_error)
+        return
+
+    if len(new_text) > PublicOfferService.MAX_CONTENT_LENGTH:
         await message.answer(
             texts.t(
                 'ADMIN_PUBLIC_OFFER_TOO_LONG',
-                '❌ Текст оферты слишком длинный. Максимум 4000 символов.',
-            )
+                '❌ Текст оферты слишком длинный. Максимум {limit} символов.',
+            ).format(limit=PublicOfferService.MAX_CONTENT_LENGTH)
         )
         return
 

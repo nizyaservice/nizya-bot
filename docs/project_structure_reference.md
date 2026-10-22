@@ -2233,6 +2233,9 @@
 - `app/utils/__init__.py` — Python-модуль
   Классы: нет
   Функции: нет
+- `app/utils/admin_text_input.py` — Python-модуль
+  Классы: нет
+  Функции: `read_long_text` — ``(текст, ошибка)``: ровно одно из двух не None.
 - `app/utils/bot_identity.py` — Python-модуль
   Классы: нет
   Функции: `sync_bot_username` — Sync settings.BOT_USERNAME from the live bot (token-authoritative).
@@ -4618,6 +4621,9 @@
 - `tests/handlers/test_admin_full_sync.py` — Python-модуль
   Классы: нет
   Функции: `test_full_sync_button_runs_shared_full_sync_and_reports_both_parts` — Панель — истина: полная синхронизация читает панель и серверы, в панель не пишет., `test_full_sync_button_refuses_a_second_run_while_one_is_in_progress`, `test_full_sync_button_reports_a_lost_race_instead_of_crashing`
+- `tests/handlers/test_admin_legal_document_input.py` — Python-модуль
+  Классы: нет
+  Функции: `test_plain_text_is_taken_as_is`, `test_document_is_downloaded_and_decoded`, `test_document_longer_than_a_telegram_message_is_accepted` — Ради этого всё и делалось: 5000 символов в одно сообщение не влезают., `test_bom_is_stripped` — Блокнот и Word дописывают BOM молча — в тексте он виден как мусор в начале., `test_crlf_is_normalised`, `test_empty_input_is_rejected`, `test_empty_document_is_rejected`, `test_unsupported_extension_is_rejected_without_download`, `test_oversized_file_is_rejected_without_download`, `test_non_utf8_file_is_rejected`, `test_download_failure_does_not_crash`, `test_non_text_message_does_not_wipe_the_policy` — Регрессия: раньше фото в режиме редактирования сохраняло пустой документ., `test_document_reaches_the_service`
 - `tests/handlers/test_admin_referral_levels.py` — Python-модуль
   Классы: `TestSingleAnswerPerCallback` (4 методов), `TestActiveBonusSelection` (2 методов), `TestNewLevelSafety` (3 методов), `TestValueInput` (8 методов), `TestTariffSelection` (2 методов), `TestCallbackRouting` (2 методов), `TestPendingInputIsCancelled` (4 методов), `TestDeletedLevelDoesNotResurrectActive` (1 методов), `TestEditorTraps` (7 методов), `TestChainDepthEditing` (4 методов), `TestLevelUnlockThresholdEditing` (4 методов), `TestLevelsModeToggle` (8 методов), `TestCallbackAnswerLength` (3 методов), `TestRegistrationPercentTrap` (3 методов), `TestNonFiniteInput` (2 методов), `TestThresholdWarningPrecision` (2 методов), `TestDepthInputIsCancelledToo` (3 методов)
   Функции: `wired` — Подменяет CRUD уровней и тарифов, собирая записи.
