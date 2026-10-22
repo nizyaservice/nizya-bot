@@ -1219,10 +1219,14 @@ def get_subscription_keyboard(
                 )
 
             # Ряд: [Настройки] [Тариф] (если режим тарифов)
+            # Экран «Настройки» свёрнут: его содержимое поднято сюда. На месте
+            # кнопки настроек — управление устройствами, перевыпуск идёт строкой
+            # ниже во всю ширину. Докупка слотов устройств убрана вместе с
+            # экраном: у тарифов без цены за устройство её и так не было.
             settings_row = [
                 InlineKeyboardButton(
-                    text=texts.t('SUBSCRIPTION_SETTINGS_BUTTON', '⚙️ Настройки'),
-                    callback_data='subscription_settings',
+                    text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Управление устройствами'),
+                    callback_data='subscription_manage_devices',
                 )
             ]
             if settings.is_tariffs_mode() and subscription and not is_legacy_subscription:
@@ -1250,6 +1254,16 @@ def get_subscription_keyboard(
                         )
                     )
             keyboard.append(settings_row)
+
+            if settings.is_subscription_revoke_enabled():
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            text=texts.t('SUBSCRIPTION_REVOKE_BTN', '🔄 Перевыпустить подписку'),
+                            callback_data='subscription_revoke',
+                        )
+                    ]
+                )
 
             # Кнопка докупки трафика для платных подписок
             # В режиме тарифов проверяем can_topup_traffic() у тарифа, в классическом - глобальные настройки

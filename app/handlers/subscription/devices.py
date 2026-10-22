@@ -264,7 +264,7 @@ async def handle_change_devices(
         ).format(current_devices=current_devices)
 
     # В мульти-тарифе кнопка "назад" ведёт к детальному виду подписки
-    back_cb = f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'subscription_settings'
+    back_cb = f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription'
 
     await callback.message.edit_text(
         prompt_text,
@@ -532,7 +532,7 @@ async def confirm_change_devices(
             new_devices_count,
             price,
             db_user.language,
-            back_callback=f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'subscription_settings',
+            back_callback=f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription',
         ),
         # Подтверждение смены числа устройств — подпункт subscription.devices
         # (кнопка confirm_change_devices_* не матчится детектором — медиа явно).
@@ -979,7 +979,7 @@ async def show_devices_page(
             pagination.items,
             pagination,
             db_user.language,
-            back_callback=f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'subscription_settings',
+            back_callback=f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription',
         ),
     )
 
@@ -1187,7 +1187,7 @@ async def process_device_rename(message: types.Message, db_user: User, db: Async
         # Сообщения от FSM-handler'а — не callback, поэтому отдельный пост.
         devices_list = await _enrich_devices_with_aliases(devices_list, db_user.id)
         pagination = paginate_list(devices_list, page=page, per_page=5)
-        back_cb = f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'subscription_settings'
+        back_cb = f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription'
 
         await message.answer(
             texts.t('DEVICE_RENAME_OPEN_LIST', '📱 Откройте список устройств, чтобы продолжить'),
