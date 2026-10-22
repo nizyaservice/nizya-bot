@@ -1340,6 +1340,9 @@ class Settings(BaseSettings):
     AVAILABLE_LANGUAGES: str = 'ru,en,ua,zh,fa'
     LANGUAGE_SELECTION_ENABLED: bool = True
 
+    # Ссылка на телеграм-канал в подменю «Ещё». Пусто — кнопки нет.
+    MENU_CHANNEL_URL: str = 'https://t.me/nizya_vpn'
+
     PRIVACY_POLICY_DISPLAY_MODE: str = 'both'
     PUBLIC_OFFER_DISPLAY_MODE: str = 'both'
     RECURRENT_PAYMENTS_DISPLAY_MODE: str = 'both'

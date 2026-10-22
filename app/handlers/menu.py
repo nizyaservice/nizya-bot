@@ -23,6 +23,7 @@ from app.keyboards.inline import (
     get_info_menu_keyboard,
     get_language_selection_keyboard,
     get_main_menu_keyboard_async,
+    get_more_menu_keyboard,
 )
 from app.localization.texts import get_rules, get_texts
 from app.services.faq_service import FaqService
@@ -368,6 +369,38 @@ async def show_service_rules(callback: types.CallbackQuery, db_user: User, db: A
         keyboard=types.InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
         parse_mode='HTML',
         **await get_section_media_kwargs(db, SECTION_IMAGE_RULES, language=db_user.language),
+    )
+    await callback.answer()
+
+
+async def show_more_menu(
+    callback: types.CallbackQuery,
+    db_user: User,
+    db: AsyncSession,
+):
+    """Подменю «Ещё»: промокод, канал, язык, правила."""
+    if db_user is None:
+        texts = get_texts(settings.DEFAULT_LANGUAGE)
+        await callback.answer(
+            texts.t('USER_NOT_FOUND_ERROR', 'Ошибка: пользователь не найден.'),
+            show_alert=True,
+        )
+        return
+
+    texts = get_texts(db_user.language)
+    header = texts.t('MENU_MORE_HEADER', '⋯ <b>Ещё</b>')
+    prompt = texts.t('MENU_MORE_PROMPT', 'Выберите раздел:')
+
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=f'{header}\n\n{prompt}' if prompt else header,
+        keyboard=get_more_menu_keyboard(
+            language=db_user.language,
+            show_contests=settings.CONTESTS_ENABLED and settings.CONTESTS_BUTTON_VISIBLE,
+            show_activate=settings.ACTIVATE_BUTTON_VISIBLE,
+        ),
+        parse_mode='HTML',
+        **await get_section_media_kwargs(db, SECTION_IMAGE_MAIN_MENU, language=db_user.language),
     )
     await callback.answer()
 
@@ -1733,6 +1766,11 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(
         show_service_rules,
         F.data.startswith('menu_rules:'),
+    )
+
+    dp.callback_query.register(
+        show_more_menu,
+        F.data == 'menu_more',
     )
 
     dp.callback_query.register(
