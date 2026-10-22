@@ -1109,7 +1109,7 @@
   "MAIN_MENU_BUTTON": "🏠 Главное меню",
   "MAIN_MENU_TEST_ACCESS_HEADER": "🧪 Тестовые сервера активны: {servers}",
   "MAIN_MENU_TEST_ACCESS_TIMER": "⏳ Доступ действует ещё: {time_left}\n<code>{bar}</code>",
-  "MANAGE_DEVICES_BUTTON": "🔧 Управление устройствами",
+  "MANAGE_DEVICES_BUTTON": "🔧 Устройства",
   "MARK_AS_ANSWERED": "✅ Отметить как отвеченный",
   "MENU_ADMIN": "⚙️ Админ-панель",
   "MENU_BALANCE": "💰 Баланс",

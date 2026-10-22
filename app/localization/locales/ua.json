@@ -1067,7 +1067,7 @@
   "MAIN_MENU_RICH_TRIAL_BUTTON": "🚀 Активувати тріал",
   "MAIN_MENU_TEST_ACCESS_HEADER": "🧪 Тестові сервери активні: {servers}",
   "MAIN_MENU_TEST_ACCESS_TIMER": "⏳ Доступ діє ще: {time_left}\n<code>{bar}</code>",
-  "MANAGE_DEVICES_BUTTON": "🔧 Керування пристроями",
+  "MANAGE_DEVICES_BUTTON": "🔧 Пристрої",
   "MARK_AS_ANSWERED": "✅ Позначити як такий, що отримав відповідь",
   "MENU_ADMIN": "⚙️ Адмін-панель",
   "MENU_BALANCE": "💰 Баланс",
