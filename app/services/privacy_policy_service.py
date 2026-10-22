@@ -20,6 +20,13 @@ class PrivacyPolicyService:
     # к баннеру раздела, иначе экран уйдёт чистым текстом без картинки.
     MAX_PAGE_LENGTH = 950
 
+    # Потолок на весь документ. Пользователю текст отдаётся постранично по
+    # MAX_PAGE_LENGTH с навигацией, так что длина ограничена не показом, а
+    # здравым смыслом. Прежние 4000 были привязаны к потолку сообщения
+    # Telegram (4096) — но с приходом загрузки файлом транспорт перестал
+    # диктовать объём документа.
+    MAX_CONTENT_LENGTH = 20000
+
     @staticmethod
     def _normalize_language(language: str) -> str:
         base_language = language or settings.DEFAULT_LANGUAGE or 'ru'
