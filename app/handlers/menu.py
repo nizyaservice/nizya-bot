@@ -1319,6 +1319,21 @@ async def handle_back_to_menu(callback: types.CallbackQuery, state: FSMContext, 
     await callback.answer()
 
 
+# Строка с календарной датой окончания во всех пяти локалях начинается с 📅
+# (SUB_STATUS_EXPIRED, SUB_STATUS_TRIAL_ACTIVE, SUB_STATUS_ACTIVE_LONG).
+# Предупреждения «истекает завтра/сегодня» идут под ⚠️ и под фильтр не попадают.
+_END_DATE_MARKER = '📅'
+
+
+def strip_end_date_line(status_text: str) -> str:
+    """Статус подписки без строки с датой окончания.
+
+    В главном меню дата дублирует относительный отсчёт («истекает через…»),
+    который нагляднее: точная дата есть на экране «Моя подписка».
+    """
+    return '\n'.join(line for line in status_text.split('\n') if not line.lstrip().startswith(_END_DATE_MARKER))
+
+
 def _get_subscription_status(user: User, texts, is_daily_tariff: bool = False) -> str:
     subscription = getattr(user, 'subscription', None)
     if not subscription:
@@ -1497,7 +1512,7 @@ async def get_main_menu_text(user, texts, db: AsyncSession):
 
         base_text = texts.MAIN_MENU.format(
             user_name=html.escape(user.full_name or ''),
-            subscription_status=_get_subscription_status(user, texts, is_daily_tariff),
+            subscription_status=strip_end_date_line(_get_subscription_status(user, texts, is_daily_tariff)),
         )
 
         if tariff_info_block:
