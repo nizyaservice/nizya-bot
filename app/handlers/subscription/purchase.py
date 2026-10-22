@@ -301,47 +301,10 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
             '{used} / {limit} ГБ',
         ).format(used=used_traffic, limit=subscription.traffic_limit_gb)
 
-    devices_used_str = '—'
-    devices_list = []
-    devices_count = 0
-
-    show_devices = settings.is_devices_selection_enabled()
+    # Число подключённых устройств и их список с этого экрана убраны — они
+    # живут в «Управлении устройствами». Вместе с ними убран и запрос к панели:
+    # он уходил при каждом открытии «Моей подписки» и больше ни на что не влиял.
     devices_used_str = ''
-    devices_list: list[dict[str, Any]] = []
-
-    if show_devices:
-        try:
-            _device_panel_id = (
-                getattr(subscription, 'remnawave_id', None)
-                if settings.is_multi_tariff_enabled() and subscription
-                else None
-            ) or db_user.remnawave_id
-            if _device_panel_id:
-                from app.services.remnawave_service import RemnaWaveService
-
-                service = RemnaWaveService()
-
-                async with service.get_api_client() as api:
-                    devices_info = await api.get_user_devices(_device_panel_id)
-
-                    if isinstance(devices_info, dict):
-                        devices_count = devices_info.get('total', 0)
-                        devices_list = devices_info.get('devices', [])
-                        devices_used_str = str(devices_count)
-                        logger.info(
-                            'Найдено устройств для пользователя',
-                            devices_count=devices_count,
-                            telegram_id=db_user.telegram_id,
-                        )
-                    else:
-                        logger.warning(
-                            'Не удалось получить информацию об устройствах для', telegram_id=db_user.telegram_id
-                        )
-
-        except Exception as e:
-            logger.error('Ошибка получения устройств для отображения', error=e)
-            devices_used = await get_current_devices_count(db_user)
-            devices_used_str = str(devices_used)
 
     servers_names = await get_servers_display_names(subscription.connected_squads)
     servers_display = servers_names or texts.t('SUBSCRIPTION_NO_SERVERS', 'Нет серверов')
@@ -360,14 +323,13 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 
                 # Формируем блок информации о тарифе
                 is_daily = getattr(tariff, 'is_daily', False)
-                tariff_type_str = '🔄 Суточный' if is_daily else '📅 Периодный'
 
-                tariff_info_lines = [
-                    f'<b>📦 {html.escape(tariff.name)}</b>',
-                    f'Тип: {tariff_type_str}',
-                    f'Трафик: {tariff.traffic_limit_gb} ГБ' if tariff.traffic_limit_gb > 0 else 'Трафик: ∞ Безлимит',
-                    f'Устройства: {Texts.format_device_limit(tariff.device_limit)}',
-                ]
+                # Название тарифа, тип, трафик и лимит устройств с экрана убраны:
+                # тариф уже назван строкой выше, а трафик и устройства пользователь
+                # смотрит в приложении. У периодных тарифов блок остаётся пустым и
+                # не выводится вовсе; у суточных в нём остаётся только биллинг —
+                # цена за день и отсчёт до списания, которым больше негде жить.
+                tariff_info_lines: list[str] = []
 
                 if is_daily:
                     # Для суточного тарифа показываем цену с учётом скидки промогруппы + promo-offer
@@ -433,7 +395,8 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
                         tariff_info_lines.append('')
                         tariff_info_lines.append('⏳ Первое списание скоро')
 
-                tariff_info_block = '\n<blockquote expandable>' + '\n'.join(tariff_info_lines) + '</blockquote>'
+                if tariff_info_lines:
+                    tariff_info_block = '\n<blockquote expandable>' + '\n'.join(tariff_info_lines) + '</blockquote>'
 
         except Exception as e:
             logger.warning('Ошибка получения тарифа', error=e, exc_info=True)
@@ -451,9 +414,7 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 
 📱 Информация о подписке
 🎭 Тип: {subscription_type}
-📈 Трафик: {traffic}
-🌍 Серверы: {servers}
-📱 Устройства: {devices_used} / {device_limit}""",
+📈 Трафик: загляните в приложение Happ/Incy""",
         )
     else:
         message_template = texts.t(
@@ -466,15 +427,7 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 🎭 Тип: {subscription_type}
 📅 Действует до: {end_date}
 ⏰ Осталось: {time_left}
-📈 Трафик: {traffic}
-🌍 Серверы: {servers}
-📱 Устройства: {devices_used} / {device_limit}""",
-        )
-
-    if not show_devices:
-        message_template = message_template.replace(
-            '\n📱 Устройства: {devices_used} / {device_limit}',
-            '',
+📈 Трафик: загляните в приложение Happ/Incy""",
         )
 
     device_limit_display = Texts.format_device_limit(subscription.device_limit)
@@ -494,21 +447,6 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
         devices_used=devices_used_str,
         device_limit=device_limit_display,
     )
-
-    if show_devices and devices_list:
-        message += '\n\n' + texts.t(
-            'SUBSCRIPTION_CONNECTED_DEVICES_TITLE',
-            '<blockquote>📱 <b>Подключенные устройства:</b>\n',
-        )
-        for device in devices_list[:5]:
-            platform = device.get('platform', 'Unknown')
-            device_model = device.get('deviceModel', 'Unknown')
-            device_info = f'{platform} - {device_model}'
-
-            if len(device_info) > 35:
-                device_info = device_info[:32] + '...'
-            message += f'• {device_info}\n'
-        message += texts.t('SUBSCRIPTION_CONNECTED_DEVICES_FOOTER', '</blockquote>')
 
     # Отображаем докупленный трафик
     if subscription.traffic_limit_gb > 0:  # Только для лимитированных тарифов
