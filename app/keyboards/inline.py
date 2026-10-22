@@ -1225,7 +1225,7 @@ def get_subscription_keyboard(
             # экраном: у тарифов без цены за устройство её и так не было.
             settings_row = [
                 InlineKeyboardButton(
-                    text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Управление устройствами'),
+                    text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Устройства'),
                     callback_data='subscription_manage_devices',
                 )
             ]
@@ -3521,7 +3521,7 @@ def get_updated_subscription_settings_keyboard(
     keyboard.append(
         [
             InlineKeyboardButton(
-                text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Управление устройствами'),
+                text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Устройства'),
                 callback_data='subscription_manage_devices',
             )
         ]
@@ -3573,7 +3573,7 @@ def get_device_management_help_keyboard(language: str = DEFAULT_LANGUAGE) -> Inl
             ],
             [
                 InlineKeyboardButton(
-                    text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Управление устройствами'),
+                    text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Устройства'),
                     callback_data='subscription_manage_devices',
                 )
             ],

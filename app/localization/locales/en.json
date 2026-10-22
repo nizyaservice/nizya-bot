@@ -1128,7 +1128,7 @@
   "MAIN_MENU_RICH_TRIAL_BUTTON": "🚀 Activate trial",
   "MAIN_MENU_TEST_ACCESS_HEADER": "🧪 Test servers active: {servers}",
   "MAIN_MENU_TEST_ACCESS_TIMER": "⏳ Access active for {time_left}\n<code>{bar}</code>",
-  "MANAGE_DEVICES_BUTTON": "🔧 Manage devices",
+  "MANAGE_DEVICES_BUTTON": "🔧 Devices",
   "MARK_AS_ANSWERED": "✅ Mark as answered",
   "MENU_ADMIN": "⚙️ Admin panel",
   "MENU_BALANCE": "💰 Balance",
