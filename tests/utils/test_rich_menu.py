@@ -135,13 +135,12 @@ async def test_builder_keeps_premium_emoji_from_operator_texts(monkeypatch):
     html_out = await rich_menu.build_main_menu_rich_html(user, PremiumEmojiTexts(), AsyncMock())
 
     assert '&lt;tg-emoji' not in html_out, 'тег премиум-эмодзи ушёл клиенту экранированным'
-    # заголовок, статус, устройства, баланс, футер
-    assert html_out.count(f'<tg-emoji emoji-id="{PremiumEmojiTexts.EMOJI_ID}">') == 5
-    for fragment in ('Подписка', 'Активна', 'Устройства:', 'Баланс:', 'Выберите действие:'):
+    # заголовок, статус, баланс, футер (строка устройств с главного экрана убрана)
+    assert html_out.count(f'<tg-emoji emoji-id="{PremiumEmojiTexts.EMOJI_ID}">') == 4
+    for fragment in ('Подписка', 'Активна', 'Баланс:', 'Выберите действие:'):
         assert fragment in html_out
     # плейсхолдеры шаблонов по-прежнему подставляются
     assert '{balance}' not in html_out
-    assert '{devices}' not in html_out
     # ...а данные пользователя остаются экранированными
     assert 'Егор &lt;script&gt;' in html_out
     assert '<script>' not in html_out
@@ -164,11 +163,13 @@ async def test_builder_strips_disallowed_markup_from_operator_texts(monkeypatch)
     assert '<tg-emoji emoji-id="1">💥</tg-emoji>' in html_out
 
 
-async def test_unlimited_devices_shown_as_infinity_not_hidden(monkeypatch):
-    """device_limit = 0 (HWID выключен) — безлимит, а не «нет устройств».
+async def test_devices_row_is_absent_from_the_main_screen(monkeypatch):
+    """Строки про устройства на главном экране больше нет — так задумано.
 
-    Регресс: строка про устройства пряталась целиком (`if device_limit:`),
-    поэтому у юзера с выключенным HWID её просто не было в меню.
+    Раньше здесь проверялось, что device_limit = 0 показывается как «∞», а не
+    прячется. Сама отрисовка «∞» никуда не делась: она осталась в таблице
+    мультитарифа и проверяется в test_unlimited_devices_in_multi_tariff_table.
+    Главное меню теперь держит только тип подписки, тариф, отсчёт и баланс.
     """
     _patch_content_sources(monkeypatch)
     monkeypatch.setattr(type(settings), 'is_multi_tariff_enabled', lambda self: False)
@@ -178,8 +179,7 @@ async def test_unlimited_devices_shown_as_infinity_not_hidden(monkeypatch):
 
     html_out = await rich_menu.build_main_menu_rich_html(_make_user(subscription), DummyTexts(), AsyncMock())
 
-    assert 'Устройства: ∞' in html_out
-    assert 'Устройства: 0' not in html_out
+    assert 'Устройства' not in html_out
 
 
 async def test_unlimited_devices_in_multi_tariff_table(monkeypatch):
@@ -764,8 +764,11 @@ async def test_single_mode_expired_renew_link(monkeypatch):
     assert 'startapp=renew_7' in html_out
 
 
-async def test_usage_traffic_and_devices_displayed(monkeypatch):
-    """Активная подписка показывает текущий трафик и лимит устройств."""
+async def test_traffic_and_devices_are_absent_from_the_main_screen(monkeypatch):
+    """Расход трафика и лимит устройств ушли на экран «Моя подписка».
+
+    Отрисовка самих значений проверяется в test_usage_row_in_multi_tariff_table.
+    """
     _patch_content_sources(monkeypatch)
     monkeypatch.setattr(type(settings), 'is_multi_tariff_enabled', lambda self: False)
     monkeypatch.setattr(type(settings), 'is_tariffs_mode', lambda self: False)
@@ -775,8 +778,8 @@ async def test_usage_traffic_and_devices_displayed(monkeypatch):
 
     html_out = await rich_menu.build_main_menu_rich_html(user, DummyTexts(), AsyncMock())
 
-    assert '📊 Трафик: 12.5 ГБ / 100 ГБ' in html_out
-    assert '📱 Устройства: 3' in html_out
+    assert 'Трафик' not in html_out
+    assert 'Устройства' not in html_out
 
 
 async def test_usage_row_in_multi_tariff_table(monkeypatch):
@@ -1024,9 +1027,14 @@ async def test_connect_link_hidden_when_subscription_link_hidden(monkeypatch):
 
 
 async def test_connect_link_uses_happ_redirect_in_happ_mode(monkeypatch):
-    """В happ-режиме подключение идёт через https-обёртку редиректа, не через сырую happ://."""
+    """В happ-режиме подключение идёт через https-обёртку редиректа, не через сырую happ://.
+
+    Проверяется на таблице мультитарифа: с главного экрана одиночной подписки
+    ссылку «Подключить» убрали, но _connect_link по-прежнему строит ссылки для
+    таблицы, и экранирование схемы остаётся важным.
+    """
     _patch_content_sources(monkeypatch)
-    monkeypatch.setattr(type(settings), 'is_multi_tariff_enabled', lambda self: False)
+    monkeypatch.setattr(type(settings), 'is_multi_tariff_enabled', lambda self: True)
     monkeypatch.setattr(type(settings), 'is_tariffs_mode', lambda self: False)
     monkeypatch.setattr(type(settings), 'is_happ_cryptolink_mode', lambda self: True)
     monkeypatch.setattr(
@@ -1038,6 +1046,11 @@ async def test_connect_link_uses_happ_redirect_in_happ_mode(monkeypatch):
     now = datetime.now(UTC)
     sub = _make_subscription(now)
     sub.subscription_crypto_link = 'happ://crypt4/xyz'
+
+    async def fake_get_all(db, user_id):
+        return [sub]
+
+    monkeypatch.setattr(rich_menu, 'get_all_subscriptions_by_user_id', fake_get_all)
 
     html_out = await rich_menu.build_main_menu_rich_html(_make_user(sub), DummyTexts(), AsyncMock())
 

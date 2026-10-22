@@ -493,7 +493,7 @@ def _build_subscriptions_table(subscriptions, texts) -> str:
 async def _build_single_subscription_block(user: User, texts, db: AsyncSession) -> str:
     # Статусные строки берём из того же builder-а, что и классическое меню, —
     # единый источник правды для формулировок (см. tests/test_start_menu_text_consistency.py).
-    from app.handlers.menu import _get_subscription_status
+    from app.handlers.menu import _get_subscription_status, strip_end_date_line
 
     subscription = getattr(user, 'subscription', None)
     if not subscription:
@@ -512,7 +512,7 @@ async def _build_single_subscription_block(user: User, texts, db: AsyncSession) 
             tariff_template = texts.t('MAIN_MENU_RICH_TARIFF', '📦 Тариф: {tariff}')
             tariff_line = _rich_text(tariff_template).replace('{tariff}', f'<b>{html.escape(tariff.name)}</b>')
 
-    status_text = _get_subscription_status(user, texts, is_daily_tariff)
+    status_text = strip_end_date_line(_get_subscription_status(user, texts, is_daily_tariff))
     lines = [_rich_text(line) for line in status_text.split('\n') if line.strip()]
     if tariff_line:
         lines.append(tariff_line)
@@ -531,18 +531,10 @@ async def _build_single_subscription_block(user: User, texts, db: AsyncSession) 
         relative_line = _rich_text(relative_template).replace('{when}', _tg_time(end_date, 'r', days_left_text))
         lines.append(f'<code>{_progress_bar(seconds_left, total_seconds)}</code> {relative_line}')
 
-    if actual_status in {'active', 'trial', 'limited'}:
-        traffic_template = texts.t('MAIN_MENU_RICH_TRAFFIC', '📊 Трафик: {traffic}')
-        lines.append(
-            _rich_text(traffic_template).replace('{traffic}', html.escape(_traffic_usage_text(subscription, texts)))
-        )
-        device_limit = getattr(subscription, 'device_limit', None)
-        if device_limit is not None:
-            devices_template = texts.t('MAIN_MENU_RICH_DEVICES', '📱 Устройства: {devices}')
-            lines.append(_rich_text(devices_template).replace('{devices}', Texts.format_device_limit(device_limit)))
-        connect_link = _connect_link(subscription, texts)
-        if connect_link:
-            lines.append(connect_link)
+    # Трафик, лимит устройств и ссылка «Подключить» с главного экрана убраны
+    # намеренно: подключение живёт на кнопке «Подключить VPN», детали расхода —
+    # на экране «Моя подписка». Главное меню держит только тип подписки, тариф,
+    # отсчёт до окончания и баланс.
 
     if actual_status == 'expired':
         renew_link = _renew_link(getattr(subscription, 'id', None), texts)
