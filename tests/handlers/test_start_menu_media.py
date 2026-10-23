@@ -143,8 +143,12 @@ async def test_answer_path_sends_video(monkeypatch):
         message.answer.assert_not_awaited()
 
 
-async def test_answer_path_without_video_delegates_unchanged(monkeypatch):
-    """Без видео поведение обязано остаться ровно прежним (патченный answer)."""
+async def test_answer_path_without_video_sends_the_main_menu_banner(monkeypatch):
+    """Без видео меню уходит баннером главного экрана.
+
+    Баннер берётся из menu_images, даже когда в админку ничего не загружали,
+    поэтому фото здесь — штатный путь, а не исключение.
+    """
     from app.handlers.start import answer_menu_with_media
 
     async with memory_session(monkeypatch, TABLES) as db:
@@ -154,6 +158,26 @@ async def test_answer_path_without_video_delegates_unchanged(monkeypatch):
         await answer_menu_with_media(message, 'Меню', KEYBOARD, db)
 
         message.answer_video.assert_not_awaited()
+        message.answer_photo.assert_awaited_once()
+        assert message.answer_photo.await_args.kwargs['caption'] == 'Меню'
+
+
+async def test_answer_path_without_banner_delegates_to_patched_answer(monkeypatch):
+    """Нет ни видео, ни баннера — прежний путь через патченный message.answer.
+
+    Он несёт всю накопленную обработку: фото-логотип, лимит подписи, топики
+    форумов, privacy-restricted. Терять её нельзя.
+    """
+    import app.services.section_image_service as section_images
+    from app.handlers.start import answer_menu_with_media
+
+    async with memory_session(monkeypatch, TABLES) as db:
+        sms.reset_start_video_cache()
+        monkeypatch.setattr(section_images, 'get_section_media_kwargs', AsyncMock(return_value={}))
+
+        message = _message()
+        await answer_menu_with_media(message, 'Меню', KEYBOARD, db)
+
         message.answer.assert_awaited_once_with('Меню', reply_markup=KEYBOARD, parse_mode='HTML')
 
 
@@ -169,7 +193,25 @@ async def test_answer_path_falls_back_when_video_broken(monkeypatch):
 
         await answer_menu_with_media(message, 'Меню', KEYBOARD, db)
 
-        message.answer.assert_awaited_once()
+        # Меню обязано дойти до пользователя: сломанное видео уводит на баннер.
+        message.answer_photo.assert_awaited_once()
+
+
+async def test_answer_path_falls_back_to_text_when_photo_also_breaks(monkeypatch):
+    """Сломано и видео, и отправка фото — пользователь всё равно получает меню."""
+    from app.handlers.start import answer_menu_with_media
+
+    async with memory_session(monkeypatch, TABLES) as db:
+        sms.reset_start_video_cache()
+        await sms.set_start_video_file_id(db, 'broken')
+
+        message = _message()
+        message.answer_video = AsyncMock(side_effect=RuntimeError('wrong file identifier'))
+        message.answer_photo = AsyncMock(side_effect=RuntimeError('photo failed'))
+
+        await answer_menu_with_media(message, 'Меню', KEYBOARD, db)
+
+        message.answer.assert_awaited_once_with('Меню', reply_markup=KEYBOARD, parse_mode='HTML')
 
 
 async def test_answer_path_long_caption_delegates_to_text(monkeypatch):

@@ -1,6 +1,8 @@
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
+from aiogram.types import FSInputFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -216,6 +218,73 @@ SECTION_IMAGE_DEFINITIONS: tuple[SectionImageDefinition, ...] = (
 _SECTION_IMAGE_DEFINITIONS_BY_KEY = {definition.key: definition for definition in SECTION_IMAGE_DEFINITIONS}
 
 
+# Картинки разделов на диске: menu_images/<раздел>/_main.png, <раздел>/<подпункт>.png,
+# main_menu.png в корне. en-вариант — тот же путь с суффиксом _en.
+#
+# Файл используется, когда в system_settings для раздела ничего не загружено:
+# так новый набор баннеров виден сразу после деплоя, без ручной заливки каждой
+# картинки через админку. Загруженная вручную картинка по-прежнему главнее —
+# оператор должен иметь возможность переопределить то, что лежит в репозитории.
+BANNERS_DIR = Path(__file__).resolve().parents[2] / 'menu_images'
+
+
+def get_section_image_path(section_key: str, language: str | None = None) -> Path | None:
+    """Путь к файлу баннера раздела; None — файла нет."""
+    if not section_key:
+        return None
+    if '.' in section_key:
+        parent, sub = section_key.rsplit('.', 1)
+        relative = f'{parent}/{sub}'
+    elif section_key == SECTION_IMAGE_MAIN_MENU:
+        relative = section_key
+    else:
+        relative = f'{section_key}/_main'
+
+    candidates = [f'{relative}_en.png', f'{relative}.png'] if language == 'en' else [f'{relative}.png']
+    for candidate in candidates:
+        path = BANNERS_DIR / candidate
+        if path.is_file():
+            return path
+    return None
+
+
+# file_id, полученный от Telegram после первой отправки файла, живёт до смены
+# файла на диске: иначе каждый показ экрана заново грузил бы в Telegram
+# полмегабайта. Отпечаток — mtime, как у логотипа в message_patch.
+_FILE_ID_BY_PATH: dict[str, tuple[str, float]] = {}
+
+
+def _file_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def section_file_media(path: Path) -> str | FSInputFile:
+    """file_id, если файл уже отправляли и он не менялся, иначе сам файл."""
+    cached = _FILE_ID_BY_PATH.get(str(path))
+    if cached and cached[1] == _file_mtime(path):
+        return cached[0]
+    return FSInputFile(path)
+
+
+def remember_file_photo(media: object, result: object) -> None:
+    """Запомнить file_id отправленного файла. Безопасна для любого media."""
+    if not isinstance(media, FSInputFile):
+        return
+    photo = getattr(result, 'photo', None)
+    if not photo:
+        return
+    path = Path(media.path)
+    _FILE_ID_BY_PATH[str(path)] = (photo[-1].file_id, _file_mtime(path))
+
+
+def reset_file_id_cache() -> None:
+    """Сбросить кеш file_id (тесты и ручная перезаливка)."""
+    _FILE_ID_BY_PATH.clear()
+
+
 def get_section_image_definition(section_key: str) -> SectionImageDefinition | None:
     return _SECTION_IMAGE_DEFINITIONS_BY_KEY.get(section_key)
 
@@ -258,6 +327,10 @@ async def get_section_media_kwargs(
     file_id = await get_section_image_file_id(db, section_key, language)
     if file_id:
         return {'media': file_id}
+
+    path = get_section_image_path(section_key, language)
+    if path:
+        return {'media': section_file_media(path)}
     return {}
 
 
@@ -316,6 +389,31 @@ async def resolve_cached_section_file_id(section_key: str, language: str | None 
     alias = _SECTION_IMAGE_ALIASES.get(section_key)
     if alias:
         return await get_cached_section_file_id(alias)
+    return None
+
+
+async def resolve_section_media(section_key: str, language: str | None = None) -> str | FSInputFile | None:
+    """Картинка раздела для автодетекта: загруженная в админку, иначе файл из репозитория.
+
+    Иерархия та же, что у resolve_cached_section_file_id: подпункт → раздел →
+    алиас. Файл ищется по той же цепочке, иначе подпункт без своей картинки
+    остался бы вовсе без баннера, хотя у раздела он есть.
+    """
+    file_id = await resolve_cached_section_file_id(section_key, language)
+    if file_id:
+        return file_id
+
+    candidates = [section_key]
+    if '.' in section_key:
+        candidates.append(section_key.rsplit('.', 1)[0])
+    alias = _SECTION_IMAGE_ALIASES.get(candidates[-1])
+    if alias:
+        candidates.append(alias)
+
+    for candidate in candidates:
+        path = get_section_image_path(candidate, language)
+        if path:
+            return section_file_media(path)
     return None
 
 
