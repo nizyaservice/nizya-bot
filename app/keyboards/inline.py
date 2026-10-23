@@ -1167,6 +1167,7 @@ def get_subscription_keyboard(
                 [InlineKeyboardButton(text=texts.MENU_BUY_SUBSCRIPTION, callback_data='subscription_upgrade')]
             )
         else:
+            show_autopay = False
             # Проверяем, является ли тариф суточным
             tariff = getattr(subscription, 'tariff', None) if subscription else None
             is_daily_tariff = tariff and getattr(tariff, 'is_daily', False)
@@ -1207,52 +1208,59 @@ def get_subscription_keyboard(
                     ]
                 )
             else:
-                # Для обычного тарифа: [Продлить] [Автоплатеж]
-                keyboard.append(
-                    [
-                        InlineKeyboardButton(text=texts.MENU_EXTEND_SUBSCRIPTION, callback_data='subscription_extend'),
-                        InlineKeyboardButton(
-                            text=texts.t('AUTOPAY_BUTTON', '💳 Автоплатеж'),
-                            callback_data='subscription_autopay',
-                        ),
-                    ]
-                )
+                # Ряд: [Продлить тариф] [Сменить тариф]. Автоплатёж уехал строкой
+                # ниже, к устройствам: продление и смена тарифа — соседние по
+                # смыслу действия, их держим вместе.
+                tariff_button = None
+                if settings.is_tariffs_mode() and subscription and not is_legacy_subscription:
+                    # На истёкшей/отключённой подписке смена тарифа недоступна (хендлер её
+                    # блокирует) — раньше кнопка «Тариф» всё равно показывалась и вела в тупик.
+                    # Теперь для таких подписок показываем «Купить тариф» (покупку с нуля).
+                    if getattr(subscription, 'actual_status', None) in ('expired', 'disabled'):
+                        tariff_button = InlineKeyboardButton(
+                            text=texts.t('BUY_TARIFF_BUTTON', '📦 Купить тариф'), callback_data='menu_buy'
+                        )
+                    else:
+                        # Для суточных тарифов переходим на список тарифов, для обычных - мгновенное переключение.
+                        # Бесплатный (0₽) тариф — тоже через список с выбором периода: prorated
+                        # instant-switch посчитал бы доплату за весь остаток бесплатных дней
+                        # и перенёс бы их на платный тариф вопреки TARIFF_SWITCH_RESET_FREE_DAYS.
+                        is_free_tariff = bool(
+                            tariff and getattr(tariff, 'is_free', False) and settings.TARIFF_SWITCH_RESET_FREE_DAYS
+                        )
+                        tariff_callback = 'tariff_switch' if (is_daily_tariff or is_free_tariff) else 'instant_switch'
+                        tariff_button = InlineKeyboardButton(
+                            text=texts.t('CHANGE_TARIFF_BUTTON', '📦 Сменить тариф'), callback_data=tariff_callback
+                        )
 
-            # Ряд: [Настройки] [Тариф] (если режим тарифов)
+                extend_row = [
+                    InlineKeyboardButton(text=texts.MENU_EXTEND_SUBSCRIPTION, callback_data='subscription_extend')
+                ]
+                if tariff_button:
+                    extend_row.append(tariff_button)
+                keyboard.append(extend_row)
+                # Автоплатёж есть только у обычных тарифов: суточные списываются
+                # сами, у старых подписок продления и автоплатежа нет вовсе.
+                show_autopay = True
+
             # Экран «Настройки» свёрнут: его содержимое поднято сюда. На месте
-            # кнопки настроек — управление устройствами, перевыпуск идёт строкой
-            # ниже во всю ширину. Докупка слотов устройств убрана вместе с
-            # экраном: у тарифов без цены за устройство её и так не было.
+            # кнопки настроек — управление устройствами, рядом автоплатёж,
+            # перевыпуск идёт строкой ниже во всю ширину. Докупка слотов
+            # устройств убрана вместе с экраном: у тарифов без цены за
+            # устройство её и так не было.
             settings_row = [
                 InlineKeyboardButton(
                     text=texts.t('MANAGE_DEVICES_BUTTON', '🔧 Устройства'),
                     callback_data='subscription_manage_devices',
                 )
             ]
-            if settings.is_tariffs_mode() and subscription and not is_legacy_subscription:
-                # На истёкшей/отключённой подписке смена тарифа недоступна (хендлер её
-                # блокирует) — раньше кнопка «Тариф» всё равно показывалась и вела в тупик.
-                # Теперь для таких подписок показываем «Купить тариф» (покупку с нуля).
-                if getattr(subscription, 'actual_status', None) in ('expired', 'disabled'):
-                    settings_row.append(
-                        InlineKeyboardButton(
-                            text=texts.t('BUY_TARIFF_BUTTON', '📦 Купить тариф'), callback_data='menu_buy'
-                        )
+            if show_autopay:
+                settings_row.append(
+                    InlineKeyboardButton(
+                        text=texts.t('AUTOPAY_BUTTON', '💳 Автоплатёж'),
+                        callback_data='subscription_autopay',
                     )
-                else:
-                    # Для суточных тарифов переходим на список тарифов, для обычных - мгновенное переключение.
-                    # Бесплатный (0₽) тариф — тоже через список с выбором периода: prorated
-                    # instant-switch посчитал бы доплату за весь остаток бесплатных дней
-                    # и перенёс бы их на платный тариф вопреки TARIFF_SWITCH_RESET_FREE_DAYS.
-                    is_free_tariff = bool(
-                        tariff and getattr(tariff, 'is_free', False) and settings.TARIFF_SWITCH_RESET_FREE_DAYS
-                    )
-                    tariff_callback = 'tariff_switch' if (is_daily_tariff or is_free_tariff) else 'instant_switch'
-                    settings_row.append(
-                        InlineKeyboardButton(
-                            text=texts.t('CHANGE_TARIFF_BUTTON', '📦 Тариф'), callback_data=tariff_callback
-                        )
-                    )
+                )
             keyboard.append(settings_row)
 
             if settings.is_subscription_revoke_enabled():

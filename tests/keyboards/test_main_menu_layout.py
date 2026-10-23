@@ -70,7 +70,7 @@ def test_active_subscriber_sees_the_mockup_rows(active_menu) -> None:
 def test_button_labels_match_the_mockup(active_menu) -> None:
     labels = _texts(active_menu)
     assert labels[0] == ['⚡ Подключить VPN']
-    assert labels[1] == ['💜 Тарифы и продление']
+    assert labels[1] == ['💜 Тарифы']
     assert labels[2][0] == '📊 Моя подписка'
     assert labels[3] == ['💬 Помощь', '🎁 Позвать друга']
     assert labels[4] == ['⋯ Ещё']
