@@ -162,3 +162,75 @@ def test_overview_template_drops_the_type_field(directory, lang, key) -> None:
     template = json.loads((directory / f'{lang}.json').read_text(encoding='utf-8'))[key]
 
     assert '{subscription_type}' not in template
+
+
+# ---- выделение заголовков цитатой ----
+
+
+def _locale(directory, lang) -> dict:
+    return json.loads((directory / f'{lang}.json').read_text(encoding='utf-8'))
+
+
+@pytest.mark.parametrize('directory', LOCALE_DIRS, ids=('base', 'override'))
+@pytest.mark.parametrize('lang', LANGS)
+@pytest.mark.parametrize('key', TEMPLATE_KEYS)
+def test_overview_headers_are_quoted(directory, lang, key) -> None:
+    """Ник и заголовок «Информация о подписке» выделены цитатой — только они.
+
+    Остальные строки остаются обычным текстом: цитата здесь разделитель
+    разделов, а не оформление всего подряд.
+    """
+    lines = _locale(directory, lang)[key].split('\n')
+
+    assert lines[0].startswith('<blockquote>') and lines[0].endswith('</blockquote>')
+    header = lines.index('') + 1
+    assert lines[header].startswith('<blockquote>') and lines[header].endswith('</blockquote>')
+    quoted = [line for line in lines if '<blockquote' in line]
+    assert len(quoted) == 2, f'цитатой выделено лишнее: {quoted}'
+
+
+@pytest.mark.parametrize('directory', LOCALE_DIRS, ids=('base', 'override'))
+@pytest.mark.parametrize('lang', LANGS)
+def test_connect_link_label_is_quoted_and_not_bold(directory, lang) -> None:
+    value = _locale(directory, lang)['SUBSCRIPTION_CONNECT_LINK_SECTION']
+    label = value.split('\n')[0]
+
+    assert label.startswith('<blockquote>') and label.endswith('</blockquote>')
+    assert '<b>' not in value, 'жирный с подписи ссылки убран'
+    assert '{subscription_url}' in value
+
+
+def test_assembled_subscription_message_is_valid_html() -> None:
+    """Цитаты не вкладываются друг в друга — Telegram такого не принимает.
+
+    Ссылка в happ-режиме сама приходит блоком-цитатой, а блок тарифа
+    подставляется в строку статуса, поэтому баланс тегов стоит проверять
+    на собранном сообщении, а не на шаблоне.
+    """
+    from app.localization.texts import get_texts
+    from app.utils.validators import validate_html_tags
+
+    texts = get_texts('ru')
+    message = texts.SUBSCRIPTION_OVERVIEW_TEMPLATE.format(
+        full_name='Тест',
+        balance='0 ₽',
+        status_emoji='🟢',
+        status_display='Активна',
+        warning='',
+        tariff_info_block='',
+        end_date='01.11.2026',
+        time_left='9 дней',
+        traffic='',
+        servers='',
+        devices_used='',
+        device_limit='',
+        subscription_type='',
+    )
+    message += '\n\n' + texts.t('SUBSCRIPTION_CONNECT_LINK_SECTION').format(
+        subscription_url='<blockquote expandable><code>https://s/x</code></blockquote>'
+    )
+
+    is_valid, error = validate_html_tags(message)
+
+    assert is_valid, error
+    assert message.count('<blockquote') == message.count('</blockquote>')
