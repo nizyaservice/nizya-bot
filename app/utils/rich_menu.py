@@ -579,6 +579,14 @@ async def build_main_menu_rich_html(user: User, texts, db: AsyncSession) -> str:
         blocks.append(f'<h6>{_rich_text(heading)}</h6>')
         blocks.append(await _build_single_subscription_block(user, texts, db))
 
+    # Telegram-id сразу под блоком подписки. В <code> — чтобы копировался
+    # нажатием: это первое, что спрашивает поддержка. Читаем через getattr:
+    # главное меню не должно падать целиком из-за одного отсутствующего поля.
+    telegram_id = getattr(user, 'telegram_id', None)
+    if telegram_id:
+        user_id_template = texts.t('MAIN_MENU_USER_ID', '🆔 Ваш id: <code>{user_id}</code>')
+        blocks.append(f'<p>{_rich_text(user_id_template).replace("{user_id}", str(telegram_id))}</p>')
+
     trial_link = _trial_offer_link(user, texts)
     if trial_link:
         blocks.append(f'<p>{trial_link}</p>')
