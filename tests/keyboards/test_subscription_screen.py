@@ -70,12 +70,29 @@ def test_manage_devices_replaces_the_settings_button() -> None:
     assert 'subscription_settings' not in callbacks
 
 
-def test_manage_devices_shares_a_row_with_tariff() -> None:
-    """Разметка сохранена: прежний ряд [Настройки] [Тариф] стал [Устройства] [Тариф]."""
+def test_rows_follow_the_agreed_order() -> None:
+    """Продление и смена тарифа — в одном ряду, устройства и автоплатёж — в следующем."""
     rows = _rows(_paid_keyboard())
-    row = next(r for r in rows if 'subscription_manage_devices' in r)
 
-    assert row == ['subscription_manage_devices', 'instant_switch']
+    assert rows[1] == ['subscription_extend', 'instant_switch']
+    assert rows[2] == ['subscription_manage_devices', 'subscription_autopay']
+
+
+def test_autopay_stays_away_from_daily_and_legacy_tariffs() -> None:
+    """У суточного тарифа автоплатежа нет: он списывается сам.
+
+    Автоплатёж переехал в ряд с устройствами, и этот ряд строится вне ветки
+    обычного тарифа — легко было раздать кнопку тем, у кого её не должно быть.
+    """
+    daily = SimpleNamespace(is_daily=True, is_free=False, device_price_kopeks=0, can_topup_traffic=lambda: True)
+    keyboard = kb.get_subscription_keyboard(
+        language='ru',
+        has_subscription=True,
+        is_trial=False,
+        subscription=_subscription(tariff=daily, is_daily_paused=False),
+    )
+
+    assert 'subscription_autopay' not in _callbacks(keyboard)
 
 
 def test_revoke_takes_a_full_row_below(monkeypatch) -> None:
@@ -135,3 +152,13 @@ def test_traffic_line_points_to_the_app(directory, lang, key) -> None:
 
     assert '{traffic}' not in template, 'цифры расхода должны были уступить место подсказке'
     assert TRAFFIC_HINT in template
+
+
+@pytest.mark.parametrize('directory', LOCALE_DIRS, ids=('base', 'override'))
+@pytest.mark.parametrize('lang', LANGS)
+@pytest.mark.parametrize('key', TEMPLATE_KEYS)
+def test_overview_template_drops_the_type_field(directory, lang, key) -> None:
+    """Поле «Тип» (триал/платная) с экрана убрано — статус виден строкой выше."""
+    template = json.loads((directory / f'{lang}.json').read_text(encoding='utf-8'))[key]
+
+    assert '{subscription_type}' not in template

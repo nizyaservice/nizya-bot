@@ -413,7 +413,6 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 📱 Подписка: {status_emoji} {status_display}{warning}{tariff_info_block}
 
 📱 Информация о подписке
-🎭 Тип: {subscription_type}
 📈 Трафик: загляните в приложение Happ/Incy""",
         )
     else:
@@ -424,7 +423,6 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 📱 Подписка: {status_emoji} {status_display}{warning}{tariff_info_block}
 
 📱 Информация о подписке
-🎭 Тип: {subscription_type}
 📅 Действует до: {end_date}
 ⏰ Осталось: {time_left}
 📈 Трафик: загляните в приложение Happ/Incy""",
