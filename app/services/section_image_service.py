@@ -1,4 +1,5 @@
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -324,6 +325,10 @@ async def get_section_media_kwargs(
     language='en' подбирает en-вариант баннера ('<key>.en') с фолбэком на базу;
     None/ru/ua — только базовый вариант.
     """
+    tariff_image = get_tariff_image_context()
+    if tariff_image:
+        return {'media': tariff_image}
+
     file_id = await get_section_image_file_id(db, section_key, language)
     if file_id:
         return {'media': file_id}
@@ -399,6 +404,10 @@ async def resolve_section_media(section_key: str, language: str | None = None) -
     алиас. Файл ищется по той же цепочке, иначе подпункт без своей картинки
     остался бы вовсе без баннера, хотя у раздела он есть.
     """
+    tariff_image = get_tariff_image_context()
+    if tariff_image:
+        return tariff_image
+
     file_id = await resolve_cached_section_file_id(section_key, language)
     if file_id:
         return file_id
@@ -415,6 +424,33 @@ async def resolve_section_media(section_key: str, language: str | None = None) -
         if path:
             return section_file_media(path)
     return None
+
+
+# Картинка выбранного тарифа на время обработки одного апдейта.
+#
+# Экраны воронки покупки рисуются по-разному: часть зовёт get_section_media_kwargs
+# напрямую, часть — обычный message.edit_text, который подбирает баннер
+# автодетектом по клавиатуре и о тарифе ничего не знает. Прокинуть тариф
+# параметром через весь патч нельзя, поэтому хендлер, загрузивший тариф,
+# кладёт его картинку в контекст, а обе ветки её оттуда читают.
+#
+# ContextVar, а не глобальная переменная: aiogram обрабатывает каждый апдейт в
+# своей задаче, и значение не протекает между пользователями.
+_TARIFF_IMAGE: ContextVar[str | None] = ContextVar('tariff_image_file_id', default=None)
+
+
+def set_tariff_image_context(tariff) -> None:
+    """Запомнить картинку выбранного тарифа до конца обработки апдейта."""
+    _TARIFF_IMAGE.set(getattr(tariff, 'image_file_id', None) or None)
+
+
+def get_tariff_image_context() -> str | None:
+    return _TARIFF_IMAGE.get()
+
+
+def reset_tariff_image_context() -> None:
+    """Сбросить контекст (тесты, а также экраны без выбранного тарифа)."""
+    _TARIFF_IMAGE.set(None)
 
 
 # Кеш языка юзера для автодетекта (telegram_id -> language), TTL 5 минут:
