@@ -2155,6 +2155,12 @@ class Tariff(Base):
     # тариф, потом период внутри него.
     is_highlighted = Column(Boolean, default=False, server_default='false', nullable=False)
 
+    # Своя картинка тарифа: Telegram file_id, показывается на всём пути покупки
+    # вместо общего баннера раздела. Колонка, а не ключ в system_settings, —
+    # чтобы картинка уходила вместе с удалённым тарифом и не копила сирот.
+    # None = используется баннер «Покупка подписки».
+    image_file_id = Column(String(255), nullable=True)
+
     # Дополнительные настройки
     is_trial_available = Column(Boolean, default=False, nullable=False)  # Можно ли взять триал на этом тарифе
     allow_traffic_topup = Column(Boolean, default=True, nullable=False)  # Разрешена ли докупка трафика для этого тарифа

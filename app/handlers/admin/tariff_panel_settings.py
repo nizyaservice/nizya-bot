@@ -33,6 +33,10 @@ _NO_EXTERNAL_SQUAD = '-'
 # Внутренние сквады по той же причине живут на 'trf_sq:' (handlers/admin/tariffs.py).
 _SET_EXTERNAL_SQUAD_PREFIX = 'trf_xsq'
 
+# Префиксы кнопок картинки тарифа — короткие по той же причине, что и выше.
+_TARIFF_IMAGE_PREFIX = 'trf_img'
+_TARIFF_IMAGE_DELETE_PREFIX = 'trf_img_del'
+
 
 def _yes_no(value: bool) -> str:
     return '✅ Да' if value else '❌ Нет'
@@ -98,6 +102,12 @@ def get_panel_settings_keyboard(tariff: Tariff, language: str) -> InlineKeyboard
                     callback_data=f'admin_tariff_toggle_allow_topup:{tariff.id}',
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text='🖼️ Картинка: заменить' if getattr(tariff, 'image_file_id', None) else '🖼️ Картинка',
+                    callback_data=f'{_TARIFF_IMAGE_PREFIX}:{tariff.id}',
+                )
+            ],
             [InlineKeyboardButton(text=texts.BACK, callback_data=f'admin_tariff_view:{tariff.id}')],
         ]
     )
@@ -110,6 +120,105 @@ async def _show(target: types.Message, tariff: Tariff, language: str, *, edit: b
         await target.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     else:
         await target.answer(text, reply_markup=keyboard, parse_mode='HTML')
+
+
+@admin_required
+@error_handler
+async def start_edit_tariff_image(
+    callback: types.CallbackQuery,
+    db_user: User,
+    db: AsyncSession,
+    state: FSMContext,
+):
+    """Экран картинки тарифа: показать текущую, предложить заменить или убрать."""
+    tariff_id = int(callback.data.split(':')[1])
+    tariff = await get_tariff_by_id(db, tariff_id)
+    if not tariff:
+        await callback.answer('Тариф не найден', show_alert=True)
+        return
+
+    await state.set_state(AdminStates.editing_tariff_image)
+    await state.update_data(tariff_id=tariff_id)
+
+    has_image = bool(getattr(tariff, 'image_file_id', None))
+    status = '✅ задана' if has_image else '❌ не задана'
+    text = (
+        f'🖼️ <b>Картинка тарифа</b>\n\nТариф: <b>{html.escape(tariff.name)}</b>\n'
+        f'Сейчас: <b>{status}</b>\n\n'
+        'Пришлите изображение <b>фотографией</b> — оно будет показываться на всём пути '
+        'покупки этого тарифа вместо общего баннера раздела.'
+    )
+
+    rows: list[list[InlineKeyboardButton]] = []
+    if has_image:
+        rows.append(
+            [InlineKeyboardButton(text='🗑️ Убрать картинку', callback_data=f'{_TARIFF_IMAGE_DELETE_PREFIX}:{tariff_id}')]
+        )
+    rows.append([InlineKeyboardButton(text='⬅️ Назад', callback_data=f'admin_tariff_edit_more:{tariff_id}')])
+
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode='HTML')
+    await callback.answer()
+
+
+@admin_required
+@error_handler
+async def process_tariff_image(
+    message: types.Message,
+    db_user: User,
+    db: AsyncSession,
+    state: FSMContext,
+):
+    """Сохранить присланное фото как картинку тарифа."""
+    data = await state.get_data()
+    tariff_id = data.get('tariff_id')
+    tariff = await get_tariff_by_id(db, tariff_id) if tariff_id else None
+    if not tariff:
+        await message.answer('Тариф не найден')
+        await state.clear()
+        return
+
+    if not message.photo:
+        await message.answer('❌ Нужно именно изображение. Пришлите его фотографией, не файлом.')
+        return
+
+    # Берём самый крупный размер: Telegram отдаёт лесенку превью.
+    await update_tariff(db, tariff, image_file_id=message.photo[-1].file_id)
+    await state.clear()
+    logger.info('Админ задал картинку тарифа', tariff_id=tariff.id, telegram_id=db_user.telegram_id)
+
+    await message.answer(
+        '✅ Картинка тарифа сохранена.',
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text='⬅️ К настройкам тарифа', callback_data=f'admin_tariff_edit_more:{tariff.id}'
+                    )
+                ]
+            ]
+        ),
+    )
+
+
+@admin_required
+@error_handler
+async def delete_tariff_image(
+    callback: types.CallbackQuery,
+    db_user: User,
+    db: AsyncSession,
+    state: FSMContext,
+):
+    """Убрать картинку: тариф вернётся к общему баннеру раздела."""
+    tariff_id = int(callback.data.split(':')[1])
+    tariff = await get_tariff_by_id(db, tariff_id)
+    if not tariff:
+        await callback.answer('Тариф не найден', show_alert=True)
+        return
+
+    tariff = await update_tariff(db, tariff, image_file_id=None)
+    await state.clear()
+    await callback.answer('Картинка убрана')
+    await _show(callback.message, tariff, db_user.language, edit=True)
 
 
 @admin_required
@@ -402,6 +511,12 @@ def register_panel_settings_handlers(dp: Dispatcher) -> None:
     dp.callback_query.register(start_edit_display_order, F.data.startswith('admin_tariff_edit_order:'))
     dp.callback_query.register(start_edit_external_squad, F.data.startswith('admin_tariff_edit_ext_squad:'))
     dp.callback_query.register(set_external_squad, F.data.startswith(f'{_SET_EXTERNAL_SQUAD_PREFIX}:'))
+    # Префиксы не пересекаются: 'trf_img_del:' не начинается с 'trf_img:' —
+    # двоеточие разделяет. Порядок регистрации здесь ни на что не влияет,
+    # а отсутствие пересечения закреплено тестом.
+    dp.callback_query.register(delete_tariff_image, F.data.startswith(f'{_TARIFF_IMAGE_DELETE_PREFIX}:'))
+    dp.callback_query.register(start_edit_tariff_image, F.data.startswith(f'{_TARIFF_IMAGE_PREFIX}:'))
+    dp.message.register(process_tariff_image, AdminStates.editing_tariff_image)
     dp.message.register(process_panel_tag_input, AdminStates.editing_tariff_panel_tag)
     dp.message.register(process_lava_product_input, AdminStates.editing_tariff_lava_product)
     dp.message.register(process_display_order_input, AdminStates.editing_tariff_display_order)

@@ -30,6 +30,7 @@ from app.services.section_image_service import (
     SECTION_IMAGE_SUBSCRIPTION_PURCHASE,
     SECTION_IMAGE_SUBSCRIPTION_SUCCESS,
     get_section_media_kwargs,
+    set_tariff_image_context,
 )
 from app.services.subscription_service import SubscriptionService
 from app.services.tariff_switch_policy import remaining_days_for_switch, should_reset_used_traffic
@@ -956,6 +957,7 @@ async def _proceed_with_selected_tariff(
     # Признак нужен последующим перерисовкам в других хендлерах.
     await state.update_data(tariff_selection_skipped=skip_selection)
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
 
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
@@ -1184,6 +1186,7 @@ async def handle_custom_days_change(
     delta = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -1254,6 +1257,7 @@ async def handle_custom_traffic_change(
     delta = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -1312,6 +1316,7 @@ async def handle_custom_confirm(
     tariff_id = int(callback.data.split(':')[1])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -1618,6 +1623,7 @@ async def select_tariff_period_with_traffic(
     period = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -1688,6 +1694,7 @@ async def select_tariff_period(
     period = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -1847,6 +1854,7 @@ async def confirm_tariff_purchase(
     period = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -2314,6 +2322,7 @@ async def confirm_daily_tariff_purchase(
 
     tariff_id = int(callback.data.split(':')[1])
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
 
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
@@ -2818,6 +2827,7 @@ async def show_tariff_extend(
         return
 
     tariff = await get_tariff_by_id(db, subscription.tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff:
         await callback.answer(texts.t('TARIFF_PURCHASE_TARIFF_NOT_FOUND', 'Тариф не найден'), show_alert=True)
         return
@@ -2923,6 +2933,7 @@ async def select_tariff_extend_period(
     period = int(parts[3])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -3074,6 +3085,7 @@ async def confirm_tariff_extend(
         return
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -3604,6 +3616,7 @@ async def select_tariff_switch(
     texts = get_texts(db_user.language)
     tariff_id = int(callback.data.split(':')[1])
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
 
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
@@ -3764,6 +3777,7 @@ async def select_tariff_switch_period(
     period = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -3885,6 +3899,7 @@ async def confirm_tariff_switch(
     period = int(parts[2])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -4160,6 +4175,7 @@ async def confirm_daily_tariff_switch(
 
     tariff_id = int(callback.data.split(':')[1])
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
 
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
@@ -5016,6 +5032,7 @@ async def purchase_tariff_with_lava(
     tariff_id = int(callback.data.split(':')[1])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -5070,6 +5087,7 @@ async def purchase_tariff_with_cashera(
     tariff_id = int(callback.data.split(':')[1])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return
@@ -5518,6 +5536,7 @@ async def return_to_saved_tariff_cart(
         return
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(
             texts.t('TARIFF_PURCHASE_NO_LONGER_AVAILABLE', '❌ Тариф больше недоступен'), show_alert=True
@@ -5768,6 +5787,7 @@ async def purchase_tariff_with_sbp(
     tariff_id = int(callback.data.split(':')[1])
 
     tariff = await get_tariff_by_id(db, tariff_id)
+    set_tariff_image_context(tariff)
     if not tariff or not tariff.is_active:
         await callback.answer(texts.t('TARIFF_PURCHASE_UNAVAILABLE', 'Тариф недоступен'), show_alert=True)
         return

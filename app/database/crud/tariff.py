@@ -345,6 +345,8 @@ async def update_tariff(
     external_squad_uuid: str | None = ...,  # ... = не передан, None = убрать внешний сквад
     # Свой тег панели: ... = не передан, None/'' = снять
     panel_tag: str | None = ...,
+    # Своя картинка тарифа: ... = не передан, None = убрать (вернётся общий баннер)
+    image_file_id: str | None = ...,
 ) -> Tariff:
     """Обновляет существующий тариф."""
     if name is not None:
@@ -432,6 +434,8 @@ async def update_tariff(
     # Внешний сквад
     if external_squad_uuid is not ...:
         tariff.external_squad_uuid = external_squad_uuid
+    if image_file_id is not ...:
+        tariff.image_file_id = image_file_id or None
 
     # Обновляем промогруппы если указаны
     if promo_group_ids is not None:

@@ -89,9 +89,17 @@ make docs-structure          # перегенерить docs/project_structure_r
 - `app/utils/menu_section_detect.py` — автодетект раздела по callback_data кнопок
   клавиатуры (подпункт специфичнее раздела; первое совпавшее правило выигрывает)
 - `app/services/section_image_service.py` — 31 ключ баннера (19 разделов +
-  `main_menu` + 11 подпунктов), хранение Telegram `file_id` в `system_settings`
-  (`ui_section_image.<ключ>`, en-вариант — суффикс `.en`), кэш + фолбэк
-  «подпункт → раздел → `vpn_logo.png`»
+  `main_menu` + 11 подпунктов), кэш + фолбэк «подпункт → раздел → `vpn_logo.png`».
+  Источники картинки, по убыванию приоритета:
+  1. картинка выбранного тарифа (`tariffs.image_file_id`) — через ContextVar
+     `set_tariff_image_context()`, который ставят хендлеры воронки покупки;
+  2. загруженная в админку: Telegram `file_id` в `system_settings`
+     (`ui_section_image.<ключ>`, en-вариант — суффикс `.en`);
+  3. файл из `menu_images/` (`<раздел>/_main.png`, `<раздел>/<подпункт>.png`,
+     `main_menu.png`, en-вариант — суффикс `_en`). После первой отправки
+     `file_id` кэшируется, кэш сбрасывается по mtime файла.
+  Поэтому новый набор картинок в `menu_images/` виден сразу после деплоя, а
+  заливка через админку перебивает репозиторий
 - `app/handlers/admin/section_images.py` — админ → Настройки → «🖼️ Фото разделов»
 - `app/utils/photo_message.py` + `app/utils/message_patch.py` — патч методов
   `Message.answer/edit_text`, чтобы любое сообщение уезжало фото+caption
