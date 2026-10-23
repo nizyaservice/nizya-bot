@@ -408,21 +408,21 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
         # Для суточных тарифов другой шаблон без "Действует до" и "Осталось"
         message_template = texts.t(
             'SUBSCRIPTION_DAILY_OVERVIEW_TEMPLATE',
-            """👤 {full_name}
+            """<blockquote>👤 {full_name}</blockquote>
 💰 Баланс: {balance}
 📱 Подписка: {status_emoji} {status_display}{warning}{tariff_info_block}
 
-📱 Информация о подписке
+<blockquote>📱 Информация о подписке</blockquote>
 📈 Трафик: загляните в приложение Happ/Incy""",
         )
     else:
         message_template = texts.t(
             'SUBSCRIPTION_OVERVIEW_TEMPLATE',
-            """👤 {full_name}
+            """<blockquote>👤 {full_name}</blockquote>
 💰 Баланс: {balance}
 📱 Подписка: {status_emoji} {status_display}{warning}{tariff_info_block}
 
-📱 Информация о подписке
+<blockquote>📱 Информация о подписке</blockquote>
 📅 Действует до: {end_date}
 ⏰ Осталось: {time_left}
 📈 Трафик: загляните в приложение Happ/Incy""",
@@ -515,7 +515,7 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 
         message += '\n\n' + texts.t(
             'SUBSCRIPTION_CONNECT_LINK_SECTION',
-            '🔗 <b>Ссылка для подключения:</b>\n{subscription_url}',
+            '<blockquote>🔗 Ссылка для подключения:</blockquote>\n{subscription_url}',
         ).format(subscription_url=subscription_link_display)
         message += '\n\n' + texts.t(
             'SUBSCRIPTION_CONNECT_LINK_PROMPT',
