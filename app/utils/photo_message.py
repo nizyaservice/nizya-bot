@@ -7,6 +7,7 @@ from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramFor
 from aiogram.types import InaccessibleMessage, InputMediaPhoto
 
 from app.config import settings
+from app.services.section_image_service import remember_file_photo
 
 from .message_patch import (
     LOGO_PATH,
@@ -33,16 +34,16 @@ async def _auto_section_media(keyboard, telegram_id: int | None = None) -> objec
     telegram_id (callback.from_user.id) даёт язык юзера: en-юзер получает
     en-вариант баннера и в автодетекте, не только в явных проводках.
     """
-    from app.services.section_image_service import get_user_language_cached, resolve_cached_section_file_id
+    from app.services.section_image_service import get_user_language_cached, resolve_section_media
     from app.utils.menu_section_detect import detect_section_key
 
     try:
         section_key = detect_section_key(keyboard)
         if section_key:
             language = await get_user_language_cached(telegram_id)
-            file_id = await resolve_cached_section_file_id(section_key, language)
-            if file_id:
-                return file_id
+            media = await resolve_section_media(section_key, language)
+            if media:
+                return media
     except Exception:
         pass
     return _MEDIA_UNSET
@@ -165,6 +166,7 @@ async def edit_or_answer_photo(
                 )
                 if not has_explicit_media:
                     _cache_logo_file_id(result)
+                remember_file_photo(resolved_media, result)
             else:
                 await callback.message.answer(
                     caption,
@@ -232,10 +234,13 @@ async def edit_or_answer_photo(
     # Retry logic для сетевых ошибок
     for attempt in range(MAX_RETRIES):
         try:
-            await callback.message.edit_media(
+            edited = await callback.message.edit_media(
                 InputMediaPhoto(media=media, caption=caption, parse_mode=(parse_mode or 'HTML')),
                 reply_markup=keyboard,
             )
+            # Основной путь навигации между экранами: без запоминания file_id
+            # картинка раздела заново уходила бы в Telegram на каждый переход.
+            remember_file_photo(media, edited)
             return  # Успешно — выходим
         except TelegramNetworkError as net_error:
             if attempt < MAX_RETRIES - 1:
