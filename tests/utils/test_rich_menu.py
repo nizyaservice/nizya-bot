@@ -57,6 +57,7 @@ def _make_subscription(now, *, status='active', days_left=12, is_trial=False, ta
 def _make_user(subscription, *, trial_used=True):
     return SimpleNamespace(
         id=1,
+        telegram_id=123456789,
         full_name='Егор <script>',
         language='ru',
         auth_type='telegram',

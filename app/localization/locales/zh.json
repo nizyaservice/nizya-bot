@@ -1039,6 +1039,7 @@
   "MAINTENANCE_MODE_API_ERROR": "\n🔧正在进行技术维护！\n\n由于连接服务器出现问题，服务暂时不可用。\n\n⏰我们正在努力恢复。请几分钟后再试。\n\n🔄最后检查时间：{last_check}\n",
   "MAIN_MENU": "👤<b>{user_name}</b>\n  \n📱<b>订阅：</b>{subscription_status}\n\n请选择操作：\n",
   "MAIN_MENU_ACTION_PROMPT": "请选择操作：",
+  "MAIN_MENU_USER_ID": "🆔 您的 id：<code>{user_id}</code>",
   "MAIN_MENU_BUTTON": "🏠主菜单",
   "MAIN_MENU_RICH_BALANCE": "💰 余额：{balance}",
   "MAIN_MENU_RICH_CONNECT": "⚡ 连接",

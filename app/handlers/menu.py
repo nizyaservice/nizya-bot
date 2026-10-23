@@ -1522,6 +1522,18 @@ async def get_main_menu_text(user, texts, db: AsyncSession):
 
     action_prompt = texts.t('MAIN_MENU_ACTION_PROMPT', 'Выберите действие:')
 
+    # Telegram-id под блоком подписки — тем же местом, что и в rich-меню.
+    # <code> даёт копирование нажатием.
+    telegram_id = getattr(user, 'telegram_id', None)
+    if telegram_id:
+        user_id_line = texts.t('MAIN_MENU_USER_ID', '🆔 Ваш id: <code>{user_id}</code>').replace(
+            '{user_id}', str(telegram_id)
+        )
+        if action_prompt in base_text:
+            base_text = base_text.replace(action_prompt, f'{user_id_line}\n\n{action_prompt}')
+        else:
+            base_text = f'{base_text}\n\n{user_id_line}'
+
     info_sections: list[str] = []
 
     try:

@@ -82,6 +82,22 @@ def test_strip_end_date_line_works_for_every_locale() -> None:
         assert stripped.strip(), f'{language}: статус опустел целиком'
 
 
+async def _build_menu(monkeypatch, *, telegram_id: int = 1, tariff_name: str = 'Nizya Standard') -> str:
+    """Полный rich-HTML главного меню с заглушками для внешних источников."""
+    monkeypatch.setattr(
+        rich_mod, 'get_tariff_by_id', AsyncMock(return_value=SimpleNamespace(name=tariff_name, is_daily=False))
+    )
+    monkeypatch.setattr(type(rich_mod.settings), 'is_tariffs_mode', lambda self: True)
+    monkeypatch.setattr(type(rich_mod.settings), 'is_multi_tariff_enabled', lambda self: False)
+    monkeypatch.setattr(rich_mod, 'get_random_active_message', AsyncMock(return_value=None))
+    monkeypatch.setattr(rich_mod, 'build_promo_offer_hint', AsyncMock(return_value=None))
+    monkeypatch.setattr(rich_mod, 'build_test_access_hint', AsyncMock(return_value=None))
+
+    user = _user(_subscription())
+    user.telegram_id = telegram_id
+    return await rich_mod.build_main_menu_rich_html(user, get_texts('ru'), MagicMock())
+
+
 # ---- rich-блок подписки ----
 
 
@@ -125,3 +141,49 @@ async def test_block_drops_the_end_date(rich_block) -> None:
     block = await rich_block(_subscription())
 
     assert '📅' not in block
+
+
+# ---- telegram-id пользователя ----
+
+
+def _id_line_position(html_out: str) -> tuple[int, int, int]:
+    """Позиции блока подписки, строки с id и баланса — для проверки порядка."""
+    return (html_out.index('</blockquote>'), html_out.index('Ваш id'), html_out.index('Баланс'))
+
+
+async def test_rich_menu_shows_copyable_user_id(monkeypatch) -> None:
+    """id выводится под блоком подписки и копируется нажатием.
+
+    <code> — штатный способ Telegram «нажми, чтобы скопировать»; именно id
+    первым делом спрашивает поддержка, поэтому он должен копироваться, а не
+    выделяться вручную.
+    """
+    html_out = await _build_menu(monkeypatch, telegram_id=987654321)
+
+    assert '<code>987654321</code>' in html_out
+    subscription_end, user_id_at, balance_at = _id_line_position(html_out)
+    assert subscription_end < user_id_at < balance_at, 'строка с id должна стоять между подпиской и балансом'
+
+
+def test_user_id_emoji_comes_from_the_brand_pack() -> None:
+    """🆔 есть в паке — мидлвара подменит его на фирменный."""
+    import json
+    from pathlib import Path
+
+    pack = json.loads((Path(__file__).resolve().parents[2] / 'custom_emoji_ids.json').read_text(encoding='utf-8'))
+    template = get_texts('ru').t('MAIN_MENU_USER_ID', '')
+
+    assert '🆔' in template
+    assert '🆔' in pack
+
+
+def test_user_id_key_exists_in_every_locale() -> None:
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    for directory in (root / 'app' / 'localization' / 'locales', root / 'locales'):
+        for language in ('ru', 'en', 'ua', 'fa', 'zh'):
+            value = json.loads((directory / f'{language}.json').read_text(encoding='utf-8'))['MAIN_MENU_USER_ID']
+            assert '{user_id}' in value, f'{directory.name}/{language}: потерян плейсхолдер'
+            assert '<code>' in value, f'{directory.name}/{language}: id перестал копироваться'
