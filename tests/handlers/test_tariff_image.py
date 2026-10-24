@@ -276,3 +276,72 @@ async def test_real_update_tariff_sets_and_clears_the_image() -> None:
     tariff.image_file_id = 'kept'
     await update_tariff(db, tariff, name='Другое имя')
     assert tariff.image_file_id == 'kept'
+
+
+# ---- регресс: картинка отставала на один экран ----
+
+
+async def test_patched_edit_text_branch_sees_the_tariff_image(monkeypatch) -> None:
+    """Экран выбранного тарифа рисуется патченным edit_text — и он тоже обязан
+    читать контекст.
+
+    Регресс: в message_patch была своя копия автодетекта поверх
+    resolve_cached_section_file_id, мимо которой проезжала и картинка тарифа,
+    и файлы из menu_images. На экране выбранного тарифа оставался баннер
+    списка.
+    """
+    import app.utils.message_patch as patch_mod
+
+    monkeypatch.setattr(svc, 'resolve_cached_section_file_id', AsyncMock(return_value='section-banner'))
+    monkeypatch.setattr('app.utils.menu_section_detect.detect_section_key', lambda markup: 'subscription_purchase')
+    svc.set_tariff_image_context(_tariff())
+
+    assert await patch_mod._auto_section_media(MagicMock(), None) == FILE_ID
+
+
+async def test_both_render_branches_agree(monkeypatch) -> None:
+    """Обе ветки отрисовки обязаны показывать одно и то же.
+
+    Разошлись они именно потому, что автодетект был скопирован в два файла.
+    """
+    import app.utils.message_patch as patch_mod
+    import app.utils.photo_message as photo_mod
+
+    monkeypatch.setattr(svc, 'resolve_cached_section_file_id', AsyncMock(return_value='section-banner'))
+    monkeypatch.setattr('app.utils.menu_section_detect.detect_section_key', lambda markup: 'subscription_purchase')
+    svc.set_tariff_image_context(_tariff())
+
+    assert await patch_mod._auto_section_media(MagicMock(), None) == await photo_mod._auto_section_media(MagicMock())
+
+
+async def test_middleware_clears_the_context_before_each_update() -> None:
+    """Иначе выбранный тариф «прилипает» к следующему экрану.
+
+    Ровно это и ломалось: после выбора тарифа кнопка «назад» показывала список
+    тарифов с картинкой выбранного.
+    """
+    from app.middlewares.tariff_image_context import TariffImageContextMiddleware
+
+    svc.set_tariff_image_context(_tariff())
+    seen: list = []
+
+    async def handler(event, data):
+        seen.append(svc.get_tariff_image_context())
+
+    await TariffImageContextMiddleware()(handler, MagicMock(), {})
+
+    assert seen == [None], 'картинка предыдущего апдейта дожила до следующего'
+
+
+def test_middleware_is_registered_for_messages_and_callbacks() -> None:
+    """Апдейты приходят и сообщениями, и нажатиями — сбрасывать надо оба.
+
+    Читаем исходник, а не импортируем app.bot: модуль тянет за собой пол-бота
+    и в тестовом окружении не поднимается.
+    """
+    source = (Path(__file__).resolve().parents[2] / 'app' / 'bot.py').read_text(encoding='utf-8')
+    name = 'TariffImageContextMiddleware'
+
+    assert f'from app.middlewares.tariff_image_context import {name}' in source
+    assert f'dp.message.middleware({name}())' in source
+    assert f'dp.callback_query.middleware({name}())' in source
