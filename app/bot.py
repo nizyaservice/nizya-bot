@@ -78,6 +78,7 @@ from app.middlewares.global_error import GlobalErrorMiddleware
 from app.middlewares.logging import LoggingMiddleware
 from app.middlewares.maintenance import MaintenanceMiddleware
 from app.middlewares.subscription_checker import SubscriptionStatusMiddleware
+from app.middlewares.tariff_image_context import TariffImageContextMiddleware
 from app.middlewares.throttling import ThrottlingMiddleware
 from app.services.maintenance_service import maintenance_service
 from app.utils.cache import cache
@@ -144,6 +145,14 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
     dp.message.middleware(ContextVarsMiddleware())
     dp.callback_query.middleware(ContextVarsMiddleware())
     dp.callback_query.middleware(forget_live_menu_on_callback)
+
+    # Сбрасывает картинку выбранного тарифа до хендлеров, чтобы она не доезжала
+    # до следующего экрана (список тарифов показывал картинку выбранного ранее).
+    # Идёт после forget_live_menu_on_callback: тот закреплён вторым пином в
+    # tests/services/test_live_menu.py, а этой мидлваре позиция не важна —
+    # она ничего не перехватывает и не правит сообщение.
+    dp.message.middleware(TariffImageContextMiddleware())
+    dp.callback_query.middleware(TariffImageContextMiddleware())
     dp.pre_checkout_query.middleware(ContextVarsMiddleware())
     chat_type_filter = ChatTypeFilterMiddleware()
     dp.message.middleware(chat_type_filter)

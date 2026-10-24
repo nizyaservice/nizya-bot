@@ -1452,6 +1452,9 @@
 - `app/middlewares/subscription_checker.py` — Python-модуль
   Классы: `SubscriptionStatusMiddleware` (1 методов)
   Функции: нет
+- `app/middlewares/tariff_image_context.py` — Python-модуль
+  Классы: `TariffImageContextMiddleware` (1 методов)
+  Функции: нет
 - `app/middlewares/throttling.py` — Python-модуль
   Классы: `ThrottlingMiddleware` (3 методов)
   Функции: нет
@@ -4756,7 +4759,7 @@
   Функции: `test_confirm_keyboard_puts_subscription_id_first_period_last`, `test_extend_keyboard_embeds_subscription_id_before_tariff_and_period`
 - `tests/handlers/test_tariff_image.py` — Python-модуль
   Классы: нет
-  Функции: `test_tariff_image_wins_over_the_section_banner`, `test_section_banner_used_when_tariff_has_no_image`, `test_autodetect_branch_also_sees_the_tariff_image` — Вторая ветка отрисовки: экран выбранного тарифа идёт через edit_text., `test_context_is_empty_by_default` — Без выбранного тарифа ничего не меняется — списки и прочие экраны целы., `test_context_does_not_leak_between_tasks` — ContextVar выбран ради изоляции апдейтов — проверяем, что она есть., `test_every_tariff_load_sets_the_context` — Каждый хендлер, загрузивший выбранный тариф, обязан положить его в контекст., `test_admin_saves_the_sent_photo`, `test_admin_rejects_a_document` — Картинку, присланную файлом, Telegram не кладёт в message.photo., `test_delete_clears_the_image`, `test_upload_screen_sets_the_state`, `test_delete_filter_matches_only_the_delete_callback` — Префиксы кнопок не должны пересекаться., `test_real_update_tariff_accepts_the_image_field` — Настоящая update_tariff обязана принимать image_file_id., `test_real_update_tariff_sets_and_clears_the_image`
+  Функции: `test_tariff_image_wins_over_the_section_banner`, `test_section_banner_used_when_tariff_has_no_image`, `test_autodetect_branch_also_sees_the_tariff_image` — Вторая ветка отрисовки: экран выбранного тарифа идёт через edit_text., `test_context_is_empty_by_default` — Без выбранного тарифа ничего не меняется — списки и прочие экраны целы., `test_context_does_not_leak_between_tasks` — ContextVar выбран ради изоляции апдейтов — проверяем, что она есть., `test_every_tariff_load_sets_the_context` — Каждый хендлер, загрузивший выбранный тариф, обязан положить его в контекст., `test_admin_saves_the_sent_photo`, `test_admin_rejects_a_document` — Картинку, присланную файлом, Telegram не кладёт в message.photo., `test_delete_clears_the_image`, `test_upload_screen_sets_the_state`, `test_delete_filter_matches_only_the_delete_callback` — Префиксы кнопок не должны пересекаться., `test_real_update_tariff_accepts_the_image_field` — Настоящая update_tariff обязана принимать image_file_id., `test_real_update_tariff_sets_and_clears_the_image`, `test_patched_edit_text_branch_sees_the_tariff_image` — Экран выбранного тарифа рисуется патченным edit_text — и он тоже обязан, `test_both_render_branches_agree` — Обе ветки отрисовки обязаны показывать одно и то же., `test_middleware_clears_the_context_before_each_update` — Иначе выбранный тариф «прилипает» к следующему экрану., `test_middleware_is_registered_for_messages_and_callbacks` — Апдейты приходят и сообщениями, и нажатиями — сбрасывать надо оба.
 - `tests/handlers/test_tariff_preview_price_matches_engine.py` — Python-модуль
   Классы: нет
   Функции: `test_preview_uses_engine_price_with_extra_devices`

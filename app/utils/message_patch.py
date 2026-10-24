@@ -17,16 +17,18 @@ from app.utils.logo_fingerprint import logo_fingerprint
 logger = structlog.get_logger(__name__)
 
 
-async def _auto_section_media(reply_markup, chat_id: int | None = None) -> str | None:
-    """Автодетект секции по клавиатуре: file_id баннера раздела или None.
+async def _auto_section_media(reply_markup, chat_id: int | None = None):
+    """Автодетект секции по клавиатуре: картинка баннера раздела или None.
 
     chat_id в приватном чате бота = telegram_id юзера → его язык (en-вариант).
+
+    Идёт через resolve_section_media — ту же точку, что и photo_message. Раньше
+    здесь была своя копия поверх resolve_cached_section_file_id, и мимо неё
+    проезжали и картинка выбранного тарифа, и файлы из menu_images: экраны,
+    которые рисуются патченным edit_text, оставались со старым баннером.
     """
     try:
-        from app.services.section_image_service import (
-            get_user_language_cached,
-            resolve_cached_section_file_id,
-        )
+        from app.services.section_image_service import get_user_language_cached, resolve_section_media
         from app.utils.menu_section_detect import detect_section_key
 
         section_key = detect_section_key(reply_markup)
@@ -34,7 +36,7 @@ async def _auto_section_media(reply_markup, chat_id: int | None = None) -> str |
             language = None
             if chat_id and chat_id > 0:  # приватный чат: chat_id = telegram_id
                 language = await get_user_language_cached(chat_id)
-            return await resolve_cached_section_file_id(section_key, language)
+            return await resolve_section_media(section_key, language)
     except Exception:
         pass
     return None
