@@ -2822,7 +2822,7 @@ def get_change_devices_keyboard(
     subscription_end_date: datetime = None,
     discount_percent: int = 0,
     tariff=None,  # Тариф для цены за устройство
-    back_callback: str = 'subscription_settings',
+    back_callback: str = 'menu_subscription',
 ) -> InlineKeyboardMarkup:
     from app.config import settings
 
@@ -2919,7 +2919,7 @@ def get_confirm_change_devices_keyboard(
     new_devices_count: int,
     price: int,
     language: str = DEFAULT_LANGUAGE,
-    back_callback: str = 'subscription_settings',
+    back_callback: str = 'menu_subscription',
 ) -> InlineKeyboardMarkup:
     texts = get_texts(language)
 
@@ -2974,7 +2974,7 @@ def get_reset_traffic_confirm_keyboard(
         [
             InlineKeyboardButton(
                 text=texts.BACK,
-                callback_data='subscription_settings',
+                callback_data='menu_subscription',
             )
         ]
     )
@@ -3385,7 +3385,7 @@ def get_devices_management_keyboard(
     devices: list[dict],
     pagination,
     language: str = DEFAULT_LANGUAGE,
-    back_callback: str = 'subscription_settings',
+    back_callback: str = 'menu_subscription',
 ) -> InlineKeyboardMarkup:
     texts = get_texts(language)
 

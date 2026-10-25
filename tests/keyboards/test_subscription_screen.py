@@ -234,3 +234,43 @@ def test_assembled_subscription_message_is_valid_html() -> None:
 
     assert is_valid, error
     assert message.count('<blockquote') == message.count('</blockquote>')
+
+
+# ---- возврат с дочерних экранов ----
+
+
+def test_revoke_screen_returns_to_my_subscription() -> None:
+    """«Назад» с подтверждения перевыпуска ведёт в «Мою подписку».
+
+    Раньше вело на экран «Настройки подписки». Его пункты подняты в «Мою
+    подписку», входа на него больше нет — возврат туда высаживал человека на
+    страницу, куда он не заходил.
+    """
+    from app.handlers.subscription.revoke import _build_revoke_confirm_keyboard
+
+    single = _callbacks(_build_revoke_confirm_keyboard('ru', multi_tariff=False))
+    multi = _callbacks(_build_revoke_confirm_keyboard('ru', multi_tariff=True))
+
+    assert 'menu_subscription' in single
+    assert 'subscription_settings' not in single
+    # В мультитарифе возврат к списку подписок — поведение не менялось.
+    assert 'my_subscriptions' in multi
+
+
+def test_no_screen_sends_the_user_back_to_the_folded_settings() -> None:
+    """Ни одна кнопка не должна вести на свёрнутый экран настроек.
+
+    Обработчик subscription_settings намеренно остаётся зарегистрированным
+    (вдруг понадобится вернуть вход), поэтому ищем именно переходы: значения
+    callback_data и значения по умолчанию для back_callback.
+    """
+    root = Path(__file__).resolve().parents[2] / 'app'
+    offenders: list[str] = []
+    for path in sorted(root.rglob('*.py')):
+        for number, line in enumerate(path.read_text(encoding='utf-8').split('\n'), 1):
+            if "'subscription_settings'" not in line:
+                continue
+            if 'callback_data=' in line or 'back_callback' in line:
+                offenders.append(f'{path.relative_to(root.parent)}:{number}')
+
+    assert not offenders, f'ведут на экран без входа: {offenders}'

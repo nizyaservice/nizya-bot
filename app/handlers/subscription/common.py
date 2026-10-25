@@ -587,7 +587,7 @@ def get_traffic_switch_keyboard(
     subscription_end_date: datetime = None,
     discount_percent: int = 0,
     base_traffic_gb: int = None,
-    back_callback: str = 'subscription_settings',
+    back_callback: str = 'menu_subscription',
 ) -> InlineKeyboardMarkup:
     from app.config import settings
 
@@ -674,7 +674,7 @@ def get_traffic_switch_keyboard(
 
 
 def get_confirm_switch_traffic_keyboard(
-    new_traffic_gb: int, price_difference: int, language: str = 'ru', back_callback: str = 'subscription_settings'
+    new_traffic_gb: int, price_difference: int, language: str = 'ru', back_callback: str = 'menu_subscription'
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
