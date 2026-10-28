@@ -4751,6 +4751,9 @@
 - `tests/handlers/test_subscription_gift_purchase.py` — Python-модуль
   Классы: `TestGiftBalanceConfirmation` (7 методов), `TestGiftReplayAndPresentation` (9 методов)
   Функции: `mock_db_user`, `mock_db`, `mock_bot`, `mock_callback`, `memory_state`, `sample_quote`, `sample_purchase_result`
+- `tests/handlers/test_tariff_device_limit_simulation.py` — Python-модуль
+  Классы: нет
+  Функции: `test_tariff_keeps_the_base_device_limit` — Шаг 1: значение доживает до базы и читается обратно., `test_editing_the_limit_is_not_capped` — Шаг 2: правка лимита в админке не упирается в MAX_DEVICES_LIMIT., `test_purchase_grants_the_tariff_limit` — Шаг 3: покупка выдаёт базовый лимит тарифа при любом MAX_DEVICES_LIMIT., `test_extension_keeps_the_limit` — Шаг 4: продление тем же тарифом лимит не срезает., `test_panel_payload_carries_the_full_limit` — Шаг 5: в RemnaWave уходит тот же лимит, что записан в подписке., `test_admin_editor_ceiling_follows_the_tariff` — Потолок админского редактора — не ниже базы тарифа., `test_admin_editor_respects_the_tariff_own_cap` — Явный max_device_limit тарифа главнее: он и есть потолок докупки., `test_admin_editor_keeps_unlimited_meaning` — MAX_DEVICES_LIMIT=0 ≡ «без ограничения» — конвенция всей кодовой базы.
 - `tests/handlers/test_tariff_editor_parity.py` — Python-модуль
   Классы: нет
   Функции: `test_editor_modules_are_found`, `test_every_cabinet_field_is_editable_from_telegram`, `test_telegram_editor_writes_only_real_columns` — Дни триала писались в атрибут, которого не было в модели — молча терялись., `test_new_editor_modules_are_registered_from_tariff_router`

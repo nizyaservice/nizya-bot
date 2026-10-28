@@ -3937,9 +3937,45 @@ async def refresh_server_selection_screen(
         logger.error('Ошибка обновления экрана серверов', error=e)
 
 
+async def _resolve_device_limit_ceiling(db: AsyncSession, user_id: int, subscription_id: int | None) -> int | None:
+    """Потолок устройств для админского редактора; None — без ограничения.
+
+    MAX_DEVICES_LIMIT ограничивает ДОКУПКУ сверх тарифа, а не сам тариф: в
+    покупке потолок считается как max(настройка, база тарифа), и тариф на 20
+    устройств при настройке 15 честно выдаёт 20. Админский редактор же читал
+    только настройку, поэтому у подписки с таким тарифом нельзя было выставить
+    больше 15 — ни кнопкой, ни числом (репорт от 28.10.2026).
+
+    Приоритет: явный потолок тарифа (max_device_limit) → max(настройка, база).
+    """
+    subscription = await _resolve_admin_subscription(db, user_id, subscription_id)
+    # Тариф берём явно по id: ленивая подгрузка связи в async упала бы
+    # MissingGreenlet, а eager-загрузка здесь не гарантирована.
+    tariff = None
+    tariff_id = getattr(subscription, 'tariff_id', None) if subscription else None
+    if tariff_id:
+        from app.database.crud.tariff import get_tariff_by_id
+
+        tariff = await get_tariff_by_id(db, tariff_id)
+
+    tariff_max = getattr(tariff, 'max_device_limit', None) if tariff else None
+    if tariff_max and tariff_max > 0:
+        return int(tariff_max)
+
+    raw_limit = settings.MAX_DEVICES_LIMIT
+    if raw_limit <= 0:  # 0 ≡ «без ограничения» по всей кодовой базе
+        return None
+
+    base = max(
+        int(getattr(tariff, 'device_limit', 0) or 0),
+        int(getattr(subscription, 'device_limit', 0) or 0),
+    )
+    return max(int(raw_limit), base)
+
+
 @admin_required
 @error_handler
-async def start_devices_edit(callback: types.CallbackQuery, db_user: User, state: FSMContext):
+async def start_devices_edit(callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession):
     user_id, subscription_id = _extract_admin_sub_context(callback.data)
 
     await state.update_data(editing_devices_user_id=user_id, admin_subscription_id=subscription_id)
@@ -3951,16 +3987,18 @@ async def start_devices_edit(callback: types.CallbackQuery, db_user: User, state
         else f'admin_user_subscription_{user_id}'
     )
 
-    # По всей кодовой базе MAX_DEVICES_LIMIT=0 трактуется как «без ограничения»
-    # (см. subscription.py, devices.py, inline.py, miniapp.py — 16+ мест).
-    # Если читать буквально — получаем `range(1, 1)` → пустая клавиатура и
-    # промпт "от 1 до 0", который блокирует любой ввод (репорт от 2026-05-16).
-    raw_limit = settings.MAX_DEVICES_LIMIT
-    is_unlimited = raw_limit <= 0
-    # Для quick-pick клавиатуры используем разумный потолок 20 (как в других
-    # местах UI), для текстового ввода админ может задать любое положительное.
-    quick_pick_cap = 20 if is_unlimited else min(raw_limit, 99)
-    limit_display = '∞' if is_unlimited else str(raw_limit)
+    # Потолок считается по тарифу подписки, а не только по MAX_DEVICES_LIMIT:
+    # та настройка ограничивает докупку сверх тарифа, и тариф на 20 устройств
+    # при настройке 15 иначе было не выставить. None ≡ «без ограничения» —
+    # та же конвенция, что и во всей кодовой базе (16+ мест). Читать её
+    # буквально нельзя: `range(1, 1)` даёт пустую клавиатуру и промпт
+    # «от 1 до 0», блокирующий любой ввод (репорт от 2026-05-16).
+    ceiling = await _resolve_device_limit_ceiling(db, user_id, subscription_id)
+    is_unlimited = ceiling is None
+    # Для quick-pick клавиатуры разумный потолок 20 (как в других местах UI),
+    # текстом админ может задать любое значение в пределах потолка.
+    quick_pick_cap = 20 if is_unlimited else min(ceiling, 99)
+    limit_display = '∞' if is_unlimited else str(ceiling)
 
     device_buttons: list[list[types.InlineKeyboardButton]] = []
     row: list[types.InlineKeyboardButton] = []
@@ -4054,13 +4092,14 @@ async def process_devices_edit_text(message: types.Message, db_user: User, state
     try:
         devices = int(message.text.strip())
 
-        # MAX_DEVICES_LIMIT=0 ≡ «без ограничения» (та же конвенция, что и в
-        # остальной кодовой базе). До фикса валидатор отвергал любое значение,
-        # потому что `devices > 0` всегда true для положительных чисел.
-        raw_limit = settings.MAX_DEVICES_LIMIT
-        is_unlimited = raw_limit <= 0
-        if devices <= 0 or (not is_unlimited and devices > raw_limit):
-            limit_display = '∞' if is_unlimited else str(raw_limit)
+        # Потолок тот же, что и у кнопок выше: тариф важнее глобальной
+        # настройки. None ≡ «без ограничения». До фикса валидатор отвергал
+        # любое значение, потому что `devices > 0` всегда true для
+        # положительных чисел.
+        ceiling = await _resolve_device_limit_ceiling(db, user_id, subscription_id)
+        is_unlimited = ceiling is None
+        if devices <= 0 or (not is_unlimited and devices > ceiling):
+            limit_display = '∞' if is_unlimited else str(ceiling)
             await message.answer(f'❌ Количество устройств должно быть от 1 до {limit_display}')
             return
 
