@@ -1559,6 +1559,9 @@
 - `app/services/event_emitter.py` — Python-модуль
   Классы: `EventEmitter` (7 методов)
   Функции: нет
+- `app/services/expired_panel_cleanup_service.py` — Python-модуль
+  Классы: нет
+  Функции: `cleanup_expired_panel_users` — Снести из панели аккаунты подписок, истёкших больше N дней назад.
 - `app/services/faq_service.py` — Python-модуль
   Классы: `FaqService` (13 методов)
   Функции: нет
@@ -1630,7 +1633,7 @@
   Классы: нет
   Функции: нет
 - `app/services/monitoring_service.py` — Python-модуль
-  Классы: `AutopayFailState` (2 методов), `MonitoringService` (52 методов)
+  Классы: `AutopayFailState` (2 методов), `MonitoringService` (53 методов)
   Функции: `decide_autopay_fail_notification` — Decide whether/what to send on a failed-autopay tick., `apply_autopay_fail_notification` — Mutate state to record that a notification with `reason` was just sent.
 - `app/services/mulenpay_service.py` — Python-модуль
   Классы: `MulenPayService` (10 методов)
@@ -5012,6 +5015,9 @@
 - `tests/services/test_env_admin_block_protection.py` — Python-модуль
   Классы: нет
   Функции: `env_admin`, `test_predicate_covers_admin_ids_and_admin_emails`, `test_admin_panel_ban_refuses_env_admin`, `test_cabinet_disable_user_refuses_env_admin`, `test_broadcast_auto_block_skips_env_admin` — A muted bot reports the owner as "blocked" — that must not flip their status., `test_blocked_users_scan_skips_env_admin`, `test_cabinet_restores_stale_blocked_admin_with_invite_only_off` — The gate only emits VERIFIED_ADMIN while invite-only is on — recovery must not depend on it., `test_cabinet_still_refuses_a_blocked_ordinary_user`, `test_middleware_heals_the_stale_blocked_flag_on_an_env_admin` — Letting the admin through is not enough — the flag also suppresses reactivation.
+- `tests/services/test_expired_panel_cleanup.py` — Python-модуль
+  Классы: нет
+  Функции: `api`, `test_deletes_panel_user_after_the_grace_days`, `test_panel_identity_is_forgotten` — Иначе повторная покупка полезет обновлять несуществующий аккаунт., `test_disable_mode_keeps_the_link` — В режиме disable аккаунт жив — связь рвать нельзя., `test_keeps_recently_expired` — Сутки ещё не прошли — у человека есть время оплатить., `test_keeps_active_subscription`, `test_keeps_subscription_under_grace` — Грейс-доступ продлил человеку панель — снос обрубил бы живой доступ., `test_keeps_user_with_another_live_subscription` — Аккаунт панели общий — снос убил бы доступ по второй, живой подписке., `test_disabled_by_zero_days` — 0 — выключатель: ни одного обращения к панели., `test_panel_error_does_not_break_the_batch` — Сбой по одному аккаунту не должен останавливать проход и чистить связь., `test_monitoring_cycle_runs_the_cleanup` — Сервис должен быть подключён к циклу, иначе он мёртвый код.
 - `tests/services/test_expiring_notification_days_placeholder.py` — Python-модуль
   Классы: нет
   Функции: `test_expiring_paid_supports_days_placeholder`

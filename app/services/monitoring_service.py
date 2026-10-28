@@ -451,6 +451,7 @@ class MonitoringService:
                 await self._cleanup_expired_refresh_tokens(db)
                 await self._cleanup_button_click_logs(db)
                 await self._cleanup_inactive_users(db)
+                await self._cleanup_expired_panel_users(db)
                 await self._sync_with_remnawave(db)
 
                 await self._log_monitoring_event(
@@ -2886,6 +2887,30 @@ class MonitoringService:
 
         except Exception as e:
             logger.error('Ошибка очистки неактивных пользователей', error=e)
+
+    async def _cleanup_expired_panel_users(self, db: AsyncSession):
+        """Снос из панели аккаунтов подписок, истёкших больше N дней назад.
+
+        Гейт внутри сервиса: REMNAWAVE_DELETE_EXPIRED_AFTER_DAYS=0 — выключено.
+        """
+        try:
+            from app.services.expired_panel_cleanup_service import cleanup_expired_panel_users
+
+            processed = await cleanup_expired_panel_users(db)
+            if processed:
+                await self._log_monitoring_event(
+                    db,
+                    'expired_panel_users_cleanup',
+                    f'Убрано из панели {processed} истёкших подписок',
+                    {'processed': processed},
+                )
+                logger.info('🗑️ Истёкшие подписки убраны из панели', processed=processed)
+        except Exception as error:
+            logger.error('Ошибка очистки истёкших подписок в панели', error=error)
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
     async def _sync_with_remnawave(self, db: AsyncSession):
         try:

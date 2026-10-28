@@ -278,6 +278,9 @@ class Settings(BaseSettings):
     REMNAWAVE_USER_DESCRIPTION_TEMPLATE: str = 'Bot user: {full_name} {username}'
     REMNAWAVE_USER_USERNAME_TEMPLATE: str = 'user_{telegram_id}'
     REMNAWAVE_USER_DELETE_MODE: str = 'delete'  # "delete" или "disable"
+    # Через сколько дней после истечения подписки убирать аккаунт из панели
+    # (способ задаёт REMNAWAVE_USER_DELETE_MODE). 0 — не убирать.
+    REMNAWAVE_DELETE_EXPIRED_AFTER_DAYS: int = 1
     REMNAWAVE_AUTO_SYNC_ENABLED: bool = False
     REMNAWAVE_AUTO_SYNC_TIMES: str = '03:00'
     CABINET_REMNA_SUB_CONFIG: str | None = None  # UUID конфига страницы подписки из RemnaWave
