@@ -183,6 +183,19 @@ class RemnaWaveHost:
     config_profile_uuid: str | None = None
     config_profile_inbound_uuid: str | None = None
     view_position: int = 0
+    # Привязка хоста к внутренним сквадам (3.4.3: `internalSquads`):
+    # ALLOW_ONLY — хост виден только перечисленным сквадам, EXCLUDE — всем,
+    # кроме перечисленных. Без этого нельзя сказать, чья подписка получит хост.
+    internal_squads_mode: str | None = None
+    internal_squad_uuids: list[str] = field(default_factory=list)
+
+    def is_served_to_squad(self, squad_uuid: str) -> bool:
+        """Отдаётся ли хост подписке этого сквада (скрытые — никому)."""
+        if self.is_hidden or self.is_disabled:
+            return False
+        if self.internal_squads_mode == 'ALLOW_ONLY':
+            return squad_uuid in self.internal_squad_uuids
+        return squad_uuid not in self.internal_squad_uuids
 
 
 @dataclass
@@ -2175,6 +2188,10 @@ class RemnaWaveAPI:
             config_profile_uuid=inbound.get('configProfileUuid') or None,
             config_profile_inbound_uuid=inbound.get('configProfileInboundUuid') or None,
             view_position=int(data.get('viewPosition') or 0),
+            internal_squads_mode=(data.get('internalSquads') or {}).get('mode') or None,
+            internal_squad_uuids=[
+                str(squad) for squad in ((data.get('internalSquads') or {}).get('squads') or []) if squad
+            ],
         )
 
     def _parse_node(self, node_data: dict) -> RemnaWaveNode:

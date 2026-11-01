@@ -248,6 +248,9 @@ class AdminStates(StatesGroup):
     editing_tariff_custom_days_min = State()
     editing_tariff_custom_days_max = State()
     editing_tariff_server_limit = State()
+    # Роутер-ссылки: цена локации и список сквадов, из которых их продаём.
+    editing_router_link_price = State()
+    editing_router_link_squad = State()
 
 
 class SupportStates(StatesGroup):

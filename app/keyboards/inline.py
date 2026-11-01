@@ -1134,6 +1134,7 @@ def get_subscription_keyboard(
     is_trial: bool = False,
     subscription=None,
     gift_enabled: bool = False,
+    router_link_enabled: bool = False,
 ) -> InlineKeyboardMarkup:
     from app.config import settings
 
@@ -1333,6 +1334,19 @@ def get_subscription_keyboard(
                         )
                     ]
                 )
+
+    # Роутер-ссылка: платный ключ одной локации для прошивки в роутер. Кнопка
+    # видна, когда услуга настроена оператором; положена ли она конкретному
+    # тарифу, выясняет уже экран — для этого нужен запрос в панель.
+    if has_subscription and not is_trial and router_link_enabled:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=texts.t('ROUTER_LINK_BUTTON', '📶 Ссылка для роутера'),
+                    callback_data='router_link',
+                )
+            ]
+        )
 
     if gift_enabled:
         keyboard.append(
