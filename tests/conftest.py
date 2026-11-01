@@ -227,9 +227,13 @@ def without_section_banners(monkeypatch):
     from unittest.mock import AsyncMock
 
     import app.services.section_image_service as section_images
+    from app.config import settings
 
     monkeypatch.setattr(section_images, 'get_section_image_file_id', AsyncMock(return_value=None))
     monkeypatch.setattr(section_images, 'get_section_image_path', lambda *args, **kwargs: None)
+    # Общий лого-режим — второй источник картинки: при нём edit_or_answer_photo
+    # уходит в edit_media даже без баннера, а кейсы ждут текст.
+    monkeypatch.setattr(settings, 'ENABLE_LOGO_MODE', False)
 
 
 @pytest.fixture

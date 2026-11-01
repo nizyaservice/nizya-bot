@@ -69,6 +69,7 @@ def _callback() -> MagicMock:
     callback.data = 'tariff_switch'
     callback.answer = AsyncMock()
     callback.message.edit_text = AsyncMock()
+    callback.message.photo = None  # без фото: экран правится текстом
     return callback
 
 

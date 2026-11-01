@@ -21,9 +21,17 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 import app.handlers.subscription.tariff_purchase as tp
 import app.keyboards.inline as kb
 from app.database.models import Tariff
+
+
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Хендлеры этого файла рисуют экраны: баннер раздела (запрос в БД через
+    двойник сессии) ронял их внутрь @error_handler — см. tests/conftest.py."""
 
 
 FREE_TARIFF = Tariff(
