@@ -3,12 +3,16 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
+import structlog
 from aiogram.types import FSInputFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.crud.system_setting import delete_system_setting, get_setting_value, upsert_system_setting
 from app.database.models import SystemSetting
+
+
+logger = structlog.get_logger(__name__)
 
 
 SECTION_IMAGE_MAIN_MENU = 'main_menu'
@@ -329,7 +333,23 @@ async def get_section_media_kwargs(
     if tariff_image:
         return {'media': tariff_image}
 
-    file_id = await get_section_image_file_id(db, section_key, language)
+    # Баннер — украшение, и сорваться на нём целому экрану нельзя: эта функция
+    # стоит в 120+ хендлерах, а исключение из неё уносит весь экран в
+    # «Ошибка обработки запроса» (@error_handler). Если настройки прочитать не
+    # удалось (нет живой сессии, разрыв соединения с БД), пропускаем залитую в
+    # админку картинку и показываем файл из репозитория — он лежит рядом с
+    # ботом и БД не требует. В админском экране «Фото разделов» ошибка чтения,
+    # наоборот, не глушится: там она и есть предмет разговора.
+    try:
+        file_id = await get_section_image_file_id(db, section_key, language)
+    except Exception as error:
+        logger.warning(
+            'Не удалось прочитать картинку раздела из настроек, берём файл из репозитория',
+            section_key=section_key,
+            language=language,
+            error=str(error),
+        )
+        file_id = None
     if file_id:
         return {'media': file_id}
 
