@@ -93,6 +93,37 @@ async def test_no_media_when_there_is_neither(monkeypatch) -> None:
     assert await svc.get_section_media_kwargs(MagicMock(), 'такого-раздела-нет') == {}
 
 
+async def test_db_failure_leaves_the_screen_with_the_repository_file(monkeypatch) -> None:
+    """Сбой чтения настроек не должен уносить экран: баннер — украшение.
+
+    ``get_section_media_kwargs`` стоит в 120+ хендлерах, и исключение из неё
+    превращало весь экран в «Ошибка обработки запроса». Теперь загруженная
+    картинка пропускается, а файл из репозитория (БД ему не нужна) остаётся.
+    """
+    monkeypatch.setattr(svc, 'get_setting_value', AsyncMock(side_effect=RuntimeError('нет соединения с БД')))
+
+    media = (await svc.get_section_media_kwargs(MagicMock(), 'balance'))['media']
+
+    assert isinstance(media, FSInputFile)
+    assert Path(media.path).name == '_main.png'
+
+
+async def test_db_failure_without_a_file_leaves_no_media(monkeypatch) -> None:
+    """Сбой БД и нет файла — пустые kwargs, а не исключение: экран уйдёт текстом."""
+    monkeypatch.setattr(svc, 'get_setting_value', AsyncMock(side_effect=RuntimeError('нет соединения с БД')))
+    monkeypatch.setattr(svc, 'get_section_image_path', lambda *args, **kwargs: None)
+
+    assert await svc.get_section_media_kwargs(MagicMock(), 'balance') == {}
+
+
+async def test_admin_screen_still_sees_the_db_failure(monkeypatch) -> None:
+    """Админке «Фото разделов» ошибку чтения глушить нельзя — она её предмет."""
+    monkeypatch.setattr(svc, 'get_setting_value', AsyncMock(side_effect=RuntimeError('нет соединения с БД')))
+
+    with pytest.raises(RuntimeError):
+        await svc.get_section_image_file_id(MagicMock(), 'balance')
+
+
 def test_file_id_is_remembered_after_the_first_send() -> None:
     path = svc.get_section_image_path('balance')
     first = svc.section_file_media(path)
