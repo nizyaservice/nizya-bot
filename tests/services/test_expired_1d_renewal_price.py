@@ -55,6 +55,28 @@ def _user():
     return SimpleNamespace(id=42, telegram_id=1234, language='ru', notification_settings={})
 
 
+def _eager_loaded_keys(stmt) -> set[str]:
+    """Имена связей из loader-опций запроса.
+
+    У цепочечного ``selectinload(a).selectinload(b)`` путь целиком лежит в
+    ``path``, у вложенного (``.options(...)``) — в элементах ``context``;
+    смотрим оба источника, чтобы проверка не зависела от записи опции.
+    """
+    paths = []
+    for option in getattr(stmt, '_with_options', ()):
+        paths.append(getattr(option, 'path', None))
+        for element in getattr(option, 'context', None) or ():
+            paths.append(getattr(element, 'path', None))
+
+    keys: set[str] = set()
+    for path in paths:
+        for element in path or ():
+            key = getattr(element, 'key', None)
+            if isinstance(key, str):
+                keys.add(key)
+    return keys
+
+
 async def test_price_falls_back_to_tariff_when_pricing_engine_fails(monkeypatch):
     """Расчёт сорвался — в сообщении цена тарифа, а не PRICE_30_DAYS из .env."""
     monkeypatch.setattr(settings, 'PRICE_30_DAYS', 1000)
@@ -135,13 +157,7 @@ async def test_followups_query_eager_loads_promo_groups(monkeypatch):
 
     stmt = db.execute.await_args.args[0]
     assert isinstance(stmt, Select)
-    loaded_attrs: set[str] = set()
-    for opt in getattr(stmt, '_with_options', ()):
-        for element in getattr(opt, 'path', None) or ():
-            key = getattr(element, 'key', None)
-            if isinstance(key, str):
-                loaded_attrs.add(key)
-    assert {'user', 'tariff', 'promo_group', 'user_promo_groups'} <= loaded_attrs
+    assert {'user', 'tariff', 'promo_group', 'user_promo_groups'} <= _eager_loaded_keys(stmt)
 
 
 @pytest.mark.parametrize('period_days', [30, 90])
