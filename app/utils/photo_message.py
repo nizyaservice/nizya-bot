@@ -15,6 +15,7 @@ from .message_patch import (
     append_privacy_hint,
     caption_exceeds_telegram_limit,
     get_logo_media,
+    is_not_modified_error,
     is_privacy_restricted_error,
     is_qr_message,
     prepare_privacy_safe_kwargs,
@@ -100,7 +101,7 @@ async def safe_edit_or_resend(
     except TelegramBadRequest as error:
         # Контент не изменился (повторное нажатие кнопки) — ничего не делаем,
         # иначе будем без нужды пересоздавать сообщение и спамить чат.
-        if 'message is not modified' in str(error).lower():
+        if is_not_modified_error(error):
             return
         # Уведомление-фото или недоступное сообщение: edit_text не работает
         # Удаляем исходное и отправляем новое
@@ -200,6 +201,9 @@ async def edit_or_answer_photo(
         except TelegramForbiddenError:
             logger.debug('Пользователь заблокировал бота, пропускаем')
         except TelegramBadRequest as error:
+            if is_not_modified_error(error):
+                # Повторный тап по той же кнопке: экран уже актуален.
+                return
             try:
                 await callback.message.delete()
             except Exception:
@@ -216,6 +220,8 @@ async def edit_or_answer_photo(
         except TelegramForbiddenError:
             logger.debug('Пользователь заблокировал бота, пропускаем')
         except TelegramBadRequest as error:
+            if is_not_modified_error(error):
+                return
             await _answer_text(callback, caption, keyboard, resolved_parse_mode, error)
         return
 
@@ -278,6 +284,10 @@ async def edit_or_answer_photo(
             logger.debug('Пользователь заблокировал бота, пропускаем edit_media')
             return
         except TelegramBadRequest as error:
+            if is_not_modified_error(error):
+                # Экран уже такой: фоллбек ниже удалил бы сообщение с баннером
+                # и прислал тот же текст заново в конец чата.
+                return
             if is_privacy_restricted_error(error):
                 try:
                     await callback.message.delete()
