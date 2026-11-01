@@ -182,6 +182,9 @@ class TestSubscriptionGiftEntryVisibility:
     ):
         mock_db_user.subscription = None
         monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: False)
+        # Вход в подарки показывается при включённой функции (системная настройка);
+        # выключенный случай — в test_single_mode_active_sub_with_gift_disabled.
+        monkeypatch.setattr('app.services.gift_purchase_service.is_gift_enabled', AsyncMock(return_value=True))
         await show_subscription_info(mock_callback, mock_db_user, mock_db)
 
         assert mock_callback.message.edit_text.called
@@ -212,6 +215,7 @@ class TestSubscriptionGiftEntryVisibility:
         self, mock_callback, mock_db_user, mock_db, monkeypatch
     ):
         monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: True)
+        monkeypatch.setattr('app.services.gift_purchase_service.is_gift_enabled', AsyncMock(return_value=True))
         with patch(
             'app.handlers.subscription.my_subscriptions.get_all_subscriptions_by_user_id',
             AsyncMock(return_value=[]),
