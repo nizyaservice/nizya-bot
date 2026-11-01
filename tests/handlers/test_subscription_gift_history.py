@@ -170,6 +170,9 @@ class TestGiftMenuVisibilityAndEmptyHistory:
     async def test_single_tariff_menu_always_shows_gift_entry(self, mock_callback, mock_db_user, mock_db, monkeypatch):
         mock_db_user.subscription = None
         monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: False)
+        # Вход в подарки показывается при включённой функции (системная настройка);
+        # выключенный случай проверяют соседние кейсы.
+        monkeypatch.setattr('app.services.gift_purchase_service.is_gift_enabled', AsyncMock(return_value=True))
         await show_subscription_info(mock_callback, mock_db_user, mock_db)
         assert mock_callback.message.edit_text.called
         _, kwargs = mock_callback.message.edit_text.call_args
@@ -179,6 +182,7 @@ class TestGiftMenuVisibilityAndEmptyHistory:
     @pytest.mark.asyncio
     async def test_multi_tariff_menu_always_shows_gift_entry(self, mock_callback, mock_db_user, mock_db, monkeypatch):
         monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: True)
+        monkeypatch.setattr('app.services.gift_purchase_service.is_gift_enabled', AsyncMock(return_value=True))
         with patch(
             'app.handlers.subscription.my_subscriptions.get_all_subscriptions_by_user_id',
             AsyncMock(return_value=[]),
