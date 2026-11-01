@@ -3027,6 +3027,45 @@ class TrafficPurchase(Base):
         return datetime.now(UTC) >= _aware(self.expires_at)
 
 
+class RouterLinkPurchase(Base):
+    """Оплаченная роутер-ссылка: право смотреть ключ одной локации.
+
+    Сама ссылка здесь не хранится. В ней vless-UUID пользователя, то есть его
+    ключ доступа: он меняется при перевыпуске подписки, а копия в нашей базе
+    только добавляет место утечки. Поэтому запись — это право («локацию
+    оплатили»), а ссылка каждый раз берётся из панели в момент показа.
+
+    Пара (user_id, host_uuid) уникальна: локация покупается один раз, повторный
+    показ бесплатный — иначе двойной тап по кнопке списал бы деньги дважды.
+    """
+
+    __tablename__ = 'router_link_purchases'
+    __table_args__ = (
+        UniqueConstraint('user_id', 'host_uuid', name='uq_router_link_purchases_user_host'),
+        Index('ix_router_link_purchases_created_at', 'created_at'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    # user_id: отдельный индекс не нужен — leftmost prefix уникального
+    # ограничения (user_id, host_uuid) покрывает выборку покупок пользователя.
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    # Подписка — для разбора обращений: право живёт у пользователя, а не у
+    # подписки, поэтому её удаление право не отзывает.
+    subscription_id = Column(Integer, ForeignKey('subscriptions.id', ondelete='SET NULL'), nullable=True)
+
+    squad_uuid = Column(String(255), nullable=False)
+    squad_name = Column(String(255), nullable=False)
+    host_uuid = Column(String(255), nullable=False)
+    # Имя локации на момент покупки: в панели его переименуют, а человеку нужно
+    # видеть в истории то, за что он платил.
+    host_remark = Column(String(255), nullable=False)
+
+    price_kopeks = Column(Integer, nullable=False, default=0)
+    created_at = Column(AwareDateTime(), default=func.now())
+
+    user = relationship('User')
+
+
 class Transaction(Base):
     __tablename__ = 'transactions'
     __table_args__ = (

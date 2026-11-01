@@ -13,6 +13,7 @@ from app.handlers import (
     promocode,
     referral,
     referral_settings,
+    router_link,
     server_status,
     simple_subscription,
     start,
@@ -50,6 +51,7 @@ from app.handlers.admin import (
     remnawave as admin_remnawave,
     reports as admin_reports,
     required_channels as admin_required_channels,
+    router_link as admin_router_link,
     rules as admin_rules,
     section_images as admin_section_images,
     servers as admin_servers,
@@ -203,6 +205,7 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
     promocode.register_handlers(dp)
     referral.register_handlers(dp)
     referral_settings.register_handlers(dp)
+    router_link.register_handlers(dp)
     support.register_handlers(dp)
     server_status.register_handlers(dp)
     tickets.register_handlers(dp)
@@ -214,6 +217,7 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
     admin_messages.register_handlers(dp)
     admin_monitoring.register_handlers(dp)
     admin_section_images.register_handlers(dp)
+    admin_router_link.register_handlers(dp)
     admin_referrals.register_handlers(dp)
     admin_referral_levels.register_handlers(dp)
     admin_rules.register_handlers(dp)

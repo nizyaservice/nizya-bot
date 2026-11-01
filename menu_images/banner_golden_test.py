@@ -346,19 +346,26 @@ case(
     'my_subscriptions',
 )
 # Продление и смена тарифа переехали в главное меню (одиночный тарифный режим),
-# на экране подписки остались подключение, устройства, автоплатёж и подарок.
+# на экране подписки остались подключение, устройства, автоплатёж, роутер-ссылка
+# и подарок.
 case(
     'my_subs_tariff_mode',
     [
         'subscription_connect',
         'subscription_manage_devices',
         'subscription_autopay',
+        'router_link',
         'subscription_gift',
         'back_to_menu',
     ],
     'my_subscriptions',
     'my_subscriptions',
 )
+# Экраны роутер-ссылки: своего ключа секции нет, баннер берётся от «Моей
+# подписки» — хендлер проводит его явно.
+case('router_link_menu', ['router_link_buy:host-uuid', 'router_link_show:host-uuid', 'menu_subscription'],
+     'my_subscriptions', 'my_subscriptions')
+case('router_link_paid', ['menu_subscription'], 'my_subscriptions', 'my_subscriptions')
 # Мультитариф: ряд [Продлить] [Сменить] остаётся на экране подписки.
 case(
     'my_subs_multi_tariff',

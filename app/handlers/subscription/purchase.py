@@ -217,8 +217,13 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
 
     texts = get_texts(db_user.language)
     from app.services.gift_purchase_service import is_gift_enabled
+    from app.services.router_link_service import is_configured as is_router_link_configured
 
     gift_enabled = await is_gift_enabled(db)
+    # Настроена ли продажа роутер-ссылок. Доступна ли она ИМЕННО этому тарифу,
+    # решает уже экран услуги: для этого нужен запрос в панель, а он слишком
+    # дорог для каждой отрисовки «Моей подписки».
+    router_link_enabled = await is_router_link_configured(db)
     # Multi-tariff: this branch is only reached in single-tariff mode (multi-tariff
     # is redirected to show_my_subscriptions above). db_user.subscription returns
     # the first active or most recent subscription, which is correct here.
@@ -228,7 +233,12 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
         await edit_or_answer_photo(
             callback=callback,
             caption=texts.SUBSCRIPTION_NONE,
-            keyboard=get_subscription_keyboard(db_user.language, has_subscription=False, gift_enabled=gift_enabled),
+            keyboard=get_subscription_keyboard(
+                db_user.language,
+                has_subscription=False,
+                gift_enabled=gift_enabled,
+                router_link_enabled=router_link_enabled,
+            ),
             parse_mode='HTML',
             **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=db_user.language),
         )
@@ -531,6 +541,7 @@ async def show_subscription_info(callback: types.CallbackQuery, db_user: User, d
             is_trial=subscription.is_trial,
             subscription=subscription,
             gift_enabled=gift_enabled,
+            router_link_enabled=router_link_enabled,
         ),
         parse_mode='HTML',
         **await get_section_media_kwargs(db, SECTION_IMAGE_MY_SUBSCRIPTIONS, language=db_user.language),

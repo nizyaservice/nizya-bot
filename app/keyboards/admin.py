@@ -201,6 +201,12 @@ def get_admin_settings_submenu_keyboard(language: str = 'ru') -> InlineKeyboardM
             ],
             [
                 InlineKeyboardButton(
+                    text=_t(texts, 'ADMIN_SETTINGS_ROUTER', '📶 Роутер'),
+                    callback_data='admin_router_link',
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text=texts.t('ADMIN_MONITORING_SETTINGS', '⚙️ Настройки мониторинга'),
                     callback_data='admin_mon_settings',
                 )
