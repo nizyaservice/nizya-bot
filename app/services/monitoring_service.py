@@ -1388,10 +1388,10 @@ class MonitoringService:
                     # MissingGreenlet — расчёт цены продления для уведомления
                     # срывался в env-фолбэк PRICE_30_DAYS (в тарифном режиме это
                     # чужая цена).
-                    selectinload(Subscription.user).options(
-                        selectinload(User.promo_group),
-                        selectinload(User.user_promo_groups).selectinload(UserPromoGroup.promo_group),
-                    ),
+                    selectinload(Subscription.user).selectinload(User.promo_group),
+                    selectinload(Subscription.user)
+                    .selectinload(User.user_promo_groups)
+                    .selectinload(UserPromoGroup.promo_group),
                     selectinload(Subscription.tariff),
                 )
                 .where(
