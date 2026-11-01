@@ -316,6 +316,20 @@ def is_topic_required_error(error: Exception) -> bool:
     return any(err.lower() in description for err in _TOPIC_REQUIRED_ERRORS)
 
 
+def is_not_modified_error(error: Exception) -> bool:
+    """Telegram «message is not modified»: экран уже такой, каким мы его шлём.
+
+    Приходит на повторный тап по той же кнопке. Пересоздавать сообщение в этом
+    случае нельзя: старое удалится, новое уедет в конец чата, а экран с
+    баннером ещё и потеряет картинку. Так же эту ошибку трактует
+    ``@error_handler`` (``app/utils/decorators.py``) — здесь тот же смысл,
+    только одной проверкой на все наши пути отправки.
+    """
+    if not isinstance(error, TelegramBadRequest):
+        return False
+    return 'message is not modified' in str(error).lower()
+
+
 async def _answer_with_photo(self: Message, text: str = None, **kwargs):
     # Уважаем флаг в рантайме: если логотип выключен — не подменяем ответ
     if not settings.ENABLE_LOGO_MODE:
@@ -400,7 +414,7 @@ async def _edit_with_photo(self: Message, text: str, **kwargs):
                 return None
             if 'MESSAGE_ID_INVALID' in str(error) or 'message to edit not found' in str(error).lower():
                 return None
-            if 'message is not modified' in str(error).lower():
+            if is_not_modified_error(error):
                 return None
             raise
     if self.photo:
@@ -432,6 +446,11 @@ async def _edit_with_photo(self: Message, text: str, **kwargs):
             return await self.edit_media(InputMediaPhoto(**media_kwargs), **edit_kwargs)
         except TelegramBadRequest as error:
             if is_topic_required_error(error):
+                return None
+            if is_not_modified_error(error):
+                # Экран уже такой: удалять сообщение и присылать его текстом
+                # (как делал фоллбек ниже) значило бы терять баннер на каждом
+                # повторном нажатии кнопки.
                 return None
             if is_privacy_restricted_error(error):
                 fallback_text = append_privacy_hint(text, language)
@@ -479,7 +498,7 @@ async def _edit_with_photo(self: Message, text: str, **kwargs):
         if 'MESSAGE_ID_INVALID' in str(error) or 'message to edit not found' in str(error).lower():
             # Сообщение удалено или недоступно — просто игнорируем
             return None
-        if 'message is not modified' in str(error).lower():
+        if is_not_modified_error(error):
             # Контент не изменился — безопасно игнорируем
             return None
         raise
