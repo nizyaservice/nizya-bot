@@ -363,8 +363,12 @@ case(
 )
 # Экраны роутер-ссылки: своего ключа секции нет, баннер берётся от «Моей
 # подписки» — хендлер проводит его явно.
-case('router_link_menu', ['router_link_buy:host-uuid', 'router_link_show:host-uuid', 'menu_subscription'],
-     'my_subscriptions', 'my_subscriptions')
+case(
+    'router_link_menu',
+    ['router_link_buy:host-uuid', 'router_link_show:host-uuid', 'menu_subscription'],
+    'my_subscriptions',
+    'my_subscriptions',
+)
 case('router_link_paid', ['menu_subscription'], 'my_subscriptions', 'my_subscriptions')
 # Мультитариф: ряд [Продлить] [Сменить] остаётся на экране подписки.
 case(

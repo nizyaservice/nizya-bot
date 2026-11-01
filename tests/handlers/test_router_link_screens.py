@@ -65,19 +65,21 @@ def _callback(data: str = 'router_link'):
 
 
 def _payload(render_mock) -> str:
-    """Caption + все callback_data последнего экрана одной строкой."""
+    """Всё, что уходит человеку: caption, подписи кнопок и их callback_data.
+
+    Имена локаций живут именно в подписях кнопок, а ключ и адрес не должны
+    появиться ни там, ни там — поэтому собираем всё вместе.
+    """
     kwargs = render_mock.await_args.kwargs
     keyboard = kwargs.get('keyboard')
     rows = getattr(keyboard, 'inline_keyboard', []) or []
-    callbacks = [button.callback_data or '' for row in rows for button in row]
-    return '\n'.join([kwargs.get('caption', ''), *callbacks])
+    buttons = [f'{button.text or ""}|{button.callback_data or ""}' for row in rows for button in row]
+    return '\n'.join([kwargs.get('caption', ''), *buttons])
 
 
 @pytest.fixture
 def available(monkeypatch):
-    monkeypatch.setattr(
-        screen, 'get_available_locations', AsyncMock(return_value=Availability([FREE, PAID], 'ok', 7))
-    )
+    monkeypatch.setattr(screen, 'get_available_locations', AsyncMock(return_value=Availability([FREE, PAID], 'ok', 7)))
     monkeypatch.setattr(screen, 'get_price_kopeks', AsyncMock(return_value=19_900))
     monkeypatch.setattr(screen, 'purchased_host_uuids', AsyncMock(return_value={PAID.host_uuid}))
 
@@ -111,9 +113,7 @@ async def test_insufficient_balance_screen_has_no_key(render, available, monkeyp
         screen,
         'purchase_location',
         AsyncMock(
-            return_value=PurchaseOutcome(
-                'insufficient', price_kopeks=19_900, missing_kopeks=14_900, location=FREE
-            )
+            return_value=PurchaseOutcome('insufficient', price_kopeks=19_900, missing_kopeks=14_900, location=FREE)
         ),
     )
 

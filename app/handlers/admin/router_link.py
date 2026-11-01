@@ -129,9 +129,7 @@ async def show_router_panel(callback: types.CallbackQuery, db_user: User, db: As
 
 @admin_required
 @error_handler
-async def start_price_edit(
-    callback: types.CallbackQuery, state: FSMContext, db_user: User, db: AsyncSession
-) -> None:
+async def start_price_edit(callback: types.CallbackQuery, state: FSMContext, db_user: User, db: AsyncSession) -> None:
     texts = get_texts(db_user.language)
     current = await get_price_kopeks(db)
     await state.set_state(AdminStates.editing_router_link_price)
@@ -195,9 +193,7 @@ async def show_squads(callback: types.CallbackQuery, db_user: User, db: AsyncSes
 
 @admin_required
 @error_handler
-async def start_squad_add(
-    callback: types.CallbackQuery, state: FSMContext, db_user: User, db: AsyncSession
-) -> None:
+async def start_squad_add(callback: types.CallbackQuery, state: FSMContext, db_user: User, db: AsyncSession) -> None:
     texts = get_texts(db_user.language)
     try:
         available = await list_panel_squad_names()
