@@ -345,15 +345,29 @@ case(
     ],
     'my_subscriptions',
 )
+# Продление и смена тарифа переехали в главное меню (одиночный тарифный режим),
+# на экране подписки остались подключение, устройства, автоплатёж и подарок.
 case(
     'my_subs_tariff_mode',
     [
         'subscription_connect',
-        'subscription_extend',
+        'subscription_manage_devices',
         'subscription_autopay',
-        'subscription_settings',
-        'instant_switch',
         'subscription_gift',
+        'back_to_menu',
+    ],
+    'my_subscriptions',
+    'my_subscriptions',
+)
+# Мультитариф: ряд [Продлить] [Сменить] остаётся на экране подписки.
+case(
+    'my_subs_multi_tariff',
+    [
+        'subscription_connect:7',
+        'subscription_extend',
+        'instant_switch',
+        'subscription_manage_devices',
+        'subscription_autopay',
         'back_to_menu',
     ],
     'my_subscriptions',
@@ -935,6 +949,22 @@ case(
         'menu_support',
         'menu_info',
         'menu_language',
+    ],
+    'main_menu',
+    'main_menu',
+)
+# Главное меню подписчика: вместо «Тарифов» ряд [Продлить тариф] [Сменить тариф].
+case(
+    'start_menu_with_sub_tariff',
+    [
+        'subscription_connect',
+        'subscription_extend',
+        'instant_switch',
+        'menu_subscription',
+        'menu_balance',
+        'menu_support',
+        'menu_referrals',
+        'menu_more',
     ],
     'main_menu',
     'main_menu',

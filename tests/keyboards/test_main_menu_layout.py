@@ -5,10 +5,10 @@
 Поэтому здесь проверяется не «кнопка существует», а порядок строк целиком.
 
 Макет:
-    ⚡ Подключить VPN            (или пробный период — новичку)
-    💜 Тарифы и продление
-    📊 Моя подписка | 💰 Баланс
-    💬 Помощь       | 🎁 Позвать друга
+    ⚡ Подключить VPN                  (или пробный период — новичку)
+    ⏰ Продлить тариф | 📦 Сменить тариф  (новичку и пробнику — 💜 Тарифы)
+    📊 Моя подписка   | 💰 Баланс
+    💬 Помощь         | 🎁 Позвать друга
     ⋯ Ещё
 """
 
@@ -26,8 +26,10 @@ def _subscription(**overrides):
         'subscription_crypto_link': None,
         'is_trial': False,
         'is_active': True,
+        'actual_status': 'active',
         'traffic_limit_gb': 0,
         'tariff_id': 1,
+        'tariff': SimpleNamespace(is_daily=False, is_free=False),
         'autopay_enabled': False,
     }
     values.update(overrides)
@@ -60,7 +62,7 @@ def active_menu():
 def test_active_subscriber_sees_the_mockup_rows(active_menu) -> None:
     assert _rows(active_menu) == [
         ['url'],  # «Подключить VPN» — web_app/url, зависит от CONNECT_BUTTON_MODE
-        ['menu_buy'],
+        ['subscription_extend', 'instant_switch'],
         ['menu_subscription', 'menu_balance'],
         ['menu_support', 'menu_referrals'],
         ['menu_more'],
@@ -70,19 +72,56 @@ def test_active_subscriber_sees_the_mockup_rows(active_menu) -> None:
 def test_button_labels_match_the_mockup(active_menu) -> None:
     labels = _texts(active_menu)
     assert labels[0] == ['⚡ Подключить VPN']
-    assert labels[1] == ['💜 Тарифы']
+    assert labels[1] == ['⏰ Продлить тариф', '📦 Сменить тариф']
     assert labels[2][0] == '📊 Моя подписка'
     assert labels[3] == ['💬 Помощь', '🎁 Позвать друга']
     assert labels[4] == ['⋯ Ещё']
 
 
-def test_tariffs_button_stays_for_active_subscriber(active_menu) -> None:
-    """Раньше «Купить подписку» пряталась при активной подписке.
+def test_tariffs_button_gives_way_to_renew_and_switch(active_menu) -> None:
+    """У купившего тариф на месте «Тарифов» — продление и смена тарифа.
 
-    Кнопка называется «Тарифы и продление» именно потому, что действующий
-    подписчик меняет тариф и продлевается на том же экране.
+    Эти два действия перенесены сюда из «Моей подписки»: подписчик приходит в
+    меню продлеваться, а список тарифов ему заново не нужен.
     """
-    assert 'menu_buy' in _flat(active_menu)
+    assert 'menu_buy' not in _flat(active_menu)
+
+
+def test_trial_user_still_sees_the_tariffs_button() -> None:
+    """Пробник тариф не покупал — продлевать нечего, ему нужен список тарифов."""
+    keyboard = get_main_menu_keyboard(
+        'ru',
+        has_active_subscription=True,
+        subscription_is_active=True,
+        balance_kopeks=0,
+        subscription=_subscription(is_trial=True, actual_status='trial', tariff_id=None, tariff=None),
+    )
+
+    assert _rows(keyboard)[1] == ['menu_buy']
+    assert 'subscription_extend' not in _flat(keyboard)
+
+
+@pytest.mark.parametrize(
+    'overrides',
+    [
+        # Суточный тариф вместо продления приостанавливают — ряд ему не положен.
+        {'tariff': SimpleNamespace(is_daily=True, is_free=False)},
+        # Старая подписка без тарифа (куплена в классике): продлить её нельзя.
+        {'tariff_id': None, 'tariff': None},
+    ],
+    ids=('daily', 'legacy'),
+)
+def test_subscriptions_without_renewal_keep_the_tariffs_button(overrides) -> None:
+    keyboard = get_main_menu_keyboard(
+        'ru',
+        has_active_subscription=True,
+        subscription_is_active=True,
+        balance_kopeks=0,
+        subscription=_subscription(**overrides),
+    )
+
+    assert _rows(keyboard)[1] == ['menu_buy']
+    assert 'subscription_extend' not in _flat(keyboard)
 
 
 def test_newcomer_gets_trial_in_place_of_connect() -> None:
@@ -97,18 +136,22 @@ def test_newcomer_gets_trial_in_place_of_connect() -> None:
 
 
 def test_connect_button_requires_a_working_subscription() -> None:
-    """Истёкшая подписка не даёт «Подключить VPN», но «Моя подписка» остаётся."""
+    """Истёкшая подписка не даёт «Подключить VPN», но «Моя подписка» остаётся.
+
+    Продление истёкшей подписки работает, а смена тарифа на ней заблокирована
+    хендлером — рядом с продлением стоит покупка с нуля.
+    """
     keyboard = get_main_menu_keyboard(
         'ru',
         has_active_subscription=True,
         subscription_is_active=False,
         has_had_paid_subscription=True,
         balance_kopeks=0,
-        subscription=_subscription(is_active=False),
+        subscription=_subscription(is_active=False, actual_status='expired'),
     )
     rows = _rows(keyboard)
 
-    assert rows[0] == ['menu_buy']
+    assert rows[0] == ['subscription_extend', 'menu_buy']
     assert 'menu_subscription' in _flat(keyboard)
 
 
