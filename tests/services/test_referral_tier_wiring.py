@@ -18,6 +18,12 @@ import pytest
 from app.config import settings
 
 
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
+
+
 @pytest.fixture
 def spies(monkeypatch):
     """Подменяет описания на шпионов, записывающих переданные аргументы."""

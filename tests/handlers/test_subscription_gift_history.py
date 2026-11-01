@@ -48,6 +48,12 @@ from app.services.gift_notification_service import build_gift_history_detail_pre
 from app.utils.gift_links import build_gift_public_code
 
 
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
+
+
 def _callbacks(keyboard: InlineKeyboardMarkup) -> list[str]:
     """Extract callback_data from an inline keyboard."""
     return [button.callback_data for row in keyboard.inline_keyboard for button in row if button.callback_data]

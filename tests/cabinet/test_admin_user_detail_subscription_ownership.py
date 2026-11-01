@@ -186,7 +186,7 @@ async def test_authoritative_subscription_lookup_constrains_id_and_user_id(owned
 @pytest.mark.parametrize(
     ('route_name', 'kwargs', 'foreign_marker'),
     [
-        ('get_user_panel_info', {}, 'owned-panel-marker'),
+        ('get_user_panel_info', {}, 'owned-vless'),  # маркер панельного юзера, не похожий на секрет
         ('get_user_devices', {}, 'owned-hwid'),
         ('get_subscription_request_history', {}, '192.0.2.1'),
         ('delete_user_device', {'hwid': 'owned-hwid'}, 'Device deleted'),
