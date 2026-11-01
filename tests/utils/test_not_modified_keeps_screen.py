@@ -15,8 +15,7 @@ from unittest.mock import AsyncMock
 import pytest
 from aiogram.exceptions import TelegramBadRequest
 
-from app.utils import message_patch as mp
-from app.utils import photo_message as pm
+from app.utils import message_patch as mp, photo_message as pm
 
 
 NOT_MODIFIED = TelegramBadRequest(method=None, message='Bad Request: message is not modified')
