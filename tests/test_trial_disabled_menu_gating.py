@@ -93,6 +93,7 @@ def _make_cb_user_db():
     cb = AsyncMock(spec=CallbackQuery)
     cb.message = AsyncMock(spec=Message)
     cb.message.edit_text = AsyncMock()
+    cb.message.photo = None  # без фото: экран правится текстом
     cb.answer = AsyncMock()
     user = MagicMock(spec=User)
     user.language = 'ru'

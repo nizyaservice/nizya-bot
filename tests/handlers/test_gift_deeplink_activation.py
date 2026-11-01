@@ -482,6 +482,7 @@ class TestGiftDeeplinkActivation:
             callback.from_user = TgUser(id=recipient.telegram_id, is_bot=False, first_name='Rec')
             callback.message = MagicMock(spec=Message)
             callback.message.edit_text = AsyncMock()
+            callback.message.photo = None  # без фото: экран правится текстом
             callback.answer = AsyncMock()
 
             # Mock AsyncSessionLocal used in handle_gift_activate

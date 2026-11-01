@@ -39,6 +39,7 @@ def _make_callback():
     cb = MagicMock()
     cb.message = MagicMock()
     cb.message.edit_text = AsyncMock()
+    cb.message.photo = None  # без фото: экран правится текстом
     cb.answer = AsyncMock()
     return cb
 

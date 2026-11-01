@@ -20,7 +20,7 @@ def _screens_without_banners(without_section_banners):
 def _callback(data: str = 'menu_buy'):
     return SimpleNamespace(
         data=data,
-        message=SimpleNamespace(edit_text=AsyncMock()),
+        message=SimpleNamespace(edit_text=AsyncMock(), photo=None),
         answer=AsyncMock(),
     )
 

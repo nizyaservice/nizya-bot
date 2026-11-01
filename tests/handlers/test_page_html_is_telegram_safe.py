@@ -49,7 +49,7 @@ class _Callback:
         self.data = data
         self.sent: list[str] = []
         self.answer = AsyncMock()
-        self.message = SimpleNamespace(edit_text=self._edit_text)
+        self.message = SimpleNamespace(edit_text=self._edit_text, photo=None)
 
     async def _edit_text(self, text, **_kwargs):
         self.sent.append(text)

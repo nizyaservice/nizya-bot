@@ -105,6 +105,7 @@ def mock_callback(mock_db_user) -> AsyncMock:
     callback.from_user.username = mock_db_user.username
     callback.message = AsyncMock(spec=Message)
     callback.message.edit_text = AsyncMock()
+    callback.message.photo = None  # без фото: экран правится текстом
     callback.answer = AsyncMock()
     callback.data = 'subscription_gift'
     return callback
