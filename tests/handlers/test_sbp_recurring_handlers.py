@@ -14,8 +14,16 @@ resolution), following the same style as
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 import app.handlers.subscription.autopay as autopay_mod
 from app.config import settings
+
+
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
 
 
 def _configure_gate(monkeypatch, enabled: bool) -> None:

@@ -211,6 +211,28 @@ if 'yookassa' not in sys.modules:
 
 
 @pytest.fixture
+def without_section_banners(monkeypatch):
+    """Экраны без баннера раздела: хендлер уходит текстом, как до баннеров.
+
+    Баннеры (``get_section_media_kwargs``) читают ``system_settings`` и файл из
+    ``menu_images/``, то есть любой экран бота теперь обращается к БД и уезжает
+    фото с подписью. Тестам, которые проверяют текст или кнопки, нужна не
+    картинка, а предсказуемая отправка: двойник сессии (``AsyncMock``) не умеет
+    отдавать SQLAlchemy-Result, а двойник сообщения — принимать фото.
+
+    Подменяются внутренние шаги сервиса, а не ``get_section_media_kwargs``:
+    хендлеры импортируют её по имени в свой модуль, и патч самой функции их бы
+    не задел, а эти два шага она вызывает через глобали своего модуля.
+    """
+    from unittest.mock import AsyncMock
+
+    import app.services.section_image_service as section_images
+
+    monkeypatch.setattr(section_images, 'get_section_image_file_id', AsyncMock(return_value=None))
+    monkeypatch.setattr(section_images, 'get_section_image_path', lambda *args, **kwargs: None)
+
+
+@pytest.fixture
 def fixed_datetime() -> datetime:
     """Возвращает фиксированную отметку времени для воспроизводимых проверок."""
     return datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)

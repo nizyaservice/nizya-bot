@@ -103,7 +103,9 @@ async def test_provider_failure_is_reported_once_without_second_answer(monkeypat
 
     error_log.assert_called_once()
     assert callback.answer.await_count == 1, 'на одно нажатие Telegram принимает один ответ'
-    callback.message.answer.assert_awaited_once_with('❌ Ошибка обработки запроса')
+    # Экран флоу пополнения уходит с баннером и кнопкой «Назад» — тут важен текст.
+    assert callback.message.answer.await_count == 1
+    assert callback.message.answer.await_args.args[0] == '❌ Ошибка обработки запроса'
 
 
 @pytest.mark.asyncio
@@ -118,7 +120,8 @@ async def test_unknown_method_is_reported_with_a_message(monkeypatch):
     await balance_main.handle_topup_amount_callback(callback, _user(), _state())
 
     assert callback.answer.await_count == 1
-    callback.message.answer.assert_awaited_once_with('❌ Неизвестный способ оплаты')
+    assert callback.message.answer.await_count == 1
+    assert callback.message.answer.await_args.args[0] == '❌ Неизвестный способ оплаты'
 
 
 @pytest.mark.asyncio

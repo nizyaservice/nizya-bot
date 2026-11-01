@@ -217,9 +217,12 @@ async def test_instant_list_keeps_prorated_flow_for_paid_source(monkeypatch):
     switch_list = AsyncMock()
     monkeypatch.setattr(tp, 'show_tariff_switch_list', switch_list)
     monkeypatch.setattr(tp, 'get_tariffs_for_user', AsyncMock(return_value=[]))
+    # Экран уходит баннером с подписью, а не edit_text — проверяем саму отправку.
+    render = AsyncMock()
+    monkeypatch.setattr(tp, 'edit_or_answer_photo', render)
 
     callback = _mk_callback('instant_switch')
     await tp.show_instant_switch_list(callback, _mk_user(), AsyncMock(), _mk_state())
 
     switch_list.assert_not_awaited()  # редиректа нет
-    callback.message.edit_text.assert_called_once()  # instant-флоу отработал сам
+    render.assert_awaited_once()  # instant-флоу отработал сам

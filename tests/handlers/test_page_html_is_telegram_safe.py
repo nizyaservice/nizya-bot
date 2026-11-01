@@ -32,6 +32,12 @@ RICH_HTML = (
 _TAG_RE = re.compile(r'<\s*/?\s*([a-zA-Z][\w-]*)')
 
 
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
+
+
 def _disallowed_tags(text: str) -> set[str]:
     return {match.group(1).lower() for match in _TAG_RE.finditer(text)} - set(TELEGRAM_ALLOWED_TAGS)
 

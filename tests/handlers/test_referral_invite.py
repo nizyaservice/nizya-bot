@@ -9,7 +9,15 @@ wraps both links in <code>.
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 import app.handlers.referral as ref
+
+
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
 
 
 async def test_create_invite_message_wraps_links_in_code(monkeypatch):

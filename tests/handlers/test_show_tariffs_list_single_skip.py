@@ -5,8 +5,16 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from app.config import Settings
 from app.handlers.subscription import tariff_purchase as m
+
+
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
 
 
 def _callback(data: str = 'menu_buy'):

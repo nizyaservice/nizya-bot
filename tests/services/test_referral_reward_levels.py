@@ -24,6 +24,12 @@ from app.services.referral_reward_service import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
+
+
 def _user(uid: int, *, referred_by: int | None = None, percent: int | None = None):
     return SimpleNamespace(
         id=uid,

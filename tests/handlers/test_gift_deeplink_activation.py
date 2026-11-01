@@ -99,6 +99,12 @@ _TABLES = [
 # ── Helpers & Fixtures ──────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _screens_without_banners(without_section_banners):
+    """Кейсы файла смотрят текст и кнопки: баннер раздела (запрос в БД и отправка
+    фото) им только мешает — см. фикстуру в tests/conftest.py."""
+
+
 def _make_fsm_context(user_id: int, chat_id: int | None = None) -> FSMContext:
     storage = MemoryStorage()
     c_id = chat_id if chat_id is not None else user_id
