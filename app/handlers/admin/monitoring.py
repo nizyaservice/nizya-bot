@@ -139,10 +139,41 @@ def _build_notification_settings_view(language: str):
     return summary_text, keyboard
 
 
+async def _resolve_preview_renewal_price_kopeks() -> int:
+    """Цена продления для тестового уведомления.
+
+    В тарифном режиме env-прайс ``PRICE_30_DAYS`` не используется при продаже,
+    поэтому превью показывало цену, которой нет ни в одном тарифе. Берём
+    минимальную цену среди активных тарифов и падаем в env-цену только в
+    классическом режиме (или если тарифы ещё не заведены).
+    """
+    if settings.is_tariffs_mode():
+        from app.database.crud.tariff import get_all_active_tariffs
+
+        try:
+            async with AsyncSessionLocal() as db:
+                tariffs = await get_all_active_tariffs(db)
+        except Exception as error:
+            logger.warning('Не удалось получить тарифы для превью уведомления', error=str(error))
+            tariffs = []
+
+        prices = []
+        for tariff in tariffs:
+            period = tariff.get_shortest_period()
+            price = tariff.get_purchasable_price_for_period(period) if period is not None else None
+            if price is None and tariff.is_daily:
+                price = tariff.daily_price_kopeks
+            if price is not None:
+                prices.append(int(price))
+        if prices:
+            return min(prices)
+
+    return settings.PRICE_30_DAYS
+
+
 async def _build_notification_preview_message(language: str, notification_type: str):
     texts = get_texts(language)
     now = datetime.now(UTC)
-    price_30_days = settings.format_price(settings.PRICE_30_DAYS)
 
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -175,7 +206,7 @@ async def _build_notification_preview_message(language: str, notification_type: 
         )
         message = template.format(
             end_date=format_local_datetime(now - timedelta(days=1), '%d.%m.%Y %H:%M'),
-            price=price_30_days,
+            price=settings.format_price(await _resolve_preview_renewal_price_kopeks()),
             tariff_label='',
         )
         keyboard = InlineKeyboardMarkup(

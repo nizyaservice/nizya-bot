@@ -1633,7 +1633,7 @@
   Классы: нет
   Функции: нет
 - `app/services/monitoring_service.py` — Python-модуль
-  Классы: `AutopayFailState` (2 методов), `MonitoringService` (53 методов)
+  Классы: `AutopayFailState` (2 методов), `MonitoringService` (54 методов)
   Функции: `decide_autopay_fail_notification` — Decide whether/what to send on a failed-autopay tick., `apply_autopay_fail_notification` — Mutate state to record that a notification with `reason` was just sent.
 - `app/services/mulenpay_service.py` — Python-модуль
   Классы: `MulenPayService` (10 методов)
@@ -5015,6 +5015,9 @@
 - `tests/services/test_env_admin_block_protection.py` — Python-модуль
   Классы: нет
   Функции: `env_admin`, `test_predicate_covers_admin_ids_and_admin_emails`, `test_admin_panel_ban_refuses_env_admin`, `test_cabinet_disable_user_refuses_env_admin`, `test_broadcast_auto_block_skips_env_admin` — A muted bot reports the owner as "blocked" — that must not flip their status., `test_blocked_users_scan_skips_env_admin`, `test_cabinet_restores_stale_blocked_admin_with_invite_only_off` — The gate only emits VERIFIED_ADMIN while invite-only is on — recovery must not depend on it., `test_cabinet_still_refuses_a_blocked_ordinary_user`, `test_middleware_heals_the_stale_blocked_flag_on_an_env_admin` — Letting the admin through is not enough — the flag also suppresses reactivation.
+- `tests/services/test_expired_1d_renewal_price.py` — Python-модуль
+  Классы: нет
+  Функции: `test_price_falls_back_to_tariff_when_pricing_engine_fails` — Расчёт сорвался — в сообщении цена тарифа, а не PRICE_30_DAYS из .env., `test_price_retried_without_discounts_before_tariff_fallback` — Первый расчёт (со скидками) упал — считаем без скидок, а не по .env., `test_classic_subscription_keeps_env_price_fallback` — Подписке без тарифа классический прайс и адресован — фолбэк сохраняем., `test_followups_query_eager_loads_promo_groups` — Запрос грузит промогруппы — иначе pricing_engine падает на ленивой загрузке., `test_tariff_fallback_matches_requested_period` — Фолбэк берёт цену запрошенного периода, а не первого попавшегося.
 - `tests/services/test_expired_panel_cleanup.py` — Python-модуль
   Классы: нет
   Функции: `api`, `test_deletes_panel_user_after_the_grace_days`, `test_panel_identity_is_forgotten` — Иначе повторная покупка полезет обновлять несуществующий аккаунт., `test_disable_mode_keeps_the_link` — В режиме disable аккаунт жив — связь рвать нельзя., `test_keeps_recently_expired` — Сутки ещё не прошли — у человека есть время оплатить., `test_keeps_active_subscription`, `test_keeps_subscription_under_grace` — Грейс-доступ продлил человеку панель — снос обрубил бы живой доступ., `test_keeps_user_with_another_live_subscription` — Аккаунт панели общий — снос убил бы доступ по второй, живой подписке., `test_disabled_by_zero_days` — 0 — выключатель: ни одного обращения к панели., `test_panel_error_does_not_break_the_batch` — Сбой по одному аккаунту не должен останавливать проход и чистить связь., `test_monitoring_cycle_runs_the_cleanup` — Сервис должен быть подключён к циклу, иначе он мёртвый код.

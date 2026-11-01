@@ -1383,7 +1383,15 @@ class MonitoringService:
                 select(Subscription)
                 .join(User, Subscription.user_id == User.id)
                 .options(
-                    selectinload(Subscription.user),
+                    # Промогруппы грузим вместе с пользователем: pricing_engine
+                    # читает их синхронно, и ленивая загрузка в async падает с
+                    # MissingGreenlet — расчёт цены продления для уведомления
+                    # срывался в env-фолбэк PRICE_30_DAYS (в тарифном режиме это
+                    # чужая цена).
+                    selectinload(Subscription.user).options(
+                        selectinload(User.promo_group),
+                        selectinload(User.user_promo_groups).selectinload(UserPromoGroup.promo_group),
+                    ),
                     selectinload(Subscription.tariff),
                 )
                 .where(
@@ -2270,6 +2278,56 @@ class MonitoringService:
             )
             return False
 
+    async def _resolve_renewal_price_for_notification(
+        self,
+        db: AsyncSession,
+        user: User,
+        subscription: Subscription,
+        period_days: int,
+    ) -> int:
+        """Цена продления для уведомления об истёкшей подписке.
+
+        Фолбэком тут стояла env-цена ``PRICE_30_DAYS``, и в тарифном режиме
+        уведомление обещало продление за цену из классического прайса (у нас —
+        10 ₽), а не за стоимость тарифа. Поэтому: сначала обычный расчёт со
+        скидками, при сбое — расчёт без скидок (цена выйдет не ниже реальной),
+        и только затем прайс самого тарифа. Классическая env-цена остаётся
+        фолбэком лишь для подписок без тарифа, которым она и адресована.
+        """
+        from app.services.pricing_engine import pricing_engine
+
+        for pricing_user in (user, None):
+            try:
+                pricing = await pricing_engine.calculate_renewal_price(db, subscription, period_days, user=pricing_user)
+            except Exception as price_error:
+                logger.warning(
+                    'Не удалось рассчитать цену продления для уведомления expired_1d',
+                    subscription_id=subscription.id,
+                    user_id=user.id,
+                    with_discounts=pricing_user is not None,
+                    error=str(price_error),
+                )
+                continue
+            return pricing.final_total
+
+        tariff = getattr(subscription, 'tariff', None)
+        if tariff is not None:
+            tariff_price = tariff.get_purchasable_price_for_period(period_days)
+            if tariff_price is None:
+                shortest_period = tariff.get_shortest_period()
+                if shortest_period is not None:
+                    tariff_price = tariff.get_price_for_period(shortest_period)
+            if tariff_price is not None:
+                logger.warning(
+                    'Цена продления для уведомления expired_1d взята напрямую из тарифа',
+                    subscription_id=subscription.id,
+                    tariff_id=tariff.id,
+                    period_days=period_days,
+                )
+                return int(tariff_price)
+
+        return settings.PRICE_30_DAYS
+
     async def _send_expired_day1_notification(self, db: AsyncSession, user: User, subscription: Subscription) -> bool:
         try:
             if not user.telegram_id:
@@ -2285,19 +2343,9 @@ class MonitoringService:
                 tariff_label = f' «{tariff.name}»'
 
             renewal_period = (tariff.get_shortest_period() if tariff else None) or 30
-            try:
-                from app.services.pricing_engine import pricing_engine
-
-                pricing = await pricing_engine.calculate_renewal_price(db, subscription, renewal_period, user=user)
-                renewal_price_kopeks = pricing.final_total
-            except Exception as price_error:
-                logger.warning(
-                    'Не удалось рассчитать цену продления для уведомления expired_1d, используем PRICE_30_DAYS',
-                    subscription_id=subscription.id,
-                    user_id=user.id,
-                    error=str(price_error),
-                )
-                renewal_price_kopeks = settings.PRICE_30_DAYS
+            renewal_price_kopeks = await self._resolve_renewal_price_for_notification(
+                db, user, subscription, renewal_period
+            )
 
             template = texts.get(
                 'SUBSCRIPTION_EXPIRED_1D',
