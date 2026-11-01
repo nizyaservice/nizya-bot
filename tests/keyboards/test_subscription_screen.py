@@ -71,11 +71,27 @@ def test_manage_devices_replaces_the_settings_button() -> None:
 
 
 def test_rows_follow_the_agreed_order() -> None:
-    """Продление и смена тарифа — в одном ряду, устройства и автоплатёж — в следующем."""
+    """Ряд продления/смены тарифа переехал в главное меню — первым идут устройства.
+
+    В одиночном тарифном режиме [Продлить тариф] [Сменить тариф] показывает
+    главное меню (см. tests/keyboards/test_main_menu_layout.py), и дублировать
+    их здесь не нужно.
+    """
+    rows = _rows(_paid_keyboard())
+
+    assert rows[1] == ['subscription_manage_devices', 'subscription_autopay']
+    assert 'subscription_extend' not in _callbacks(_paid_keyboard())
+    assert 'instant_switch' not in _callbacks(_paid_keyboard())
+
+
+def test_multi_tariff_keeps_renew_and_switch_on_the_screen(monkeypatch) -> None:
+    """В мультитарифе ряд остаётся здесь: кнопка должна знать, какую подписку продлевать."""
+    from app.config import Settings
+
+    monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: True)
     rows = _rows(_paid_keyboard())
 
     assert rows[1] == ['subscription_extend', 'instant_switch']
-    assert rows[2] == ['subscription_manage_devices', 'subscription_autopay']
 
 
 def test_autopay_stays_away_from_daily_and_legacy_tariffs() -> None:

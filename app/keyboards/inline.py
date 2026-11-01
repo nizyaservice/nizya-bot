@@ -618,6 +618,58 @@ def _build_connect_row(texts, subscription) -> list[InlineKeyboardButton]:
     return [fallback]
 
 
+def tariff_actions_live_in_main_menu() -> bool:
+    """Ряд «Продлить тариф» / «Сменить тариф» показывается в главном меню.
+
+    Только одиночный тарифный режим: в мультитарифе кнопка обязана знать, какую
+    из подписок продлевать (callback'и там с ``:{id}``), а в классике «Тарифы» —
+    единственный вход в покупку, подменять его нечем. В этих двух режимах ряд
+    остаётся на экране «Моя подписка», как и был.
+    """
+    return settings.is_tariffs_mode() and not settings.is_multi_tariff_enabled()
+
+
+def build_tariff_actions_row(texts, subscription, *, is_trial: bool) -> list[InlineKeyboardButton]:
+    """Ряд [Продлить тариф] [Сменить тариф] — один на главное меню и «Мою подписку».
+
+    Пустой список означает «такой подписке этот ряд не положен»: у пробной
+    продлевать нечего (ей предлагается выбрать тариф), суточная вместо продления
+    приостанавливается, а у старой подписки без тарифа единственный путь —
+    «Перейти на тариф». Вызывающий в этом случае показывает «Тарифы».
+    """
+    if subscription is None or is_trial:
+        return []
+
+    tariff = getattr(subscription, 'tariff', None)
+    if tariff is not None and getattr(tariff, 'is_daily', False):
+        return []
+    if _legacy_subscription(subscription):
+        return []
+
+    row = [InlineKeyboardButton(text=texts.MENU_EXTEND_SUBSCRIPTION, callback_data='subscription_extend')]
+    if not settings.is_tariffs_mode():
+        # Классика: тарифов нет, менять нечего — в ряду только продление.
+        return row
+
+    # На истёкшей/отключённой подписке смена тарифа заблокирована хендлером —
+    # на её месте покупка с нуля, иначе кнопка ведёт в тупик.
+    if getattr(subscription, 'actual_status', None) in ('expired', 'disabled'):
+        row.append(InlineKeyboardButton(text=texts.t('BUY_TARIFF_BUTTON', '📦 Купить тариф'), callback_data='menu_buy'))
+        return row
+
+    # Бесплатный (0₽) тариф — через список с выбором периода: prorated
+    # instant-switch посчитал бы доплату за весь остаток бесплатных дней
+    # и перенёс бы их на платный тариф вопреки TARIFF_SWITCH_RESET_FREE_DAYS.
+    is_free_tariff = bool(tariff and getattr(tariff, 'is_free', False) and settings.TARIFF_SWITCH_RESET_FREE_DAYS)
+    row.append(
+        InlineKeyboardButton(
+            text=texts.t('CHANGE_TARIFF_BUTTON', '📦 Сменить тариф'),
+            callback_data='tariff_switch' if is_free_tariff else 'instant_switch',
+        )
+    )
+    return row
+
+
 def get_more_menu_keyboard(
     language: str = DEFAULT_LANGUAGE,
     *,
@@ -717,9 +769,20 @@ def get_main_menu_keyboard(
     if show_trial:
         keyboard.append([InlineKeyboardButton(text=texts.MENU_TRIAL, callback_data='menu_trial')])
 
-    # Тарифы видны всегда, в том числе действующему подписчику: на том же экране
-    # он меняет тариф и продлевается, поэтому кнопка и называется «и продление».
-    keyboard.append([InlineKeyboardButton(text=texts.MENU_BUY_SUBSCRIPTION, callback_data='menu_buy')])
+    # У купившего тариф на этом месте ряд [Продлить тариф] [Сменить тариф] —
+    # действия, которые раньше лежали в «Моей подписке»: подписчик приходит в
+    # меню продлеваться, а не выбирать тариф заново. У всех остальных (новичок,
+    # пробный период, суточный тариф, старая подписка без тарифа) здесь, как и
+    # было, «Тарифы» — для них это единственный вход в покупку.
+    tariff_actions_row: list[InlineKeyboardButton] = []
+    if tariff_actions_live_in_main_menu():
+        tariff_actions_row = build_tariff_actions_row(
+            texts, subscription, is_trial=bool(getattr(subscription, 'is_trial', False))
+        )
+    if tariff_actions_row:
+        keyboard.append(tariff_actions_row)
+    else:
+        keyboard.append([InlineKeyboardButton(text=texts.MENU_BUY_SUBSCRIPTION, callback_data='menu_buy')])
 
     subscription_row: list[InlineKeyboardButton] = []
     if has_active_subscription:
@@ -1208,37 +1271,14 @@ def get_subscription_keyboard(
                     ]
                 )
             else:
-                # Ряд: [Продлить тариф] [Сменить тариф]. Автоплатёж уехал строкой
-                # ниже, к устройствам: продление и смена тарифа — соседние по
-                # смыслу действия, их держим вместе.
-                tariff_button = None
-                if settings.is_tariffs_mode() and subscription and not is_legacy_subscription:
-                    # На истёкшей/отключённой подписке смена тарифа недоступна (хендлер её
-                    # блокирует) — раньше кнопка «Тариф» всё равно показывалась и вела в тупик.
-                    # Теперь для таких подписок показываем «Купить тариф» (покупку с нуля).
-                    if getattr(subscription, 'actual_status', None) in ('expired', 'disabled'):
-                        tariff_button = InlineKeyboardButton(
-                            text=texts.t('BUY_TARIFF_BUTTON', '📦 Купить тариф'), callback_data='menu_buy'
-                        )
-                    else:
-                        # Для суточных тарифов переходим на список тарифов, для обычных - мгновенное переключение.
-                        # Бесплатный (0₽) тариф — тоже через список с выбором периода: prorated
-                        # instant-switch посчитал бы доплату за весь остаток бесплатных дней
-                        # и перенёс бы их на платный тариф вопреки TARIFF_SWITCH_RESET_FREE_DAYS.
-                        is_free_tariff = bool(
-                            tariff and getattr(tariff, 'is_free', False) and settings.TARIFF_SWITCH_RESET_FREE_DAYS
-                        )
-                        tariff_callback = 'tariff_switch' if (is_daily_tariff or is_free_tariff) else 'instant_switch'
-                        tariff_button = InlineKeyboardButton(
-                            text=texts.t('CHANGE_TARIFF_BUTTON', '📦 Сменить тариф'), callback_data=tariff_callback
-                        )
-
-                extend_row = [
-                    InlineKeyboardButton(text=texts.MENU_EXTEND_SUBSCRIPTION, callback_data='subscription_extend')
-                ]
-                if tariff_button:
-                    extend_row.append(tariff_button)
-                keyboard.append(extend_row)
+                # Ряд [Продлить тариф] [Сменить тариф] переехал в главное меню —
+                # здесь он остаётся только в режимах, где главное меню его не
+                # показывает (мультитариф, классика). Автоплатёж живёт строкой
+                # ниже, у устройств, и от переноса не зависит.
+                if not tariff_actions_live_in_main_menu():
+                    extend_row = build_tariff_actions_row(texts, subscription, is_trial=False)
+                    if extend_row:
+                        keyboard.append(extend_row)
                 # Автоплатёж есть только у обычных тарифов: суточные списываются
                 # сами, у старых подписок продления и автоплатежа нет вовсе.
                 show_autopay = True
