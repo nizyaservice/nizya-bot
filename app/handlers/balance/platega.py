@@ -88,12 +88,16 @@ async def _prompt_amount(
         else 'Введите сумму для пополнения от {min_amount}.\n'
     )
 
+    # Имя шлюза человеку ничего не говорит: он выбирал способ оплаты, его и
+    # показываем («🏦 СБП», «💳 Карты (RUB)»).
     prompt_template = texts.t(
         'PLATEGA_TOPUP_PROMPT',
-        (f'💳 <b>Оплата через Platega ({{method_name}})</b>\n\n{default_prompt_body}Оплата происходит через Platega.'),
+        f'<b>{{method_name}}</b>\n\n{default_prompt_body}',
     )
 
-    keyboard = await get_topup_amount_keyboard('platega', db_user.language, back_callback='back_to_menu')
+    # Назад — к списку способов оплаты, а не в главное меню: человек пришёл
+    # сюда именно оттуда, и чаще всего хочет сменить способ, а не уйти.
+    keyboard = await get_topup_amount_keyboard('platega', db_user.language, back_callback='balance_topup')
 
     await message.edit_text(
         prompt_template.format(
@@ -387,7 +391,7 @@ async def process_platega_payment_amount(
     instructions_template = texts.t(
         'PLATEGA_PAYMENT_INSTRUCTIONS',
         (
-            '💳 <b>Оплата через Platega ({method})</b>\n\n'
+            '<b>{method}</b>\n\n'
             '💰 Сумма: {amount}\n'
             '🆔 ID транзакции: {transaction}\n\n'
             '📱 <b>Инструкция:</b>\n'
