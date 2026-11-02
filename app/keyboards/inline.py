@@ -1792,23 +1792,26 @@ def get_payment_methods_keyboard(amount_kopeks: int, language: str = DEFAULT_LAN
         has_direct_payment_methods = True
 
     if settings.is_platega_enabled() and settings.get_platega_active_methods():
-        platega_name = settings.get_platega_display_name()
         if settings.PLATEGA_INLINE_METHODS:
             for method_code in settings.get_platega_active_methods():
-                title = settings.get_platega_method_display_title(method_code)
+                # Имя шлюза на кнопку не выносим: человек выбирает способ
+                # оплаты («🌍 Международные карты»), а не провайдера, через
+                # которого платёж проводится.
                 keyboard.append(
                     [
                         InlineKeyboardButton(
-                            text=f'{title} ({platega_name})',
+                            text=settings.get_platega_method_display_title(method_code),
                             callback_data=_build_callback(f'platega_m{method_code}'),
                         )
                     ]
                 )
         else:
+            # Одна кнопка на весь шлюз: здесь имя — единственное, что можно
+            # написать, названия способа ещё нет.
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        text=texts.t('PAYMENT_PLATEGA', f'💳 {platega_name}'),
+                        text=texts.t('PAYMENT_PLATEGA', f'💳 {settings.get_platega_display_name()}'),
                         callback_data=_build_callback('platega'),
                     )
                 ]
