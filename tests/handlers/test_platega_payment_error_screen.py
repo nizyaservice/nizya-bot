@@ -88,8 +88,14 @@ async def test_exception_screen_offers_the_way_back(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_error_text_is_kept(monkeypatch):
-    """Кнопка добавлена к прежнему тексту, а не вместо него."""
+    """Кнопка добавлена к прежнему тексту, а не вместо него.
+
+    Раньше признаком текста тут было слово «Platega» — оно из этой строки
+    убрано (имя шлюза человеку ничего не говорит), поэтому смотрим на саму
+    суть сообщения.
+    """
     message = await _run_failing_payment(monkeypatch, result={'return_value': {}})
 
     (text,) = message.answer.await_args.args
-    assert 'Platega' in text
+    assert 'не удалось создать платёж' in text.lower()
+    assert 'Platega' not in text
