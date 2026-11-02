@@ -145,7 +145,7 @@ async def start_platega_payment(
         await callback.answer(
             texts.t(
                 'PLATEGA_TEMPORARILY_UNAVAILABLE',
-                '❌ Оплата через Platega временно недоступна',
+                '❌ Оплата временно недоступна',
             ),
             show_alert=True,
         )
@@ -156,7 +156,7 @@ async def start_platega_payment(
         await callback.answer(
             texts.t(
                 'PLATEGA_METHODS_NOT_CONFIGURED',
-                '⚠️ На стороне Platega нет доступных методов оплаты',
+                '⚠️ Нет доступных способов оплаты',
             ),
             show_alert=True,
         )
@@ -188,7 +188,7 @@ async def start_platega_payment(
     await callback.message.edit_text(
         texts.t(
             'PLATEGA_SELECT_PAYMENT_METHOD',
-            'Выберите способ оплаты Platega:',
+            'Выберите способ оплаты:',
         ),
         reply_markup=types.InlineKeyboardMarkup(inline_keyboard=method_buttons),
     )
@@ -252,7 +252,7 @@ async def start_platega_direct_method(
         await callback.answer(
             texts.t(
                 'PLATEGA_TEMPORARILY_UNAVAILABLE',
-                '❌ Оплата через Platega временно недоступна',
+                '❌ Оплата временно недоступна',
             ),
             show_alert=True,
         )
@@ -298,7 +298,7 @@ async def process_platega_payment_amount(
         await message.answer(
             texts.t(
                 'PLATEGA_TEMPORARILY_UNAVAILABLE',
-                '❌ Оплата через Platega временно недоступна',
+                '❌ Оплата временно недоступна',
             )
         )
         return
@@ -309,7 +309,7 @@ async def process_platega_payment_amount(
         await message.answer(
             texts.t(
                 'PLATEGA_METHOD_SELECTION_REQUIRED',
-                '⚠️ Выберите способ оплаты Platega перед вводом суммы',
+                '⚠️ Выберите способ оплаты перед вводом суммы',
             )
         )
         await state.set_state(BalanceStates.waiting_for_platega_method)
@@ -319,7 +319,7 @@ async def process_platega_payment_amount(
         await message.answer(
             texts.t(
                 'PLATEGA_AMOUNT_TOO_LOW',
-                'Минимальная сумма для оплаты через Platega: {amount}',
+                'Минимальная сумма пополнения: {amount}',
             ).format(amount=settings.format_price(settings.PLATEGA_MIN_AMOUNT_KOPEKS)),
             reply_markup=get_back_keyboard(db_user.language, callback_data='balance_topup'),
         )
@@ -330,7 +330,7 @@ async def process_platega_payment_amount(
         await message.answer(
             texts.t(
                 'PLATEGA_AMOUNT_TOO_HIGH',
-                'Максимальная сумма для оплаты через Platega: {amount}',
+                'Максимальная сумма пополнения: {amount}',
             ).format(amount=settings.format_price(settings.PLATEGA_MAX_AMOUNT_KOPEKS)),
             reply_markup=get_back_keyboard(db_user.language, callback_data='balance_topup'),
         )
@@ -355,7 +355,7 @@ async def process_platega_payment_amount(
         await message.answer(
             texts.t(
                 'PLATEGA_PAYMENT_ERROR',
-                '❌ Ошибка создания платежа Platega. Попробуйте позже или обратитесь в поддержку.',
+                '❌ Не удалось создать платёж. Попробуйте позже или обратитесь в поддержку.',
             ),
             reply_markup=_payment_methods_keyboard(texts),
         )

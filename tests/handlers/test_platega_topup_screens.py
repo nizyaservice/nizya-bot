@@ -8,6 +8,9 @@
 
 from __future__ import annotations
 
+import ast
+import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -94,3 +97,48 @@ def test_payment_methods_screen_ends_with_the_prompt():
 
     assert text.rstrip().endswith('Выберите удобный для вас способ оплаты:')
     assert 'Выберите способ пополнения' not in text
+
+
+# --- имя шлюза на экранах пополнения ---
+
+LANGS = ('ru', 'en', 'ua', 'zh', 'fa')
+REPO = Path(__file__).resolve().parents[2]
+
+
+def test_no_locale_names_the_gateway_on_topup_screens() -> None:
+    """Ни одна строка PLATEGA_* не называет шлюз — человек выбирает способ оплаты.
+
+    Исключения осознанные и под этот сторож не попадают: PAYMENT_PLATEGA —
+    единственная кнопка на весь шлюз, названия способа на ней ещё нет, и
+    PAID_TRIAL_PLATEGA — экран пробной подписки, где по именам перечислены все
+    шлюзы сразу.
+    """
+    for lang in LANGS:
+        locale = json.loads((REPO / 'app' / 'localization' / 'locales' / f'{lang}.json').read_text(encoding='utf-8'))
+        offenders = [
+            key
+            for key, value in locale.items()
+            if key.startswith('PLATEGA_') and isinstance(value, str) and 'latega' in value
+        ]
+        assert offenders == [], f'{lang}: {offenders}'
+
+
+def test_handler_defaults_never_name_the_gateway() -> None:
+    """Дефолты texts.t в модуле пополнения — тоже без имени шлюза.
+
+    Локали перебивают дефолты, поэтому разойтись они могут незаметно: строка в
+    коде остаётся старой, а на экране уже новая.
+    """
+    source = (REPO / 'app' / 'handlers' / 'balance' / 'platega.py').read_text(encoding='utf-8')
+    tree = ast.parse(source)
+
+    offenders = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute) or node.func.attr != 't':
+            continue
+        for argument in node.args[1:]:
+            text = ast.dump(argument)
+            if 'latega' in text:
+                offenders.append(node.lineno)
+
+    assert offenders == [], f'строки с именем шлюза: {offenders}'

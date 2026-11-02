@@ -960,13 +960,10 @@ class PlategaPaymentMixin:
                 PaymentMethod.PLATEGA,
             )
 
-        platega_name = settings.get_platega_display_name()
+        # Имя шлюза в историю пополнений не пишем: человек выбирал способ
+        # оплаты. В админке шлюз виден в отдельном поле метода платежа.
         method_display = settings.get_platega_method_display_name(payment.payment_method_code)
-        description = (
-            f'Пополнение через {platega_name} ({method_display})'
-            if method_display
-            else f'Пополнение через {platega_name}'
-        )
+        description = f'Пополнение: {method_display}' if method_display else 'Пополнение баланса'
 
         transaction = existing_transaction
         created_transaction = False
