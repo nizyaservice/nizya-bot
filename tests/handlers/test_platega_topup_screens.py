@@ -103,6 +103,11 @@ def test_payment_methods_screen_ends_with_the_prompt():
 
 LANGS = ('ru', 'en', 'ua', 'zh', 'fa')
 REPO = Path(__file__).resolve().parents[2]
+#: Оба слоя локалей: app/localization/locales — база из апстрима,
+#: locales/ — наш слой, который её ПЕРЕБИВАЕТ (loader мержит второй поверх
+#: первой, см. app/localization/loader.py). Правка только в базе до
+#: пользователя не доезжает, поэтому сторож смотрит в оба.
+LOCALE_DIRS = (Path('app') / 'localization' / 'locales', Path('locales'))
 
 
 def test_no_locale_names_the_gateway_on_topup_screens() -> None:
@@ -113,14 +118,18 @@ def test_no_locale_names_the_gateway_on_topup_screens() -> None:
     PAID_TRIAL_PLATEGA — экран пробной подписки, где по именам перечислены все
     шлюзы сразу.
     """
-    for lang in LANGS:
-        locale = json.loads((REPO / 'app' / 'localization' / 'locales' / f'{lang}.json').read_text(encoding='utf-8'))
-        offenders = [
-            key
-            for key, value in locale.items()
-            if key.startswith('PLATEGA_') and isinstance(value, str) and 'latega' in value
-        ]
-        assert offenders == [], f'{lang}: {offenders}'
+    for directory in LOCALE_DIRS:
+        for lang in LANGS:
+            path = REPO / directory / f'{lang}.json'
+            if not path.exists():
+                continue
+            locale = json.loads(path.read_text(encoding='utf-8'))
+            offenders = [
+                key
+                for key, value in locale.items()
+                if key.startswith('PLATEGA_') and isinstance(value, str) and 'latega' in value
+            ]
+            assert offenders == [], f'{directory}/{lang}.json: {offenders}'
 
 
 def test_handler_defaults_never_name_the_gateway() -> None:
