@@ -22,18 +22,28 @@ def _configure_platega(monkeypatch: pytest.MonkeyPatch, **overrides) -> None:
         monkeypatch.setattr(settings, key, value, raising=False)
 
 
-async def _captured_create_endpoint(monkeypatch: pytest.MonkeyPatch, service: PlategaService) -> str:
-    captured: dict[str, str] = {}
+def _fake_request(calls: list[dict], statuses: list[int] | None = None):
+    """Заглушка ``_request`` в status-режиме: отдаёт ``(payload, status)``.
+
+    ``statuses`` — ответы по порядку попыток, чтобы проверять фолбэк.
+    """
+    queue = list(statuses or [200])
 
     async def fake_request(method, endpoint, **kwargs):
-        captured['method'] = method
-        captured['endpoint'] = endpoint
-        return {'transactionId': 'tx', 'status': 'PENDING'}
+        calls.append({'method': method, 'endpoint': endpoint, **kwargs})
+        status = queue.pop(0) if queue else 200
+        return {'transactionId': 'tx', 'status': 'PENDING'}, status
 
-    monkeypatch.setattr(service, '_request', fake_request)
+    return fake_request
+
+
+async def _captured_create_endpoint(monkeypatch: pytest.MonkeyPatch, service: PlategaService) -> str:
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls))
     await service.create_payment(payer=PAYER, payment_method=2, amount=100.0, currency='RUB')
-    assert captured['method'] == 'POST'
-    return captured['endpoint']
+    assert calls[0]['method'] == 'POST'
+    return calls[0]['endpoint']
 
 
 def test_sanitize_description_limits_utf8_bytes() -> None:
@@ -62,12 +72,12 @@ def test_sanitize_description_returns_clean_value() -> None:
 # cascades», поэтому версия create-эндпоинта настраивается через PLATEGA_API_VERSION.
 
 
-async def test_create_payment_defaults_to_v1_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
-    _configure_platega(monkeypatch)
+async def test_create_payment_defaults_to_the_with_method_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='auto')
 
     service = PlategaService()
 
-    assert service.api_version == 'v1'
+    assert service.api_version == 'auto'
     assert await _captured_create_endpoint(monkeypatch, service) == '/transaction/process'
 
 
@@ -109,13 +119,13 @@ async def test_get_transaction_stays_unversioned(monkeypatch: pytest.MonkeyPatch
     assert captured == {'method': 'GET', 'endpoint': '/transaction/tx'}
 
 
-def test_unknown_api_version_falls_back_to_v1(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unknown_api_version_falls_back_to_auto(monkeypatch: pytest.MonkeyPatch) -> None:
     _configure_platega(monkeypatch, PLATEGA_API_VERSION='v3')
 
     with structlog.testing.capture_logs() as logs:
         service = PlategaService()
 
-    assert service.api_version == 'v1'
+    assert service.api_version == 'auto'
     assert any('PLATEGA_API_VERSION' in entry.get('event', '') for entry in logs)
 
 
@@ -171,7 +181,7 @@ async def test_v2_url_field_reaches_returned_redirect_url(monkeypatch: pytest.Mo
 
     async def fake_request(method, endpoint, **kwargs):
         # v2 shape: link is under `url`, no `redirect` key at all
-        return {'transactionId': 'tx', 'status': 'PENDING', 'url': pay_link}
+        return {'transactionId': 'tx', 'status': 'PENDING', 'url': pay_link}, 200
 
     monkeypatch.setattr(service, '_request', fake_request)
 
@@ -208,16 +218,12 @@ async def test_v2_url_field_reaches_returned_redirect_url(monkeypatch: pytest.Mo
 async def test_create_payment_sends_payer_metadata(monkeypatch: pytest.MonkeyPatch, api_version: str) -> None:
     _configure_platega(monkeypatch, PLATEGA_API_VERSION=api_version)
     service = PlategaService()
-    captured: dict = {}
+    calls: list[dict] = []
 
-    async def fake_request(method, endpoint, **kwargs):
-        captured.update(kwargs)
-        return {'transactionId': 'tx', 'status': 'PENDING'}
-
-    monkeypatch.setattr(service, '_request', fake_request)
+    monkeypatch.setattr(service, '_request', _fake_request(calls))
     await service.create_payment(payer=PAYER, payment_method=2, amount=100.0, currency='RUB')
 
-    assert captured['json_data']['metadata'] == {'userId': '555', 'userName': '@neo'}
+    assert calls[0]['json_data']['metadata'] == {'userId': '555', 'userName': '@neo'}
 
 
 async def test_create_payment_requires_the_payer(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,3 +232,99 @@ async def test_create_payment_requires_the_payer(monkeypatch: pytest.MonkeyPatch
 
     with pytest.raises(TypeError):
         await PlategaService().create_payment(payment_method=2, amount=100.0, currency='RUB')  # type: ignore[call-arg]
+
+
+# --- Выбор ручки создания: с заданным методом или без ---
+# docs.platega.io: POST /transaction/process — «создание платежной ссылки с
+# заданным методом», POST /v2/transaction/process — «БЕЗ заданного метода», и
+# поля paymentMethod у второй ручки нет вовсе. Способ оплаты человек выбирает в
+# боте, поэтому по умолчанию идём в первую: иначе страница шлюза спрашивает
+# способ заново.
+
+
+async def test_with_method_endpoint_carries_the_chosen_method(monkeypatch: pytest.MonkeyPatch) -> None:
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='auto')
+    service = PlategaService()
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls))
+    await service.create_payment(payer=PAYER, payment_method=11, amount=100.0, currency='RUB')
+
+    assert calls[0]['endpoint'] == '/transaction/process'
+    assert calls[0]['json_data']['paymentMethod'] == 11
+
+
+async def test_methodless_endpoint_gets_no_payment_method(monkeypatch: pytest.MonkeyPatch) -> None:
+    """В ручке без метода это поле не задокументировано — не отправляем его."""
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='v2')
+    service = PlategaService()
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls))
+    await service.create_payment(payer=PAYER, payment_method=11, amount=100.0, currency='RUB')
+
+    assert calls[0]['endpoint'] == '/v2/transaction/process'
+    assert 'paymentMethod' not in calls[0]['json_data']
+
+
+async def test_auto_falls_back_to_the_methodless_link(monkeypatch: pytest.MonkeyPatch) -> None:
+    """400 «No available card cascades» (#2934) не должен ронять оплату."""
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='auto')
+    service = PlategaService()
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls, statuses=[400, 200]))
+    response = await service.create_payment(payer=PAYER, payment_method=12, amount=100.0, currency='RUB')
+
+    assert response is not None
+    assert [call['endpoint'] for call in calls] == ['/transaction/process', '/v2/transaction/process']
+    assert 'paymentMethod' not in calls[1]['json_data']
+
+
+async def test_auto_does_not_fall_back_on_bad_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """401 второй ручкой не лечится — незачем дёргать провайдера дважды."""
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='auto')
+    service = PlategaService()
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls, statuses=[401, 200]))
+    response = await service.create_payment(payer=PAYER, payment_method=11, amount=100.0, currency='RUB')
+
+    assert response is None
+    assert [call['endpoint'] for call in calls] == ['/transaction/process']
+
+
+async def test_forced_version_never_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='v1')
+    service = PlategaService()
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls, statuses=[400, 200]))
+    response = await service.create_payment(payer=PAYER, payment_method=11, amount=100.0, currency='RUB')
+
+    assert response is None
+    assert [call['endpoint'] for call in calls] == ['/transaction/process']
+
+
+# --- Обязательные поля ссылок возврата ---
+
+
+async def test_return_urls_are_always_sent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Докам обе ручки держат return/failedUrl обязательными.
+
+    Пустые настройки раньше просто выкидывали поля из запроса.
+    """
+    _configure_platega(monkeypatch, PLATEGA_API_VERSION='auto')
+    for key in ('PLATEGA_RETURN_URL', 'PLATEGA_FAILED_URL', 'WEBHOOK_URL'):
+        monkeypatch.setattr(settings, key, None, raising=False)
+    monkeypatch.setattr(settings, 'BOT_USERNAME', 'nizya_bot', raising=False)
+
+    service = PlategaService()
+    calls: list[dict] = []
+
+    monkeypatch.setattr(service, '_request', _fake_request(calls))
+    await service.create_payment(payer=PAYER, payment_method=11, amount=100.0, currency='RUB')
+
+    body = calls[0]['json_data']
+    assert body['return'] == 'https://t.me/nizya_bot'
+    assert body['failedUrl'] == 'https://t.me/nizya_bot'

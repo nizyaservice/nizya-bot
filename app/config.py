@@ -825,7 +825,7 @@ class Settings(BaseSettings):
     # (ответ несёт ссылку в поле `redirect`); 'v2' — POST /v2/transaction/process
     # (ссылка в поле `url`), нужен мерчантам, у которых карточные каскады доступны
     # только в v2 (#2934: v1 отдаёт 400 «No available card cascades» для карт).
-    PLATEGA_API_VERSION: str = 'v1'
+    PLATEGA_API_VERSION: str = 'auto'
     PLATEGA_RETURN_URL: str | None = None
     PLATEGA_FAILED_URL: str | None = None
     PLATEGA_CURRENCY: str = 'RUB'
@@ -2540,6 +2540,16 @@ class Settings(BaseSettings):
         normalized = str(username).strip().lstrip('@')
         return normalized or None
 
+    def get_telegram_return_url(self) -> str:
+        """Куда вернуть плательщика, если оператор не задал ссылку возврата.
+
+        Докам Platega поля ``return`` и ``failedUrl`` обязательны, а раньше мы
+        их просто не отправляли, когда настройки пусты. Возврат в бота — самое
+        осмысленное, что тут можно подставить; так же поступает ветка YooKassa.
+        """
+        username = self.get_bot_username()
+        return f'https://t.me/{username}' if username else 'https://t.me/'
+
     def is_notifications_enabled(self) -> bool:
         return self.ENABLE_NOTIFICATIONS
 
@@ -2891,19 +2901,19 @@ class Settings(BaseSettings):
     def get_platega_display_name_html(self) -> str:
         return html.escape(self.get_platega_display_name())
 
-    def get_platega_return_url(self) -> str | None:
+    def get_platega_return_url(self) -> str:
         if self.PLATEGA_RETURN_URL:
             return self.PLATEGA_RETURN_URL
         if self.WEBHOOK_URL:
             return f'{self.WEBHOOK_URL}/payment-success'
-        return None
+        return self.get_telegram_return_url()
 
-    def get_platega_failed_url(self) -> str | None:
+    def get_platega_failed_url(self) -> str:
         if self.PLATEGA_FAILED_URL:
             return self.PLATEGA_FAILED_URL
         if self.WEBHOOK_URL:
             return f'{self.WEBHOOK_URL}/payment-failed'
-        return None
+        return self.get_telegram_return_url()
 
     def get_platega_active_methods(self) -> list[int]:
         raw_value = str(self.PLATEGA_ACTIVE_METHODS or '')

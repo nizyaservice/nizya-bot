@@ -64,13 +64,20 @@ async def test_create_subscription_posts_method_6(monkeypatch: pytest.MonkeyPatc
 
 
 @pytest.mark.asyncio
-async def test_create_subscription_uses_v2_endpoint_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_subscription_ignores_the_methodless_force(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PLATEGA_API_VERSION=v2 не должен уводить подписку в ручку без метода.
+
+    Раньше уводил. По докам подписка создаётся тем же POST /transaction/process
+    с ``paymentMethod: 6``, а у ручки «создание платёжной ссылки без заданного
+    метода» поля ``paymentMethod`` нет вовсе — вместо подписки получалась бы
+    разовая ссылка, на которой плательщик сам выбирает способ оплаты.
+    """
     _configure(monkeypatch, PLATEGA_API_VERSION='v2')
     service = PlategaService()
     captured = {}
 
     async def fake_request(method, endpoint, *, json_data=None, params=None, return_status=False):
-        captured.update(method=method, endpoint=endpoint)
+        captured.update(method=method, endpoint=endpoint, json_data=json_data)
         payload = {'transactionId': 'tx-2', 'status': 'PENDING'}
         return (payload, 200) if return_status else payload
 
@@ -78,7 +85,8 @@ async def test_create_subscription_uses_v2_endpoint_when_configured(monkeypatch:
     await service.create_subscription(payer=PAYER, amount=149.5, currency='RUB', interval=1)
 
     assert service.api_version == 'v2'
-    assert captured['endpoint'] == '/v2/transaction/process'
+    assert captured['endpoint'] == '/transaction/process'
+    assert captured['json_data']['paymentMethod'] == 6
 
 
 @pytest.mark.asyncio

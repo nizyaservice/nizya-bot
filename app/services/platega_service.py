@@ -36,7 +36,23 @@ class PlategaApiError(RuntimeError):
 class PlategaService:
     """Обертка над Platega API с базовой повторной отправкой запросов."""
 
-    _SUPPORTED_API_VERSIONS = ('v1', 'v2')
+    #: ``auto`` — метод отдаём эндпоинту «с заданным методом», а «без метода»
+    #: держим фолбэком (см. ``create_payment``). ``v1``/``v2`` — жёсткий форс
+    #: одного эндпоинта, для разбора проблем у конкретного мерчанта.
+    _SUPPORTED_API_VERSIONS = ('auto', 'v1', 'v2')
+    #: Версии, которые могли дописать прямо в PLATEGA_BASE_URL (обход из #2934).
+    _VERSION_URL_SUFFIXES = ('v1', 'v2')
+    #: POST /transaction/process — «создание платёжной ссылки с заданным
+    #: методом»: плательщик попадает прямо на форму выбранного способа.
+    _CREATE_WITH_METHOD = '/transaction/process'
+    #: POST /v2/transaction/process — «создание платёжной ссылки БЕЗ заданного
+    #: метода». Поля paymentMethod у него нет вовсе, способ оплаты спрашивает
+    #: страница шлюза.
+    _CREATE_WITHOUT_METHOD = '/v2/transaction/process'
+    #: Отказы, после которых есть смысл попробовать другой эндпоинт: провайдер
+    #: не принял состав запроса или не нашёл каскад под метод. Доступ (401/403)
+    #: и сбои сети так не лечатся.
+    _CREATE_FALLBACK_STATUSES = frozenset({400, 404, 422})
 
     def __init__(self) -> None:
         base_url = (settings.PLATEGA_BASE_URL or 'https://app.platega.io').rstrip('/')
@@ -45,7 +61,7 @@ class PlategaService:
         # иначе create собрал бы путь /v2/v2/transaction/process, а статусный
         # GET (неверсионированный по докам Platega) уезжал бы на /v2/transaction/{id}.
         forced_version: str | None = None
-        for candidate in self._SUPPORTED_API_VERSIONS:
+        for candidate in self._VERSION_URL_SUFFIXES:
             suffix = f'/{candidate}'
             # Case-insensitive: a manually appended suffix may be '/V2', which would
             # otherwise slip through and build a malformed '/V2/transaction/process'.
@@ -84,8 +100,10 @@ class PlategaService:
         failed_url: str | None = None,
         payload: str | None = None,
     ) -> dict[str, Any] | None:
+        # paymentMethod в тело не кладём: его добавляет _create_transaction и
+        # только для ручки «с заданным методом» — у ручки без метода такого
+        # поля нет.
         body: dict[str, Any] = {
-            'paymentMethod': payment_method,
             'paymentDetails': {
                 'amount': round(amount, 2),
                 'currency': currency,
@@ -98,19 +116,59 @@ class PlategaService:
         if description:
             sanitized_description = self._sanitize_description(description, self._description_max_length)
             body['description'] = sanitized_description
-        if return_url:
-            body['return'] = return_url
-        if failed_url:
-            body['failedUrl'] = failed_url
+        # Обе ручки держат `return` и `failedUrl` обязательными, поэтому
+        # отправляем их всегда: пустые настройки раньше просто выкидывали поля
+        # из запроса (фолбэк на ссылку в бота — get_telegram_return_url).
+        body['return'] = return_url or settings.get_platega_return_url()
+        body['failedUrl'] = failed_url or settings.get_platega_failed_url()
         if payload:
             body['payload'] = payload
 
-        # v1 POST /transaction/process — документированный flow с заданным
-        # paymentMethod (ссылка в поле `redirect`). v2 POST /v2/transaction/process
-        # отвечает полем `url` и нужен мерчантам, у которых карточные каскады
-        # работают только в v2 (#2934: v1 отдаёт 400 «No available card cascades»).
-        endpoint = '/v2/transaction/process' if self.api_version == 'v2' else '/transaction/process'
-        return await self._request('POST', endpoint, json_data=body)
+        return await self._create_transaction(body, payment_method)
+
+    async def _create_transaction(self, body: dict[str, Any], payment_method: int) -> dict[str, Any] | None:
+        """Создаёт транзакцию, выбирая эндпоинт по тому, нужен ли метод оплаты.
+
+        Способ оплаты человек уже выбрал в боте, поэтому по умолчанию идём в
+        ручку «с заданным методом»: шлюз открывает сразу её форму (карта — ввод
+        карты, СБП — QR). Ручка «без заданного метода» (v2) поля
+        ``paymentMethod`` не имеет вовсе, и её страница спрашивает способ
+        заново — то есть человек выбирает карту второй раз.
+
+        Фолбэк всё равно нужен: у части мерчантов под карточные методы нет
+        каскада в ручке с методом, и она отвечает 400 «No available card
+        cascades» (#2934). Тогда платёж уходит через ссылку без метода — с
+        лишним шагом, но проходит. ``PLATEGA_API_VERSION=v1|v2`` жёстко
+        закрепляет одну ручку.
+        """
+        attempts: tuple[str, ...]
+        if self.api_version == 'v1':
+            attempts = (self._CREATE_WITH_METHOD,)
+        elif self.api_version == 'v2':
+            attempts = (self._CREATE_WITHOUT_METHOD,)
+        else:
+            attempts = (self._CREATE_WITH_METHOD, self._CREATE_WITHOUT_METHOD)
+
+        for index, endpoint in enumerate(attempts):
+            request_body = dict(body)
+            if endpoint == self._CREATE_WITH_METHOD:
+                request_body['paymentMethod'] = payment_method
+            response, http_status = await self._request('POST', endpoint, json_data=request_body, return_status=True)
+            if http_status is not None and http_status < 400:
+                return response
+
+            is_last = index + 1 >= len(attempts)
+            if is_last or http_status not in self._CREATE_FALLBACK_STATUSES:
+                return None
+
+            logger.warning(
+                'Platega отказала на ссылке с заданным методом — пробуем ссылку без метода',
+                endpoint=endpoint,
+                response_status=http_status,
+                payment_method=payment_method,
+            )
+
+        return None
 
     async def get_transaction(self, transaction_id: str) -> dict[str, Any] | None:
         # Статусный GET не версионируется: в доках Platega путь один — /transaction/{id}.
@@ -143,10 +201,11 @@ class PlategaService:
         if description:
             body['description'] = self._sanitize_description(description, self._description_max_length)
 
-        # Тот же выбор версии эндпоинта, что и в create_payment (см. #2934):
-        # v1 POST /transaction/process, v2 POST /v2/transaction/process.
-        endpoint = '/v2/transaction/process' if self.api_version == 'v2' else '/transaction/process'
-        data, http_status = await self._request('POST', endpoint, json_data=body, return_status=True)
+        # Подписка создаётся только ручкой «с заданным методом» (docs.platega.io
+        # «Создать подписку»: тот же POST /transaction/process с paymentMethod 6).
+        # У ручки без метода поля paymentMethod нет, и форсить её здесь нельзя:
+        # вместо подписки вышла бы разовая ссылка без метода.
+        data, http_status = await self._request('POST', self._CREATE_WITH_METHOD, json_data=body, return_status=True)
 
         if http_status is not None and http_status >= 400:
             # Пробрасываем причину провайдера наверх: голое None превращалось в
@@ -376,11 +435,11 @@ class PlategaService:
             return version
         if version:
             logger.warning(
-                'Неизвестное значение PLATEGA_API_VERSION, используется v1',
+                'Неизвестное значение PLATEGA_API_VERSION, используется auto',
                 configured=raw,
                 supported=cls._SUPPORTED_API_VERSIONS,
             )
-        return 'v1'
+        return 'auto'
 
     @staticmethod
     def parse_redirect_url(response: dict[str, Any] | None) -> str | None:
