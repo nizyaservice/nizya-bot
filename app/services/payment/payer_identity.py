@@ -4,6 +4,12 @@ Platega (docs.platega.io, «Создание платежной ссылки с 
 ``metadata.userId`` и ``metadata.userName`` — строки, обязательные для части
 категорий магазинов. «Отсутствие ``metadata.userId`` при наличии требования
 отключает антифрод-защиту и может привести к отключению магазина».
+``metadata.user_email`` — идентификатор покупателя в виде почты; по нему
+Platega связывает платежи одного человека, а без него «адрес запрашивается у
+плательщика на платёжной форме», то есть в оплату добавляется лишний шаг.
+Для магазина в Telegram документация прямо предписывает числовой Telegram ID
+с доменом ``telegram.org``: username можно сменить, а ID постоянен, и правило
+«один покупатель — один адрес» соблюдается само.
 
 MulenPay (письмо провайдера, 2026-09-15): поле ``client`` «требуется заполнять
 почтой, телефоном или ТГ ид и т.п.». Документация формата не задаёт — в примере
@@ -43,9 +49,15 @@ class PayerIdentity:
     user_name: str
     #: Как с ним связаться (MulenPay ``client``).
     contact: str
+    #: Идентификатор-почта (Platega ``user_email``). ``None`` — отправлять
+    #: нечего: подставлять заглушку нельзя, она разорвёт историю покупателя.
+    email_id: str | None = None
 
     def platega_metadata(self) -> dict[str, str]:
-        return {'userId': self.user_id, 'userName': self.user_name}
+        metadata = {'userId': self.user_id, 'userName': self.user_name}
+        if self.email_id:
+            metadata['user_email'] = self.email_id
+        return metadata
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,12 +105,18 @@ def payer_from_user(record: PayerRecord) -> PayerIdentity:
     ``userName``: @username → имя → почта → id<telegram_id>. Контакт: только
     подтверждённая почта (адрес назначается до подтверждения, а MulenPay
     фискализирует платёж — чек чужому ящику не нужен), иначе Telegram ID.
+
+    ``email_id``: Telegram ID с доменом ``telegram.org`` (так предписывает
+    Platega магазинам в Telegram), иначе подтверждённая почта. Telegram ID
+    стоит первым нарочно: он не меняется, а почта появляется позже, и платежи
+    одного человека разъехались бы на двух покупателей.
     """
     telegram_id = str(record.telegram_id) if record.telegram_id else None
     user_id = telegram_id or f'user-{record.id}'
     username = _clean((record.username or '').lstrip('@'))
     full_name = _clean(' '.join(part for part in (record.first_name, record.last_name) if part))
     email = _clean(record.email)
+    verified_email = email if record.email_verified else None
     return PayerIdentity(
         user_id=user_id,
         user_name=_first(
@@ -108,7 +126,8 @@ def payer_from_user(record: PayerRecord) -> PayerIdentity:
             f'id{telegram_id}' if telegram_id else None,
             user_id,
         ),
-        contact=_first(email if record.email_verified else None, telegram_id, user_id),
+        contact=_first(verified_email, telegram_id, user_id),
+        email_id=f'{telegram_id}@telegram.org' if telegram_id else verified_email,
     )
 
 
@@ -121,7 +140,14 @@ def payer_from_guest(purchase_token: str, *, contact_type: str | None, contact_v
     """Гость лендинга: аккаунта нет, есть контакт, который он оставил (почта или Telegram)."""
     user_id = guest_payer_id(purchase_token)
     contact = _clean(contact_value) if contact_type in ('email', 'telegram') else None
-    return PayerIdentity(user_id=user_id, user_name=_first(contact, user_id), contact=_first(contact, user_id))
+    return PayerIdentity(
+        user_id=user_id,
+        user_name=_first(contact, user_id),
+        contact=_first(contact, user_id),
+        # Почта гостя — его собственный адрес, который он сам и оставил.
+        # Telegram-контакт в адрес не превращаем: это @ник, а не ID.
+        email_id=contact if contact_type == 'email' else None,
+    )
 
 
 async def resolve_user_payer(db: AsyncSession, user_id: int) -> PayerIdentity:

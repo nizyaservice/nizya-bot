@@ -121,10 +121,41 @@ def test_overlong_values_are_cut() -> None:
     _assert_filled(payer)
 
 
-def test_platega_metadata_has_both_string_fields() -> None:
+def test_platega_metadata_has_all_string_fields() -> None:
     metadata = payer_from_user(_record(username='neo')).platega_metadata()
 
-    assert metadata == {'userId': '555', 'userName': '@neo'}
+    assert metadata == {'userId': '555', 'userName': '@neo', 'user_email': '555@telegram.org'}
+
+
+# --- user_email: идентификатор покупателя в виде почты ------------------------
+# docs.platega.io: поле обязательное, «если не передано, адрес запрашивается у
+# плательщика на платёжной форме» — то есть к оплате добавляется лишний шаг.
+# Для магазина в Telegram документация предписывает {telegram_id}@telegram.org.
+
+
+def test_telegram_user_email_is_built_from_the_numeric_id() -> None:
+    assert payer_from_user(_record(username='neo')).email_id == '555@telegram.org'
+
+
+def test_telegram_id_wins_over_the_verified_email() -> None:
+    """Правило «один покупатель — один адрес»: ID не меняется, почта приходит позже."""
+    payer = payer_from_user(_record(email='neo@example.com', email_verified=True))
+
+    assert payer.email_id == '555@telegram.org'
+
+
+def test_email_user_gets_the_verified_address() -> None:
+    payer = payer_from_user(_record(telegram_id=None, email='neo@example.com', email_verified=True))
+
+    assert payer.email_id == 'neo@example.com'
+
+
+def test_unverified_email_is_not_sent_as_the_identifier() -> None:
+    """Неподтверждённый адрес может оказаться чужим — историю ему не отдаём."""
+    payer = payer_from_user(_record(telegram_id=None, email='neo@example.com'))
+
+    assert payer.email_id is None
+    assert 'user_email' not in payer.platega_metadata()
 
 
 # --- гость лендинга ----------------------------------------------------------
@@ -164,7 +195,7 @@ async def test_resolve_user_payer_reads_the_user(monkeypatch) -> None:
 
         payer = await resolve_user_payer(db, 7)
 
-    assert payer == PayerIdentity(user_id='555', user_name='@neo', contact='555')
+    assert payer == PayerIdentity(user_id='555', user_name='@neo', contact='555', email_id='555@telegram.org')
 
 
 @pytest.mark.asyncio
@@ -207,7 +238,12 @@ async def test_resolve_guest_payer_reads_the_purchase(monkeypatch) -> None:
 
         payer = await resolve_guest_payer(db, TOKEN)
 
-    assert payer == PayerIdentity(user_id=GUEST_ID, user_name='guest@example.com', contact='guest@example.com')
+    assert payer == PayerIdentity(
+        user_id=GUEST_ID,
+        user_name='guest@example.com',
+        contact='guest@example.com',
+        email_id='guest@example.com',
+    )
 
 
 @pytest.mark.asyncio
