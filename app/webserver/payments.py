@@ -356,6 +356,51 @@ async def _parse_pal24_payload(request: Request) -> dict[str, str]:
     return {}
 
 
+#: Провайдеры, чьи вебхук-маршруты регистрирует этот модуль: имена предикатов
+#: ``Settings``. Список нужен снаружи — ``main.py`` по нему решает, поднимать ли
+#: веб-сервер вообще: без сервера маршруты некому отдать, и коллбек об оплате
+#: уходит в никуда. Сторож, чтобы список не разошёлся с маршрутами, —
+#: ``tests/webserver/test_payment_webhook_providers.py``.
+WEBHOOK_PROVIDER_PREDICATES: tuple[str, ...] = (
+    'is_apple_iap_configured',
+    'is_tribute_configured',
+    'is_mulenpay_configured',
+    'is_cryptobot_configured',
+    'is_yookassa_configured',
+    'is_wata_configured',
+    'is_heleket_configured',
+    'is_pal24_configured',
+    'is_platega_configured',
+    'is_cloudpayments_configured',
+    'is_freekassa_configured',
+    'is_kassa_ai_configured',
+    'is_riopay_configured',
+    'is_severpay_configured',
+    'is_paypear_configured',
+    'is_rollypay_configured',
+    'is_overpay_configured',
+    'is_aurapay_configured',
+    'is_etoplatezhi_configured',
+    'is_antilopay_configured',
+    'is_jupiter_configured',
+    'is_lava_configured',
+    'is_cispay_configured',
+    'is_cashera_configured',
+    'is_paritypay_configured',
+    'is_tabpay_configured',
+    'is_donut_configured',
+)
+
+
+def has_payment_webhook_provider() -> bool:
+    """Есть ли провайдер, для которого будет зарегистрирован вебхук-маршрут.
+
+    По учётным данным, а не по флагу включения — ровно по тому же правилу, по
+    которому монтируются маршруты (см. ``create_payment_router``).
+    """
+    return any(bool(getattr(settings, name)()) for name in WEBHOOK_PROVIDER_PREDICATES)
+
+
 def create_payment_router(bot: Bot, payment_service: PaymentService) -> APIRouter | None:
     """Роутер вебхуков платёжных провайдеров.
 

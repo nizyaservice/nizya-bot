@@ -50,6 +50,7 @@ from app.utils.log_handlers import ExcludePaymentFilter, LevelFilterHandler
 from app.utils.payment_logger import configure_payment_logger
 from app.utils.startup_timeline import StartupTimeline
 from app.webapi.server import WebAPIServer
+from app.webserver.payments import has_payment_webhook_provider
 from app.webserver.unified_app import create_unified_app
 
 
@@ -609,18 +610,14 @@ async def main():
         polling_enabled = bot_run_mode == 'polling'
         telegram_webhook_enabled = bot_run_mode == 'webhook'
 
-        payment_webhooks_enabled = any(
-            [
-                settings.TRIBUTE_ENABLED,
-                settings.is_cryptobot_enabled(),
-                settings.is_mulenpay_enabled(),
-                settings.is_yookassa_enabled(),
-                settings.is_pal24_enabled(),
-                settings.is_wata_enabled(),
-                settings.is_heleket_enabled(),
-                settings.is_apple_iap_enabled(),
-            ]
-        )
+        # Здесь перечислялись восемь провайдеров из двадцати семи, у которых
+        # есть вебхук-маршрут, и проверялся флаг включения вместо учётных
+        # данных. Поэтому с одним только Platega (или любым из остальных
+        # восемнадцати) в полинг-режиме и без веб-API сервер не поднимался, а
+        # коллбек об оплате уходил в никуда: деньги у провайдера, баланс не
+        # пополнен. Теперь решает сам модуль вебхуков — по тому же правилу, по
+        # которому монтирует маршруты.
+        payment_webhooks_enabled = has_payment_webhook_provider()
 
         async with timeline.stage(
             'Единый веб-сервер',
