@@ -24,6 +24,27 @@ def _get_active_methods() -> list[int]:
     return settings.get_platega_active_methods()
 
 
+def _payment_methods_keyboard(texts) -> types.InlineKeyboardMarkup:
+    """Выход с экрана ошибки создания платежа.
+
+    Экран приходил вовсе без кнопок, то есть упирался в тупик: человек
+    оставался в чате с сообщением «попробуйте позже» и без единого способа
+    вернуться. А вернуться есть куда — отказ приходит от конкретного метода
+    (например, картой не собрался каскад), и соседний способ оплаты проходит.
+    Ведём к списку способов пополнения (``balance_topup``).
+    """
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=texts.t('BACK_TO_PAYMENT_METHODS', '💳 К вариантам оплаты'),
+                    callback_data='balance_topup',
+                )
+            ]
+        ]
+    )
+
+
 async def _prompt_amount(
     message: types.Message,
     db_user: User,
@@ -331,7 +352,8 @@ async def process_platega_payment_amount(
             texts.t(
                 'PLATEGA_PAYMENT_ERROR',
                 '❌ Ошибка создания платежа Platega. Попробуйте позже или обратитесь в поддержку.',
-            )
+            ),
+            reply_markup=_payment_methods_keyboard(texts),
         )
         await state.clear()
         return

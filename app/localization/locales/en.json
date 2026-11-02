@@ -1291,6 +1291,7 @@
   "PAYMENT_METHODS_ONLY_SUPPORT": "💳 <b>Balance top-up methods</b>\n\n⚠️ Automated payment methods are temporarily unavailable.\nContact support to top up your balance.\n\nChoose a top-up method:",
   "PAYMENT_METHODS_PROMPT": "Choose the payment method that suits you:",
   "PAYMENT_METHODS_TITLE": "💳 <b>Balance top-up methods</b>",
+  "BACK_TO_PAYMENT_METHODS": "💳 Back to payment methods",
   "PAYMENT_METHODS_UNAVAILABLE_ALERT": "⚠️ Automated payment methods are temporarily unavailable. Contact support to top up your balance.",
   "PAYMENT_METHOD_CRYPTOBOT_DESCRIPTION": "via CryptoBot",
   "PAYMENT_METHOD_CRYPTOBOT_NAME": "🪙 <b>Cryptocurrency</b>",
