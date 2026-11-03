@@ -84,7 +84,7 @@ from app.services.support_settings_service import SupportSettingsService
 from app.services.web_auth_service import WEB_AUTH_TOKEN_MIN_LENGTH, link_web_auth_token
 from app.states import RegistrationStates
 from app.utils.gift_links import InvalidGiftTokenError, parse_gift_claim_input
-from app.utils.long_messages import answer_long_text, edit_long_text, send_long_text
+from app.utils.long_messages import answer_long_text, edit_long_text, send_long_text, sendable_message
 from app.utils.rich_menu import try_answer_rich_main_menu, try_send_rich_main_menu
 from app.utils.telegram_html import html_to_telegram
 from app.utils.user_utils import generate_unique_referral_code
@@ -1200,8 +1200,18 @@ async def _continue_registration_after_language(
         return
 
     rules_text = await _rules_for_telegram(language)
+    sendable = sendable_message(target_message)
     try:
-        await answer_long_text(target_message, rules_text, reply_markup=get_rules_keyboard(language))
+        if sendable is None:
+            # Сообщение с кнопкой боту больше не видно — правила уходят новым.
+            await send_long_text(
+                (callback or message).bot,
+                target_message.chat.id,
+                rules_text,
+                reply_markup=get_rules_keyboard(language),
+            )
+        else:
+            await answer_long_text(sendable, rules_text, reply_markup=get_rules_keyboard(language))
     except TelegramForbiddenError:
         logger.warning(
             '⚠️ Пользователь заблокировал бота, пропускаем отправку правил',
@@ -1931,21 +1941,38 @@ async def _show_privacy_policy_after_rules(
     else:
         logger.info('🔒 Используется политика конфиденциальности из БД для языка', language=language)
 
+    # Сообщение с кнопкой «принимаю правила» бот может уже не видеть (человек
+    # его удалил) — тогда политику шлём новым сообщением, иначе шаг регистрации
+    # срывался с AttributeError и человек застревал без политики.
+    sendable = sendable_message(callback.message)
+    chat_id = callback.message.chat.id if callback.message else callback.from_user.id
+
     try:
-        await edit_long_text(
-            callback.message,
-            privacy_policy_text,
-            reply_markup=get_privacy_policy_keyboard(language),
-            parse_mode='HTML',
-        )
+        if sendable is None:
+            await send_long_text(
+                callback.bot,
+                chat_id,
+                privacy_policy_text,
+                reply_markup=get_privacy_policy_keyboard(language),
+                parse_mode='HTML',
+            )
+        else:
+            await edit_long_text(
+                sendable,
+                privacy_policy_text,
+                reply_markup=get_privacy_policy_keyboard(language),
+                parse_mode='HTML',
+            )
         await state.set_state(RegistrationStates.waiting_for_privacy_policy_accept)
         logger.info('🔒 Политика конфиденциальности отправлена пользователю', from_user_id=callback.from_user.id)
         return True
     except Exception as e:
         logger.error('Ошибка при показе политики конфиденциальности', error=e, exc_info=True)
         try:
-            await answer_long_text(
-                callback.message,
+            # Фолбэк всегда новым сообщением: правка исходного уже не удалась.
+            await send_long_text(
+                callback.bot,
+                chat_id,
                 privacy_policy_text,
                 reply_markup=get_privacy_policy_keyboard(language),
                 parse_mode='HTML',

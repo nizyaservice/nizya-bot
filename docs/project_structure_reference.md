@@ -2310,7 +2310,7 @@
   Функции: `logo_fingerprint` — Отпечаток файла логотипа: меняется при каждой загрузке нового файла., `logo_version` — Короткая версия для ``?v=`` в адресе; ``None`` — файла нет.
 - `app/utils/long_messages.py` — Python-модуль
   Классы: нет
-  Функции: `answer_long_text` — message.answer с разбивкой; клавиатура — на последнем куске., `edit_long_text` — message.edit_text с разбивкой., `send_long_text` — bot.send_message с разбивкой; клавиатура — на последнем куске.
+  Функции: `sendable_message` — Сообщение, которому можно отвечать и которое можно править, иначе ``None``., `answer_long_text` — message.answer с разбивкой; клавиатура — на последнем куске., `edit_long_text` — message.edit_text с разбивкой., `send_long_text` — bot.send_message с разбивкой; клавиатура — на последнем куске.
 - `app/utils/markdown_to_telegram.py` — Python-модуль
   Классы: нет
   Функции: `github_markdown_to_telegram_html` — Convert GitHub-flavored Markdown to Telegram HTML., `truncate_for_blockquote` — Truncate description HTML to fit within Telegram message limit inside a blockquote.
@@ -4731,6 +4731,9 @@
 - `tests/handlers/test_referral_settings_screen.py` — Python-модуль
   Классы: `TestVisibility` (3 методов), `TestCurrentStateIsVisible` (3 методов), `TestSaving` (7 методов), `TestDaysTargetFollowsTheKindChoice` (2 методов), `TestAmountsAreShown` (2 методов)
   Функции: `allowed`, `sides` — Суммы сторон считает движок по настоящей БД — здесь она не предмет., `subs`, `test_every_handler_is_registered` — Обработчик без регистрации — кнопка, которая молча ничего не делает.
+- `tests/handlers/test_registration_inaccessible_message.py` — Python-модуль
+  Классы: нет
+  Функции: `test_inaccessible_message_is_not_sendable`, `test_policy_is_sent_as_a_new_message_when_the_button_message_is_gone`, `test_policy_still_edits_the_message_when_it_is_accessible` — Обычный путь не меняется: политика правит то же сообщение.
 - `tests/handlers/test_resolve_subscription_footgun_guard.py` — Python-модуль
   Классы: нет
   Функции: `test_underscore_trailing_number_is_NOT_used_as_sub_id`, `test_colon_trailing_real_sub_id_is_used`

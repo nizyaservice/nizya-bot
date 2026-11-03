@@ -15,6 +15,21 @@ def _split(text: str) -> list[str]:
     return chunks or [text]
 
 
+def sendable_message(message: types.MaybeInaccessibleMessage | None) -> types.Message | None:
+    """Сообщение, которому можно отвечать и которое можно править, иначе ``None``.
+
+    В колбэке вместо сообщения может приехать ``InaccessibleMessage`` — так
+    Telegram сообщает, что бот это сообщение больше не видит (человек удалил
+    его или очистил чат). Это модель с ``chat``/``message_id``/``date``, и
+    методов ``edit_text``/``answer`` у неё нет вовсе: обращение падает
+    ``AttributeError`` мимо всех обработчиков ошибок Telegram. Отвечать в таком
+    случае нужно новым сообщением — ``send_long_text`` по ``chat_id``.
+    """
+    if message is None or isinstance(message, types.InaccessibleMessage):
+        return None
+    return message
+
+
 async def answer_long_text(
     message: types.Message,
     text: str,
