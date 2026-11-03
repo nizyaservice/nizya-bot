@@ -5773,6 +5773,9 @@
 - `tests/utils/test_gift_links.py` — Python-модуль
   Классы: `TestBuildBotGiftClaimLink` (9 методов), `TestBuildCabinetGiftClaimLink` (5 методов), `TestBuildTelegramGiftShareUrl` (8 методов), `TestLandingGiftLinkIntegration` (1 методов), `TestBuildGiftPublicCode` (9 методов), `TestParseGiftClaimInput` (14 методов), `TestGiftClaimArtifacts` (6 методов)
   Функции: нет
+- `tests/utils/test_inaccessible_screen_delivery.py` — Python-модуль
+  Классы: нет
+  Функции: `test_screen_with_banner_is_sent_as_a_new_photo`, `test_photo_failure_falls_back_to_text`, `test_without_logo_mode_the_screen_goes_as_text`, `test_text_screen_is_resent_when_the_message_is_gone` — ``safe_edit_or_resend`` зовут с callback.message в тикетах — тот же случай., `test_bot_of_returns_none_without_context` — У отвязанной модели обращение к .bot бросает исключение, а не отдаёт None.
 - `tests/utils/test_incy_crypt1.py` — Python-модуль
   Классы: `TestEncryptIncyLink` (6 методов), `TestWrapIncyDeepLink` (12 методов)
   Функции: `decrypt` — Decrypt a crypt1 link the way the INCY client does., `incy_enabled`

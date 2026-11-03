@@ -62,6 +62,20 @@ def _resolve_media(message: types.Message, media=_MEDIA_UNSET):
     return get_logo_media()
 
 
+def _bot_of(event) -> object | None:
+    """Бот из события; ``None``, если контекст бота не проставлен.
+
+    Нужен там, где отвечать приходится новым сообщением, а методов отправки у
+    объекта нет — см. ``InaccessibleMessage``. Обращение к ``event.bot`` вне
+    контекста (в тестах и у отвязанных моделей) бросает исключение, а не
+    отдаёт ``None``, поэтому гасим его здесь.
+    """
+    try:
+        return event.bot
+    except Exception:
+        return None
+
+
 def _get_language(callback: types.CallbackQuery) -> str | None:
     try:
         user = callback.from_user
@@ -96,6 +110,17 @@ async def safe_edit_or_resend(
         text: Текст для отправки/редактирования.
         reply_markup: Клавиатура (опционально).
     """
+    if isinstance(message, InaccessibleMessage):
+        # Сообщение боту больше не видно (его удалили): ни edit_text, ни
+        # answer у этой модели нет — любое обращение падает AttributeError.
+        # Отвечаем новым сообщением в тот же чат.
+        bot = _bot_of(message)
+        if bot is None:
+            logger.warning('Недоступное сообщение без контекста бота — отправить нечем')
+            return
+        await bot.send_message(chat_id=message.chat.id, text=text, reply_markup=reply_markup)
+        return
+
     try:
         await message.edit_text(text, reply_markup=reply_markup)
     except TelegramBadRequest as error:
@@ -152,14 +177,25 @@ async def edit_or_answer_photo(
             media = auto_media
             has_explicit_media = True
 
-    # Если сообщение недоступно, отправляем новое сообщение
+    # Сообщение с кнопкой боту больше не видно (его удалили). Ветка отправляла
+    # новое сообщение методами самого InaccessibleMessage — а их у этой модели
+    # нет, то есть экран не доезжал вовсе: исключение гасилось, человек не
+    # получал ничего. Отправляем через bot по chat_id.
     if isinstance(callback.message, InaccessibleMessage):
+        bot = _bot_of(callback)
+        chat = getattr(callback.message, 'chat', None)
+        chat_id = getattr(chat, 'id', None) or getattr(callback.from_user, 'id', None)
+        if bot is None or chat_id is None:
+            logger.warning('Недоступное сообщение без бота или чата — экран отправить нечем')
+            return
+
         try:
             resolved_media = _resolve_media(callback.message, media)
             if resolved_media is not None and (
                 has_explicit_media or (settings.ENABLE_LOGO_MODE and LOGO_PATH.exists())
             ):
-                result = await callback.message.answer_photo(
+                result = await bot.send_photo(
+                    chat_id=chat_id,
                     photo=resolved_media,
                     caption=caption,
                     reply_markup=keyboard,
@@ -169,21 +205,24 @@ async def edit_or_answer_photo(
                     _cache_logo_file_id(result)
                 remember_file_photo(resolved_media, result)
             else:
-                await callback.message.answer(
-                    caption,
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
                     reply_markup=keyboard,
                     parse_mode=resolved_parse_mode,
                 )
-        except Exception as e:
-            logger.warning('Не удалось отправить новое сообщение для InaccessibleMessage', e=e)
+        except Exception as error:
+            logger.warning('Не удалось отправить экран фото, пробуем текстом', error=str(error))
             try:
-                await callback.message.answer(
-                    caption,
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
                     reply_markup=keyboard,
                     parse_mode=resolved_parse_mode,
                 )
-            except Exception:
-                pass
+            except Exception as text_error:
+                # Раньше тут было молчаливое pass: экран пропадал без следа.
+                logger.error('Экран не доехал до недоступного сообщения', error=str(text_error))
         return
 
     # Если режим логотипа выключен или требуется текстовое сообщение — работаем текстом
