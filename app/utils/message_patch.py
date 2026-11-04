@@ -12,6 +12,7 @@ from aiogram.types import FSInputFile, InaccessibleMessage, InputMediaPhoto, Mes
 from app.config import settings
 from app.localization.texts import get_texts
 from app.utils.logo_fingerprint import logo_fingerprint
+from app.utils.screen_delivery import force_new_screen_enabled
 
 
 logger = structlog.get_logger(__name__)
@@ -397,6 +398,12 @@ async def _answer_with_photo(self: Message, text: str = None, **kwargs):
 
 
 async def _edit_with_photo(self: Message, text: str, **kwargs):
+    # Нажата кнопка в сообщении рассылки: экран назначения уезжает НОВЫМ
+    # сообщением, а сама рассылка остаётся в чате. Во всех прочих флоу флаг
+    # не выставлен и сообщение правится как раньше (app/utils/screen_delivery.py).
+    if force_new_screen_enabled():
+        return await _answer_with_photo(self, text, **kwargs)
+
     # Уважаем флаг в рантайме: если логотип выключен — не подменяем редактирование
     if not settings.ENABLE_LOGO_MODE:
         kwargs.setdefault('disable_web_page_preview', True)

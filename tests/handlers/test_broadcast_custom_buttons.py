@@ -35,9 +35,11 @@ def test_keyboard_passes_icon_custom_emoji_id():
     assert url_button.url == 'https://example.com'
     assert url_button.icon_custom_emoji_id == EMOJI_ID
 
-    # Без поля кнопка остаётся обычной
+    # Без поля кнопка остаётся обычной. Метка `bc:` — у всех callback-кнопок
+    # рассылки: по ней экран назначения уезжает новым сообщением, а сама
+    # рассылка остаётся в чате (app/utils/screen_delivery.py).
     callback_button = keyboard.inline_keyboard[1][0]
-    assert callback_button.callback_data == 'menu_main'
+    assert callback_button.callback_data == 'bc:menu_main'
     assert callback_button.icon_custom_emoji_id is None
 
 

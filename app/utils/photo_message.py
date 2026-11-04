@@ -8,6 +8,7 @@ from aiogram.types import InaccessibleMessage, InputMediaPhoto
 
 from app.config import settings
 from app.services.section_image_service import remember_file_photo
+from app.utils.screen_delivery import force_new_screen_enabled
 
 from .message_patch import (
     LOGO_PATH,
@@ -157,6 +158,58 @@ async def _answer_text(
     )
 
 
+async def _send_new_screen(
+    bot,
+    chat_id: int,
+    caption: str,
+    keyboard: types.InlineKeyboardMarkup,
+    parse_mode: str,
+    media,
+    *,
+    has_explicit_media: bool,
+    source_message=None,
+) -> None:
+    """Экран новым сообщением: фото с подписью, иначе текстом.
+
+    Два вызывающих: недоступное сообщение (его удалили, править нечего) и
+    кнопка из рассылки (саму рассылку оставляем в чате). Оба шлют через ``bot``
+    по ``chat_id``, потому что у ``InaccessibleMessage`` методов отправки нет,
+    а у рассылки правка сообщения — ровно то, чего мы избегаем.
+    """
+    try:
+        resolved_media = _resolve_media(source_message, media)
+        if resolved_media is not None and (has_explicit_media or (settings.ENABLE_LOGO_MODE and LOGO_PATH.exists())):
+            result = await bot.send_photo(
+                chat_id=chat_id,
+                photo=resolved_media,
+                caption=caption,
+                reply_markup=keyboard,
+                parse_mode=parse_mode,
+            )
+            if not has_explicit_media:
+                _cache_logo_file_id(result)
+            remember_file_photo(resolved_media, result)
+        else:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=keyboard,
+                parse_mode=parse_mode,
+            )
+    except Exception as error:
+        logger.warning('Не удалось отправить экран фото, пробуем текстом', error=str(error))
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=keyboard,
+                parse_mode=parse_mode,
+            )
+        except Exception as text_error:
+            # Раньше тут было молчаливое pass: экран пропадал без следа.
+            logger.error('Экран не доехал новым сообщением', error=str(text_error))
+
+
 async def edit_or_answer_photo(
     callback: types.CallbackQuery,
     caption: str,
@@ -189,41 +242,40 @@ async def edit_or_answer_photo(
             logger.warning('Недоступное сообщение без бота или чата — экран отправить нечем')
             return
 
-        try:
-            resolved_media = _resolve_media(callback.message, media)
-            if resolved_media is not None and (
-                has_explicit_media or (settings.ENABLE_LOGO_MODE and LOGO_PATH.exists())
-            ):
-                result = await bot.send_photo(
-                    chat_id=chat_id,
-                    photo=resolved_media,
-                    caption=caption,
-                    reply_markup=keyboard,
-                    parse_mode=resolved_parse_mode,
-                )
-                if not has_explicit_media:
-                    _cache_logo_file_id(result)
-                remember_file_photo(resolved_media, result)
-            else:
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=caption,
-                    reply_markup=keyboard,
-                    parse_mode=resolved_parse_mode,
-                )
-        except Exception as error:
-            logger.warning('Не удалось отправить экран фото, пробуем текстом', error=str(error))
-            try:
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=caption,
-                    reply_markup=keyboard,
-                    parse_mode=resolved_parse_mode,
-                )
-            except Exception as text_error:
-                # Раньше тут было молчаливое pass: экран пропадал без следа.
-                logger.error('Экран не доехал до недоступного сообщения', error=str(text_error))
+        await _send_new_screen(
+            bot,
+            chat_id,
+            caption,
+            keyboard,
+            resolved_parse_mode,
+            media,
+            has_explicit_media=has_explicit_media,
+            source_message=callback.message,
+        )
         return
+
+    # Нажата кнопка в сообщении рассылки: экран назначения уезжает НОВЫМ
+    # сообщением, а рассылка остаётся в чате. Шлём сами, а не через
+    # message.answer: явный баннер раздела (media) иначе потерялся бы в пользу
+    # автодетекта по клавиатуре. См. app/utils/screen_delivery.py.
+    if force_new_screen_enabled():
+        bot = _bot_of(callback)
+        chat = getattr(callback.message, 'chat', None)
+        chat_id = getattr(chat, 'id', None) or getattr(callback.from_user, 'id', None)
+        if bot is not None and chat_id is not None:
+            await _send_new_screen(
+                bot,
+                chat_id,
+                caption,
+                keyboard,
+                resolved_parse_mode,
+                media,
+                has_explicit_media=has_explicit_media,
+                source_message=callback.message,
+            )
+            return
+        # Без бота или чата отправить новым нечем — правим текущее, как раньше.
+        logger.warning('Кнопка рассылки без контекста бота — экран правим на месте')
 
     # Если режим логотипа выключен или требуется текстовое сообщение — работаем текстом
     if force_text or (not settings.ENABLE_LOGO_MODE and not has_explicit_media):

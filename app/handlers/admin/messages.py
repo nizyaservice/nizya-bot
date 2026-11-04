@@ -47,6 +47,7 @@ from app.states import AdminStates
 from app.utils.decorators import admin_required, error_handler
 from app.utils.message_patch import caption_exceeds_telegram_limit
 from app.utils.miniapp_buttons import BUTTON_KEY_TO_CABINET_PATH, build_miniapp_or_callback_button
+from app.utils.screen_delivery import wrap_broadcast_callback
 from app.utils.timezone import format_local_datetime, local_day_start
 
 
@@ -134,17 +135,20 @@ def create_broadcast_keyboard(
             if button_key not in selected_buttons:
                 continue
             button_config = button_config_map[button_key]
+            # Метка `bc:` — чтобы экран назначения уехал новым сообщением, а
+            # сама рассылка осталась в чате (app/utils/screen_delivery.py).
+            callback_data = wrap_broadcast_callback(button_config['callback'])
             if settings.is_cabinet_mode() and button_key in CABINET_MINIAPP_BUTTON_KEYS:
                 row_buttons.append(
                     build_miniapp_or_callback_button(
                         text=button_config['text'],
-                        callback_data=button_config['callback'],
+                        callback_data=callback_data,
                         cabinet_path=BUTTON_KEY_TO_CABINET_PATH.get(button_key, ''),
                     )
                 )
             else:
                 row_buttons.append(
-                    types.InlineKeyboardButton(text=button_config['text'], callback_data=button_config['callback'])
+                    types.InlineKeyboardButton(text=button_config['text'], callback_data=callback_data)
                 )
         if row_buttons:
             keyboard.append(row_buttons)
@@ -168,7 +172,9 @@ def create_broadcast_keyboard(
                 keyboard.append(
                     [
                         types.InlineKeyboardButton(
-                            text=label, callback_data=action_value, icon_custom_emoji_id=icon_emoji
+                            text=label,
+                            callback_data=wrap_broadcast_callback(action_value),
+                            icon_custom_emoji_id=icon_emoji,
                         )
                     ]
                 )

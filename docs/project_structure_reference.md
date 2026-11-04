@@ -1431,6 +1431,9 @@
 - `app/middlewares/blacklist.py` — Python-модуль
   Классы: `BlacklistMiddleware` (1 методов)
   Функции: нет
+- `app/middlewares/broadcast_buttons.py` — Python-модуль
+  Классы: `BroadcastButtonMiddleware` (1 методов)
+  Функции: нет
 - `app/middlewares/button_stats.py` — Python-модуль
   Классы: `ButtonStatsMiddleware` (8 методов)
   Функции: нет
@@ -2389,6 +2392,9 @@
 - `app/utils/rich_notify.py` — Python-модуль
   Классы: нет
   Функции: `build_notification_rich_html` — Текст уведомления → rich-разметка в стиле главного меню., `try_send_rich_notification` — Шлёт уведомление rich-сообщением. ``False`` — отправить классическое.
+- `app/utils/screen_delivery.py` — Python-модуль
+  Классы: нет
+  Функции: `force_new_screen_enabled` — Нужно ли отправить экран новым сообщением вместо правки текущего., `force_new_screen` — Включает отправку новым сообщением на время обработки апдейта., `wrap_broadcast_callback` — Помечает callback кнопки рассылки префиксом ``bc:``., `unwrap_broadcast_callback` — Исходный callback без метки рассылки; ``None`` — метки не было.
 - `app/utils/security.py` — Python-модуль
   Классы: нет
   Функции: `hash_api_token` — Возвращает хеш токена в формате hex., `generate_api_token` — Генерирует криптографически стойкий токен.
@@ -4686,6 +4692,9 @@
 - `tests/handlers/test_broadcast_admin_test_send.py` — Python-модуль
   Классы: нет
   Функции: `test_preview_offers_the_admin_test_button`, `test_preview_comes_back_as_a_new_message_after_the_test` — Тестовые сообщения ложатся поверх экрана — он должен стать последним., `test_test_send_reaches_every_admin_plus_the_initiator`, `test_test_send_uses_the_real_broadcast_keyboard` — Админ должен увидеть ровно то, что получат люди, — без админских кнопок., `test_test_send_keeps_the_audience_and_writes_no_history`, `test_test_send_survives_an_admin_who_blocked_the_bot`, `test_test_send_reports_when_nobody_got_it`, `test_test_send_refuses_without_a_message`, `test_deliverer_sends_a_photo_with_the_text_as_caption`, `test_deliverer_splits_a_caption_over_the_limit`, `test_deliverer_falls_back_to_text_for_an_unknown_media_type`, `test_broadcast_and_test_share_one_deliverer` — Разъехавшись, «тест» перестал бы показывать то, что получат люди.
+- `tests/handlers/test_broadcast_button_opens_new_screen.py` — Python-модуль
+  Классы: нет
+  Функции: `test_wrap_and_unwrap_round_trip`, `test_wrap_does_not_stack_the_prefix`, `test_wrap_keeps_a_callback_that_would_not_fit` — Лимит Telegram — 64 байта, и кнопка важнее способа доставки экрана., `test_flag_is_off_outside_the_context`, `test_broadcast_keyboard_marks_its_buttons`, `test_broadcast_keyboard_marks_custom_callback_buttons_and_leaves_urls`, `test_middleware_strips_the_mark_and_turns_the_flag_on`, `test_middleware_leaves_ordinary_callbacks_alone` — Все прочие флоу бота обязаны остаться с правкой текущего сообщения., `test_middleware_passes_through_other_event_types`, `test_screen_arrives_as_a_new_message_under_the_flag`, `test_screen_keeps_editing_without_the_flag` — Контрольный кейс: обычный флоу правит текущее сообщение, как раньше., `test_explicit_banner_survives_the_new_message` — Явный баннер раздела не должен потеряться в пользу автодетекта., `test_patched_edit_text_answers_instead_of_editing_under_the_flag` — Хендлеры, которые зовут message.edit_text напрямую, тоже должны слушаться.
 - `tests/handlers/test_broadcast_custom_buttons.py` — Python-модуль
   Классы: нет
   Функции: `test_keyboard_passes_icon_custom_emoji_id`, `test_schema_roundtrips_icon_custom_emoji_id`, `test_schema_defaults_to_none_and_rejects_garbage`

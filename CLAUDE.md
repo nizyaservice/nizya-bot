@@ -141,6 +141,15 @@ make docs-structure          # перегенерить docs/project_structure_r
 подключение — у кого привязка жива, кнопка остаётся (иначе списания идут, а отменить
 нечем; тот же принцип, что у строки Cashera в `handlers/subscription/autopay.py`).
 
+Четвёртая — **кнопки рассылки открывают экран новым сообщением**
+(`app/utils/screen_delivery.py` + `app/middlewares/broadcast_buttons.py`).
+Кнопки, которые строит `create_broadcast_keyboard`, несут в `callback_data`
+метку `bc:`; outer-мидлвара снимает её **до фильтров** (inner не подойдёт:
+помеченное нажатие не попало бы ни в один маршрут) и включает ContextVar
+`force_new_screen`. Флаг читают две точки отрисовки — `edit_or_answer_photo`
+и патченный `Message.edit_text`; хендлеры разделов о нём не знают, поэтому
+все прочие флоу по-прежнему правят текущее сообщение.
+
 Остальной fork-diff по хендлерам (`handlers/balance/*`, `subscription/*`, `menu.py`…) —
 в основном подстановка `media`/баннеров в вызовы отправки сообщений.
 
