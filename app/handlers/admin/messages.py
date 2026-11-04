@@ -45,6 +45,7 @@ from app.services.pinned_message_service import (
 )
 from app.states import AdminStates
 from app.utils.decorators import admin_required, error_handler
+from app.utils.message_patch import caption_exceeds_telegram_limit
 from app.utils.miniapp_buttons import BUTTON_KEY_TO_CABINET_PATH, build_miniapp_or_callback_button
 from app.utils.timezone import format_local_datetime, local_day_start
 
@@ -788,16 +789,73 @@ async def select_broadcast_target(callback: types.CallbackQuery, db_user: User, 
     await callback.answer()
 
 
+def _authored_html(message: types.Message) -> str | None:
+    """Текст сообщения в HTML: из ``text`` или из подписи к файлу.
+
+    У сообщения с фото ``text`` пустой — текст живёт в ``caption``, и шаг
+    рассылки падал на ``len(None)``, стоило приложить картинку сразу с
+    текстом. Форматирование автора (жирный, monospace) приезжает отдельными
+    entities, а не тегами, поэтому берём ``html_text``: aiogram собирает из
+    entities готовый HTML, учитывая и подпись, а рассылка и так уходит с
+    ``parse_mode='HTML'``. Без этого моноширинный текст терялся бы молча.
+    ``html_text`` бросает ``TypeError``, когда текста нет вовсе.
+    """
+    try:
+        return message.html_text or None
+    except TypeError:
+        return None
+
+
+def _attached_media(message: types.Message) -> tuple[str, str] | None:
+    """``(тип, file_id)`` файла, приложенного к сообщению, если он есть."""
+    if message.photo:
+        return 'photo', message.photo[-1].file_id
+    if message.video:
+        return 'video', message.video.file_id
+    if message.document:
+        return 'document', message.document.file_id
+    return None
+
+
 @admin_required
 @error_handler
 async def process_broadcast_message(message: types.Message, db_user: User, state: FSMContext, db: AsyncSession):
-    broadcast_text = message.text
+    broadcast_text = _authored_html(message)
+
+    if not broadcast_text:
+        await message.answer(
+            '❌ Нужен текст рассылки.\n\nПришлите его сообщением — или подписью к фото, если отправляете с картинкой.'
+        )
+        return
 
     if len(broadcast_text) > 4000:
         await message.answer('❌ Сообщение слишком длинное (максимум 4000 символов)')
         return
 
     await state.update_data(broadcast_message=broadcast_text)
+
+    media = _attached_media(message)
+    if media is not None:
+        # Текст и файл пришли одним сообщением — шаг выбора медиа не нужен.
+        # Подпись отдельно не храним: broadcast_service берёт
+        # `media.caption or message_text`, и текст рассылки станет подписью.
+        if caption_exceeds_telegram_limit(broadcast_text):
+            await message.answer(
+                '❌ С картинкой Telegram разрешает подпись до 1024 символов, а текст длиннее.\n\n'
+                'Пришлите текст короче — или отправьте его без картинки, тогда её можно будет '
+                'добавить следующим шагом.'
+            )
+            return
+
+        media_type, media_file_id = media
+        await state.update_data(
+            has_media=True,
+            media_file_id=media_file_id,
+            media_type=media_type,
+            media_caption=None,
+        )
+        await show_media_preview(message, db_user, state)
+        return
 
     await message.answer(
         '🖼️ <b>Добавление медиафайла</b>\n\n'
