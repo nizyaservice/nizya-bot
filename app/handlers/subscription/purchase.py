@@ -164,6 +164,7 @@ from .devices import (
     get_current_devices_count,
     get_servers_display_names,
     handle_all_devices_reset_from_management,
+    handle_all_devices_reset_request,
     handle_app_selection,
     handle_change_devices,
     handle_device_card,
@@ -4403,6 +4404,9 @@ def register_handlers(dp: Dispatcher):
     # message.text==None трактуется как пустая строка и очищает alias.
     dp.message.register(process_device_rename, SubscriptionStates.renaming_device, F.text)
 
+    # Сброс всех устройств спрашивает: `reset_all_ask_<page>` — экран вопроса,
+    # `reset_all_devices` — сам сброс, доступный только с него.
+    dp.callback_query.register(handle_all_devices_reset_request, F.data.regexp(r'^reset_all_ask_\d+$'))
     dp.callback_query.register(handle_all_devices_reset_from_management, F.data == 'reset_all_devices')
 
     dp.callback_query.register(show_device_connection_help, F.data == 'device_connection_help')

@@ -30,6 +30,7 @@ from app.keyboards.inline import (
     get_device_delete_confirm_keyboard,
     get_device_management_help_keyboard,
     get_devices_management_keyboard,
+    get_devices_reset_all_confirm_keyboard,
     get_insufficient_balance_keyboard,
     get_specific_app_keyboard,
 )
@@ -1209,6 +1210,64 @@ async def handle_device_delete_request(
         callback=callback,
         caption=caption,
         keyboard=get_device_delete_confirm_keyboard(device_index, page, db_user.language),
+        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
+    )
+    await callback.answer()
+
+
+async def handle_all_devices_reset_request(
+    callback: types.CallbackQuery, db_user: User, db: AsyncSession, state: FSMContext = None
+):
+    """Callback `reset_all_ask_<page>` — «Сбросить все устройства?».
+
+    Сам сброс делает `handle_all_devices_reset_from_management` по
+    `reset_all_devices`, на который указывает кнопка «Сбросить все» этого
+    экрана: раньше кнопка в списке сбрасывала всё сразу, без вопроса.
+    """
+    texts = get_texts(db_user.language)
+
+    try:
+        page = int(callback.data.split('_')[3])
+    except (IndexError, ValueError):
+        page = 1
+
+    subscription, _sub_id = await _resolve_subscription(callback, db_user, db, state)
+    panel_user_id = _get_panel_user_id(subscription, db_user) if subscription else db_user.remnawave_id
+    if not panel_user_id:
+        await callback.answer(
+            texts.t('DEVICE_UUID_NOT_FOUND', '❌ UUID пользователя не найден'),
+            show_alert=True,
+        )
+        return
+
+    devices_list = await _load_user_devices(panel_user_id, db_user.id)
+    if devices_list is None:
+        await callback.answer(
+            texts.t('DEVICE_LIST_FETCH_ERROR', '❌ Ошибка получения списка устройств'),
+            show_alert=True,
+        )
+        return
+
+    if not devices_list:
+        await callback.answer(
+            texts.t('DEVICE_NONE_CONNECTED', 'ℹ️ У вас нет подключенных устройств'),
+            show_alert=True,
+        )
+        return
+
+    caption = texts.t(
+        'DEVICES_RESET_ALL_CONFIRM',
+        (
+            '❓ <b>Сбросить все устройства?</b>\n\n'
+            'Будет отключено устройств: {count}. Подключить их заново можно '
+            'в любой момент — ссылка подписки не меняется.'
+        ),
+    ).format(count=len(devices_list))
+
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=caption,
+        keyboard=get_devices_reset_all_confirm_keyboard(page, db_user.language),
         **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
     )
     await callback.answer()

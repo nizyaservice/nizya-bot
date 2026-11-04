@@ -3489,11 +3489,13 @@ def get_devices_management_keyboard(
 
         keyboard.append(nav_row)
 
+    # Сброс всех устройств тоже спрашивает — исторический `reset_all_devices`
+    # остался точкой сброса, но доступен только с экрана подтверждения.
     keyboard.append(
         [
             InlineKeyboardButton(
                 text=texts.t('RESET_ALL_DEVICES_BUTTON', '🔄 Сбросить все устройства'),
-                callback_data='reset_all_devices',
+                callback_data=f'reset_all_ask_{pagination.page}',
             )
         ]
     )
@@ -3531,6 +3533,35 @@ def get_device_card_keyboard(
                 )
             ],
             [InlineKeyboardButton(text=texts.BACK, callback_data=f'devices_page_{page}')],
+        ]
+    )
+
+
+def get_devices_reset_all_confirm_keyboard(
+    page: int,
+    language: str = DEFAULT_LANGUAGE,
+) -> InlineKeyboardMarkup:
+    """Подтверждение сброса всех устройств: «Сбросить все» / «Отмена».
+
+    «Отмена» возвращает на ту страницу списка, с которой нажали, а не в меню
+    подписки.
+    """
+    texts = get_texts(language)
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=texts.t('DEVICES_RESET_ALL_CONFIRM_BUTTON', '🔄 Сбросить все'),
+                    callback_data='reset_all_devices',
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=texts.t('DEVICES_RESET_ALL_CANCEL_BUTTON', '✖️ Отмена'),
+                    callback_data=f'devices_page_{page}',
+                )
+            ],
         ]
     )
 

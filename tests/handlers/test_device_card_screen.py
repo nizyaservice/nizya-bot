@@ -9,8 +9,10 @@
 * тап открывает карточку устройства с «Переименовать» / «Удалить» / «Назад»;
 * «Удалить» ведёт на подтверждение «Точно удалить устройство X?», и только
   его кнопка «Удалить» реально дёргает панель;
+* «Сбросить все устройства» тоже спрашивает — «Сбросить все» / «Отмена»;
 * «назад»-кнопки ведут на предыдущий экран: карточка → страница списка,
-  подтверждение → карточка, отмена переименования → карточка.
+  подтверждение → карточка, отмена переименования → карточка, отмена сброса
+  всех → та же страница списка.
 """
 
 import inspect
@@ -25,6 +27,7 @@ from app.keyboards.inline import (
     get_device_card_keyboard,
     get_device_delete_confirm_keyboard,
     get_devices_management_keyboard,
+    get_devices_reset_all_confirm_keyboard,
 )
 from app.utils.device_labels import device_display_name, shorten_device_label
 
@@ -280,3 +283,58 @@ def test_rename_prompt_remembers_the_card_index():
     """start_device_rename обязан сохранить индекс — иначе «Отмена» не найдёт карточку."""
     source = inspect.getsource(devices_mod.start_device_rename)
     assert 'rename_index=device_index' in source
+
+
+# ─── сброс всех устройств ───
+
+
+def test_reset_all_button_asks_before_resetting():
+    devices = [{'hwid': 'A'}, {'hwid': 'B'}]
+
+    keyboard = get_devices_management_keyboard(devices, _pagination(page=2, total_pages=3), 'ru')
+
+    callbacks = _callbacks(keyboard)
+    assert 'reset_all_ask_2' in callbacks
+    # Сам сброс из списка больше не достигается.
+    assert 'reset_all_devices' not in callbacks
+
+
+def test_reset_all_confirm_keyboard_cancels_back_to_the_same_page():
+    keyboard = get_devices_reset_all_confirm_keyboard(3, 'ru')
+
+    assert _callbacks(keyboard) == ['reset_all_devices', 'devices_page_3']
+
+
+@pytest.mark.anyio('asyncio')
+async def test_reset_all_request_shows_the_count_and_waits():
+    service = _service_returning([{'hwid': 'A'}, {'hwid': 'B'}, {'hwid': 'C'}])
+    cb, user, db = _make_callback('reset_all_ask_2'), _make_user(), MagicMock()
+
+    with ExitStack() as stack:
+        for p in _screen_patches(service):
+            stack.enter_context(p)
+        send = devices_mod.edit_or_answer_photo
+        await devices_mod.handle_all_devices_reset_request(cb, user, db, None)
+
+    send.assert_awaited_once()
+    caption = send.await_args.kwargs['caption']
+    assert '3' in caption
+    assert _callbacks(send.await_args.kwargs['keyboard']) == ['reset_all_devices', 'devices_page_2']
+    # Вопрос ничего не сбрасывает.
+    service.api_double.remove_device.assert_not_awaited()
+
+
+@pytest.mark.anyio('asyncio')
+async def test_reset_all_request_without_devices_reports_instead_of_asking():
+    service = _service_returning([])
+    cb, user, db = _make_callback('reset_all_ask_1'), _make_user(), MagicMock()
+
+    with ExitStack() as stack:
+        for p in _screen_patches(service):
+            stack.enter_context(p)
+        send = devices_mod.edit_or_answer_photo
+        await devices_mod.handle_all_devices_reset_request(cb, user, db, None)
+
+    send.assert_not_awaited()
+    assert cb.answer.await_args.kwargs.get('show_alert') is True
+    service.api_double.remove_device.assert_not_awaited()

@@ -80,6 +80,7 @@ _SUBRULES: tuple[tuple[str, frozenset[str], tuple[str, ...]], ...] = (
             'device_rename',
             'device_card_',
             'device_remove_',
+            'reset_all_ask_',
         ),
     ),
     (
