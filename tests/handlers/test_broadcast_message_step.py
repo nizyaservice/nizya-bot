@@ -144,7 +144,8 @@ async def test_too_long_caption_is_refused_before_sending(monkeypatch):
 
 
 def test_caption_rule_ignores_markup():
-    plain = 'я' * 1000
+    # 1020 разобранных символов влезают в подпись, а с тегами сырая длина уже за лимитом.
+    plain = 'я' * 1020
     with_markup = f'{plain[:500]}<code>{plain[500:]}</code>'
 
     assert len(with_markup) > 1024, 'разметка обязана завышать сырую длину — иначе тест ничего не проверяет'
