@@ -1120,7 +1120,9 @@ def _format_device_moment(raw) -> str | None:
 
 def _build_device_card_text(device: dict, texts) -> str:
     """Карточка устройства: имя, платформа, модель, ОС, последняя активность."""
-    card = texts.t('DEVICE_CARD_TITLE', '📱 <b>{name}</b>\n\n').format(name=html_mod.escape(device_display_name(device)))
+    card = texts.t('DEVICE_CARD_TITLE', '📱 <b>{name}</b>\n\n').format(
+        name=html_mod.escape(device_display_name(device))
+    )
 
     platform = str(device.get('platform') or '').strip()
     if platform:
