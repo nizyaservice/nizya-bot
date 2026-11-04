@@ -10,6 +10,7 @@ from app.config import PERIOD_PRICES, settings
 from app.database.models import User
 from app.localization.loader import DEFAULT_LANGUAGE
 from app.localization.texts import get_texts
+from app.utils.device_labels import device_display_name, shorten_device_label
 from app.utils.legacy_subscription import is_legacy_subscription as _legacy_subscription
 from app.utils.miniapp_buttons import build_miniapp_or_callback_button
 from app.utils.price_display import PriceInfo, format_price_button
@@ -3449,28 +3450,19 @@ def get_devices_management_keyboard(
     keyboard = []
 
     for i, device in enumerate(devices):
-        # Локальный alias (если юзер задал) приоритетнее платформенной строки.
-        # `local_name` проставляется в attach_aliases_to_devices() ДО рендера.
-        local_name = (device.get('local_name') or '').strip()
-        if local_name:
-            device_info = local_name
-        else:
-            platform = device.get('platform', 'Unknown')
-            device_model = device.get('deviceModel', 'Unknown')
-            device_info = f'{platform} - {device_model}'
+        # Кнопка на всю ширину ряда: Telegram переносит длинный лейбл на
+        # несколько строк, поэтому имя видно целиком, а не обрезком до 22
+        # символов, как было, когда кнопка делила ряд с карандашом.
+        device_info = shorten_device_label(device_display_name(device))
 
-        if len(device_info) > 22:
-            device_info = device_info[:19] + '...'
-
-        # Ряд: pencil-кнопка переименования (компактная иконка) + сброс
-        # устройства с его лейблом (исторический callback).
+        # Тап по устройству больше не сбрасывает его молча — открывается
+        # карточка с «Переименовать» и «Удалить» (и подтверждением удаления).
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=texts.t('DEVICE_RENAME_BUTTON', '✏️'),
-                    callback_data=f'device_rename_{i}_{pagination.page}',
-                ),
-                InlineKeyboardButton(text=f'🔄 {device_info}', callback_data=f'reset_device_{i}_{pagination.page}'),
+                    text=f'📱 {device_info}',
+                    callback_data=f'device_card_{i}_{pagination.page}',
+                )
             ]
         )
 
@@ -3509,6 +3501,69 @@ def get_devices_management_keyboard(
     keyboard.append([InlineKeyboardButton(text=texts.BACK, callback_data=back_callback)])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_device_card_keyboard(
+    device_index: int,
+    page: int,
+    language: str = DEFAULT_LANGUAGE,
+) -> InlineKeyboardMarkup:
+    """Карточка одного устройства: переименовать / удалить / назад к списку.
+
+    «Назад» ведёт на ту же страницу списка, с которой карточку открыли, —
+    `devices_page_<page>`, а не в меню подписки, иначе пользователь терял
+    место в пагинации.
+    """
+    texts = get_texts(language)
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=texts.t('DEVICE_CARD_RENAME_BUTTON', '✏️ Переименовать'),
+                    callback_data=f'device_rename_{device_index}_{page}',
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=texts.t('DEVICE_CARD_DELETE_BUTTON', '❌ Удалить'),
+                    callback_data=f'device_remove_{device_index}_{page}',
+                )
+            ],
+            [InlineKeyboardButton(text=texts.BACK, callback_data=f'devices_page_{page}')],
+        ]
+    )
+
+
+def get_device_delete_confirm_keyboard(
+    device_index: int,
+    page: int,
+    language: str = DEFAULT_LANGUAGE,
+) -> InlineKeyboardMarkup:
+    """Подтверждение удаления устройства: «Удалить» / «Отмена».
+
+    «Удалить» уезжает на исторический `reset_device_<idx>_<page>` — он и
+    удаляет устройство, но теперь недостижим без этого экрана. «Отмена»
+    возвращает в карточку, из которой пришли.
+    """
+    texts = get_texts(language)
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=texts.t('DEVICE_DELETE_CONFIRM_BUTTON', '🗑 Удалить'),
+                    callback_data=f'reset_device_{device_index}_{page}',
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=texts.t('DEVICE_DELETE_CANCEL_BUTTON', '✖️ Отмена'),
+                    callback_data=f'device_card_{device_index}_{page}',
+                )
+            ],
+        ]
+    )
 
 
 def get_updated_subscription_settings_keyboard(
@@ -3605,24 +3660,6 @@ def get_updated_subscription_settings_keyboard(
     keyboard.append([InlineKeyboardButton(text=texts.BACK, callback_data='menu_subscription')])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-def get_device_reset_confirm_keyboard(
-    device_info: str, device_index: int, page: int, language: str = DEFAULT_LANGUAGE
-) -> InlineKeyboardMarkup:
-    texts = get_texts(language)
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=texts.t('RESET_DEVICE_CONFIRM_BUTTON', '✅ Да, сбросить это устройство'),
-                    callback_data=f'confirm_reset_device_{device_index}_{page}',
-                )
-            ],
-            [InlineKeyboardButton(text=texts.CANCEL, callback_data=f'devices_page_{page}')],
-        ]
-    )
 
 
 def get_device_management_help_keyboard(language: str = DEFAULT_LANGUAGE) -> InlineKeyboardMarkup:

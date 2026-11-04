@@ -26,6 +26,8 @@ from app.keyboards.inline import (
     get_change_devices_keyboard,
     get_confirm_change_devices_keyboard,
     get_connection_guide_keyboard,
+    get_device_card_keyboard,
+    get_device_delete_confirm_keyboard,
     get_device_management_help_keyboard,
     get_devices_management_keyboard,
     get_insufficient_balance_keyboard,
@@ -38,6 +40,8 @@ from app.services.section_image_service import get_section_media_kwargs
 from app.services.subscription_service import SubscriptionService
 from app.services.user_cart_service import user_cart_service
 from app.states import SubscriptionStates
+from app.utils.device_labels import device_display_name, shorten_device_label
+from app.utils.formatters import format_datetime
 from app.utils.legacy_subscription import is_legacy_subscription
 from app.utils.pagination import paginate_list
 from app.utils.photo_message import edit_or_answer_photo
@@ -79,6 +83,21 @@ def _get_panel_user_id(subscription, db_user):
     if subscription is not None and settings.is_multi_tariff_enabled():
         return getattr(subscription, 'remnawave_id', None)
     return getattr(subscription, 'remnawave_id', None) or db_user.remnawave_id
+
+
+# Размер страницы списка устройств. Раньше «5» было вписано в четыре места
+# (список, карточка, переименование, удаление), и разъехаться им ничто не мешало,
+# а индекс из callback'а указал бы тогда на чужое устройство.
+DEVICES_PER_PAGE = 5
+
+
+def _subscription_back_callback(sub_id: int | None) -> str:
+    """«Назад» с экранов устройств — на экран подписки, а не в главное меню.
+
+    Терминальные экраны раздела (нет устройств, все сброшены) отдавали
+    `back_to_menu` и выбрасывали человека в главное меню из середины флоу.
+    """
+    return f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription'
 
 
 async def get_current_devices_detailed(db_user: User, subscription=None) -> dict:
@@ -872,7 +891,7 @@ async def handle_device_management(
                     await edit_or_answer_photo(
                         callback=callback,
                         caption=texts.t('DEVICE_NONE_CONNECTED', 'ℹ️ У вас нет подключенных устройств'),
-                        keyboard=get_back_keyboard(db_user.language),
+                        keyboard=get_back_keyboard(db_user.language, _subscription_back_callback(sub_id)),
                         **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                     )
                     await callback.answer()
@@ -923,7 +942,7 @@ async def show_devices_page(
     callback: types.CallbackQuery, db_user: User, devices_list: list[dict], page: int = 1, sub_id: int | None = None
 ):
     texts = get_texts(db_user.language)
-    devices_per_page = 5
+    devices_per_page = DEVICES_PER_PAGE
 
     # Все вызовы рендера проходят через show_devices_page, поэтому единое место
     # для прикрепления локальных имён — здесь. Клавиатура и текст подтягивают
@@ -947,16 +966,7 @@ async def show_devices_page(
             '<b>Подключенные устройства:</b>\n',
         )
         for device in pagination.items:
-            local_name = (device.get('local_name') or '').strip()
-            if local_name:
-                device_info = local_name
-            else:
-                platform = device.get('platform', 'Unknown')
-                device_model = device.get('deviceModel', 'Unknown')
-                device_info = f'{platform} - {device_model}'
-
-            if len(device_info) > 35:
-                device_info = device_info[:32] + '...'
+            device_info = shorten_device_label(device_display_name(device), limit=35)
 
             devices_text += texts.t(
                 'DEVICE_MANAGEMENT_LIST_ITEM',
@@ -967,8 +977,7 @@ async def show_devices_page(
         'DEVICE_MANAGEMENT_ACTIONS',
         (
             '\n💡 <b>Действия:</b>\n'
-            '• ✏️ — переименовать устройство (видно только вам)\n'
-            '• 🔄 — сбросить устройство\n'
+            '• Нажмите на устройство — откроется карточка с переименованием и удалением\n'
             '• Или сбросьте все устройства сразу'
         ),
     )
@@ -979,7 +988,7 @@ async def show_devices_page(
             pagination.items,
             pagination,
             db_user.language,
-            back_callback=f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription',
+            back_callback=_subscription_back_callback(sub_id),
         ),
     )
 
@@ -1013,6 +1022,194 @@ async def handle_devices_page(callback: types.CallbackQuery, db_user: User, db: 
             texts.t('DEVICE_PAGE_LOAD_ERROR', '❌ Ошибка загрузки страницы'),
             show_alert=True,
         )
+
+
+async def _load_user_devices(panel_user_id, user_id: int) -> list[dict] | None:
+    """Устройства из панели + локальные имена. ``None`` — панель не ответила.
+
+    Один загрузчик на карточку устройства и на подтверждение удаления: оба
+    экрана должны видеть тот же порядок устройств, что и список, иначе
+    индекс из callback'а укажет на чужое устройство.
+    """
+    try:
+        service = RemnaWaveService()
+        async with service.get_api_client() as api:
+            devices_info = await api.get_user_devices(panel_user_id)
+    except Exception as exc:
+        logger.error('Ошибка получения списка устройств', error=exc)
+        return None
+
+    if not isinstance(devices_info, dict):
+        return None
+
+    return await _enrich_devices_with_aliases(devices_info.get('devices', []) or [], user_id)
+
+
+def _parse_device_callback(callback_data: str) -> tuple[int, int] | None:
+    """``<префикс>_<индекс>_<страница>`` → (индекс, страница); ``None`` — мусор."""
+    parts = (callback_data or '').split('_')
+    if len(parts) < 4:
+        return None
+    try:
+        return int(parts[2]), int(parts[3])
+    except ValueError:
+        return None
+
+
+async def _device_from_callback(callback, db_user, db, state):
+    """(устройство, индекс, страница, sub_id) для экранов одного устройства.
+
+    Устройство ``None`` — причина уже показана пользователю алертом.
+    """
+    texts = get_texts(db_user.language)
+
+    parsed = _parse_device_callback(callback.data)
+    if parsed is None:
+        logger.error('Некорректный формат callback_data устройства', callback_data=callback.data)
+        await callback.answer(
+            texts.t('DEVICE_RESET_INVALID_REQUEST', '❌ Ошибка: некорректный запрос'),
+            show_alert=True,
+        )
+        return None, 0, 1, None
+
+    device_index, page = parsed
+    subscription, sub_id = await _resolve_subscription(callback, db_user, db, state)
+    panel_user_id = _get_panel_user_id(subscription, db_user) if subscription else db_user.remnawave_id
+    if not panel_user_id:
+        await callback.answer(
+            texts.t('DEVICE_UUID_NOT_FOUND', '❌ UUID пользователя не найден'),
+            show_alert=True,
+        )
+        return None, device_index, page, sub_id
+
+    devices_list = await _load_user_devices(panel_user_id, db_user.id)
+    if devices_list is None:
+        await callback.answer(
+            texts.t('DEVICE_FETCH_ERROR', '❌ Ошибка получения устройств'),
+            show_alert=True,
+        )
+        return None, device_index, page, sub_id
+
+    pagination = paginate_list(devices_list, page=page, per_page=DEVICES_PER_PAGE)
+    if device_index >= len(pagination.items):
+        await callback.answer(
+            texts.t('DEVICE_RESET_NOT_FOUND', '❌ Устройство не найдено'),
+            show_alert=True,
+        )
+        return None, device_index, page, sub_id
+
+    return pagination.items[device_index], device_index, page, sub_id
+
+
+def _format_device_moment(raw) -> str | None:
+    """Момент из панели в локальном часовом поясе; ``None`` — не разобрали.
+
+    Через ``format_datetime`` нельзя гонять что попало: на непарсящейся строке
+    он отдаёт «сейчас», и карточка начинает врать о последней активности.
+    """
+    if isinstance(raw, datetime):
+        return format_datetime(raw)
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.strip().replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return format_datetime(parsed)
+
+
+def _build_device_card_text(device: dict, texts) -> str:
+    """Карточка устройства: имя, платформа, модель, ОС, последняя активность."""
+    card = texts.t('DEVICE_CARD_TITLE', '📱 <b>{name}</b>\n\n').format(name=html_mod.escape(device_display_name(device)))
+
+    platform = str(device.get('platform') or '').strip()
+    if platform:
+        card += texts.t('DEVICE_CARD_PLATFORM', '🖥 Платформа: {platform}\n').format(platform=html_mod.escape(platform))
+
+    model = str(device.get('deviceModel') or device.get('model') or '').strip()
+    if model:
+        card += texts.t('DEVICE_CARD_MODEL', '📦 Модель: {model}\n').format(model=html_mod.escape(model))
+
+    os_version = str(device.get('osVersion') or '').strip()
+    if os_version:
+        card += texts.t('DEVICE_CARD_OS', '⚙️ Версия ОС: {os}\n').format(os=html_mod.escape(os_version))
+
+    last_seen = _format_device_moment(device.get('updatedAt') or device.get('createdAt'))
+    if last_seen:
+        card += texts.t('DEVICE_CARD_LAST_SEEN', '🕒 Последняя активность: {date}\n').format(
+            date=html_mod.escape(last_seen)
+        )
+
+    card += texts.t(
+        'DEVICE_CARD_ACTIONS',
+        (
+            '\n💡 <b>Действия:</b>\n'
+            '• ✏️ — своё имя для устройства (видно только вам)\n'
+            '• ❌ — удалить устройство из подписки'
+        ),
+    )
+
+    # Если панель не отдала ни модели, ни ОС, заголовок и подсказка слипаются
+    # в три перевода строки — лишнюю пустую строку убираем.
+    while '\n\n\n' in card:
+        card = card.replace('\n\n\n', '\n\n')
+    return card
+
+
+async def show_device_card(callback, db_user, db, device: dict, device_index: int, page: int) -> None:
+    """Экран одного устройства — «Переименовать» / «Удалить» / «Назад» к списку."""
+    texts = get_texts(db_user.language)
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=_build_device_card_text(device, texts),
+        keyboard=get_device_card_keyboard(device_index, page, db_user.language),
+        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
+    )
+
+
+async def handle_device_card(callback: types.CallbackQuery, db_user: User, db: AsyncSession, state: FSMContext = None):
+    """Callback `device_card_<idx>_<page>` — тап по устройству в списке.
+
+    Раньше тап по устройству сбрасывал его сразу, без вопроса; теперь
+    открывается карточка, а удаление живёт за подтверждением.
+    """
+    device, device_index, page, _sub_id = await _device_from_callback(callback, db_user, db, state)
+    if device is None:
+        return
+
+    await show_device_card(callback, db_user, db, device, device_index, page)
+    await callback.answer()
+
+
+async def handle_device_delete_request(
+    callback: types.CallbackQuery, db_user: User, db: AsyncSession, state: FSMContext = None
+):
+    """Callback `device_remove_<idx>_<page>` — «Точно удалить устройство X?».
+
+    Само удаление делает `handle_single_device_reset` по `reset_device_...`,
+    на который указывает кнопка «Удалить» этого экрана.
+    """
+    device, device_index, page, _sub_id = await _device_from_callback(callback, db_user, db, state)
+    if device is None:
+        return
+
+    texts = get_texts(db_user.language)
+    caption = texts.t(
+        'DEVICE_DELETE_CONFIRM',
+        (
+            '❓ Точно удалить устройство <b>{name}</b>?\n\n'
+            'Оно потеряет доступ к VPN и освободит место в лимите. '
+            'Подключить его заново можно в любой момент.'
+        ),
+    ).format(name=html_mod.escape(device_display_name(device)))
+
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=caption,
+        keyboard=get_device_delete_confirm_keyboard(device_index, page, db_user.language),
+        **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
+    )
+    await callback.answer()
 
 
 async def start_device_rename(callback: types.CallbackQuery, db_user: User, db: AsyncSession, state: FSMContext = None):
@@ -1064,7 +1261,7 @@ async def start_device_rename(callback: types.CallbackQuery, db_user: User, db: 
         return
 
     devices_list = (devices_info or {}).get('devices', []) or []
-    pagination = paginate_list(devices_list, page=page, per_page=5)
+    pagination = paginate_list(devices_list, page=page, per_page=DEVICES_PER_PAGE)
     if device_index >= len(pagination.items):
         await callback.answer(
             texts.t('DEVICE_RENAME_NOT_FOUND', '❌ Устройство не найдено'),
@@ -1086,7 +1283,9 @@ async def start_device_rename(callback: types.CallbackQuery, db_user: User, db: 
 
     if state is not None:
         await state.set_state(SubscriptionStates.renaming_device)
-        await state.update_data(rename_hwid=hwid, rename_page=page, rename_sub_id=sub_id)
+        # rename_index нужен «Отмене», чтобы вернуть пользователя в карточку
+        # устройства, из которой он сюда попал, а не в общий список.
+        await state.update_data(rename_hwid=hwid, rename_page=page, rename_sub_id=sub_id, rename_index=device_index)
 
     prompt = texts.t(
         'DEVICE_RENAME_PROMPT',
@@ -1186,8 +1385,8 @@ async def process_device_rename(message: types.Message, db_user: User, db: Async
 
         # Сообщения от FSM-handler'а — не callback, поэтому отдельный пост.
         devices_list = await _enrich_devices_with_aliases(devices_list, db_user.id)
-        pagination = paginate_list(devices_list, page=page, per_page=5)
-        back_cb = f'sm:{sub_id}' if settings.is_multi_tariff_enabled() and sub_id else 'menu_subscription'
+        pagination = paginate_list(devices_list, page=page, per_page=DEVICES_PER_PAGE)
+        back_cb = _subscription_back_callback(sub_id)
 
         await message.answer(
             texts.t('DEVICE_RENAME_OPEN_LIST', '📱 Откройте список устройств, чтобы продолжить'),
@@ -1204,13 +1403,16 @@ async def cancel_device_rename(
 ):
     """Callback `device_rename_cancel` — «Отмена» в промпте переименования.
 
-    Сбрасывает FSM-состояние и переоткрывает список устройств на той странице,
-    с которой пользователь зашёл, чтобы он не остался в тупике без кнопки «назад».
+    Сбрасывает FSM-состояние и возвращает на экран, с которого пришли:
+    в карточку устройства, если её индекс сохранён в state, иначе — в список
+    устройств на той же странице. Главное — не оставить тупик без «назад».
     """
     texts = get_texts(db_user.language)
     data = await state.get_data() if state else {}
     page = int(data.get('rename_page') or 1)
     sub_id = data.get('rename_sub_id')
+    raw_index = data.get('rename_index')
+    device_index = raw_index if isinstance(raw_index, int) else None
     if state is not None:
         await state.clear()
 
@@ -1226,6 +1428,15 @@ async def cancel_device_rename(
             async with service.get_api_client() as api:
                 devices_info = await api.get_user_devices(panel_user_id)
             devices_list = (devices_info or {}).get('devices', []) or []
+
+            if device_index is not None:
+                enriched = await _enrich_devices_with_aliases(list(devices_list), db_user.id)
+                pagination = paginate_list(enriched, page=page, per_page=DEVICES_PER_PAGE)
+                if device_index < len(pagination.items):
+                    await show_device_card(callback, db_user, db, pagination.items[device_index], device_index, page)
+                    await callback.answer(texts.t('DEVICE_RENAME_CANCELLED', '✖️ Переименование отменено'))
+                    return
+
             await show_devices_page(callback, db_user, devices_list, page=page, sub_id=sub_id)
             await callback.answer(texts.t('DEVICE_RENAME_CANCELLED', '✖️ Переименование отменено'))
             return
@@ -1235,7 +1446,7 @@ async def cancel_device_rename(
     # Fallback: список не достали — хотя бы внятно сообщаем и не оставляем пустоту.
     await callback.message.edit_text(
         texts.t('DEVICE_RENAME_CANCELLED', '✖️ Переименование отменено'),
-        reply_markup=get_back_keyboard(db_user.language),
+        reply_markup=get_back_keyboard(db_user.language, _subscription_back_callback(sub_id)),
     )
     await callback.answer()
 
@@ -1278,9 +1489,12 @@ async def handle_single_device_reset(
             devices_info = await api.get_user_devices(panel_user_id)
 
             if isinstance(devices_info, dict):
-                devices_list = devices_info.get('devices', [])
+                # Локальные имена подтягиваем до выбора устройства: в алерте
+                # должно стоять то же имя, что пользователь видел в карточке
+                # и в подтверждении, а не платформенная строка панели.
+                devices_list = await _enrich_devices_with_aliases(devices_info.get('devices', []) or [], db_user.id)
 
-                devices_per_page = 5
+                devices_per_page = DEVICES_PER_PAGE
                 pagination = paginate_list(devices_list, page=page, per_page=devices_per_page)
 
                 if device_index < len(pagination.items):
@@ -1296,9 +1510,7 @@ async def handle_single_device_reset(
                             )
                             return
 
-                        platform = device.get('platform', 'Unknown')
-                        device_model = device.get('deviceModel', 'Unknown')
-                        device_info = f'{platform} - {device_model}'
+                        device_info = device_display_name(device)
 
                         await callback.answer(
                             texts.t(
@@ -1326,7 +1538,9 @@ async def handle_single_device_reset(
                                         'DEVICE_RESET_ALL_DONE',
                                         'ℹ️ Все устройства сброшены',
                                     ),
-                                    reply_markup=get_back_keyboard(db_user.language),
+                                    reply_markup=get_back_keyboard(
+                                        db_user.language, _subscription_back_callback(sub_id)
+                                    ),
                                 )
 
                         logger.info(
@@ -1434,7 +1648,7 @@ async def handle_all_devices_reset_from_management(
                                 "💡 Используйте ссылку из раздела 'Моя подписка' для повторного подключения"
                             ),
                         ).format(count=success_count),
-                        keyboard=get_back_keyboard(db_user.language),
+                        keyboard=get_back_keyboard(db_user.language, _subscription_back_callback(sub_id)),
                         parse_mode='HTML',
                         **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                     )
@@ -1455,7 +1669,7 @@ async def handle_all_devices_reset_from_management(
                                 'Попробуйте еще раз или обратитесь в поддержку.'
                             ),
                         ).format(success=success_count, failed=failed_count),
-                        keyboard=get_back_keyboard(db_user.language),
+                        keyboard=get_back_keyboard(db_user.language, _subscription_back_callback(sub_id)),
                         parse_mode='HTML',
                         **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                     )
@@ -1476,7 +1690,7 @@ async def handle_all_devices_reset_from_management(
                             'Всего устройств: {total}'
                         ),
                     ).format(total=len(devices_list)),
-                    keyboard=get_back_keyboard(db_user.language),
+                    keyboard=get_back_keyboard(db_user.language, _subscription_back_callback(sub_id)),
                     parse_mode='HTML',
                     **await get_section_media_kwargs(db, 'subscription.devices', language=db_user.language),
                 )
@@ -1486,7 +1700,9 @@ async def handle_all_devices_reset_from_management(
 
     except Exception as e:
         logger.error('Ошибка сброса всех устройств', error=e)
-        await callback.message.edit_text(texts.ERROR, reply_markup=get_back_keyboard(db_user.language))
+        await callback.message.edit_text(
+            texts.ERROR, reply_markup=get_back_keyboard(db_user.language, _subscription_back_callback(sub_id))
+        )
 
     await callback.answer()
 

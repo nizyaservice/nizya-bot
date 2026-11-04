@@ -166,6 +166,8 @@ from .devices import (
     handle_all_devices_reset_from_management,
     handle_app_selection,
     handle_change_devices,
+    handle_device_card,
+    handle_device_delete_request,
     handle_device_guide,
     handle_device_management,
     handle_devices_page,
@@ -4376,6 +4378,11 @@ def register_handlers(dp: Dispatcher):
 
     dp.callback_query.register(handle_devices_page, F.data.startswith('devices_page_'))
 
+    # Тап по устройству открывает карточку, а не сбрасывает его молча;
+    # `reset_device_...` остался точкой удаления, но доступен только из
+    # экрана подтверждения (`device_remove_...`).
+    dp.callback_query.register(handle_device_card, F.data.regexp(r'^device_card_\d+_\d+$'))
+    dp.callback_query.register(handle_device_delete_request, F.data.regexp(r'^device_remove_\d+_\d+$'))
     dp.callback_query.register(handle_single_device_reset, F.data.regexp(r'^reset_device_\d+_\d+$'))
 
     # Локальное переименование устройства (alias). Callback пускает FSM-prompt,
