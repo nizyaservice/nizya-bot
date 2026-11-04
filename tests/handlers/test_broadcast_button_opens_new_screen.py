@@ -15,15 +15,17 @@
 
 from __future__ import annotations
 
+import ast
+import pathlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from aiogram.types import CallbackQuery, Chat, User as TgUser
+from aiogram.types import CallbackQuery, Chat, InlineKeyboardButton, InlineKeyboardMarkup, User as TgUser
 
 from app.handlers.admin.messages import create_broadcast_keyboard
 from app.middlewares.broadcast_buttons import BroadcastButtonMiddleware
-from app.utils import message_patch as mp, photo_message as pm
+from app.utils import message_patch as mp, photo_message as pm, rich_menu as rich
 from app.utils.screen_delivery import (
     CALLBACK_DATA_LIMIT,
     force_new_screen,
@@ -235,3 +237,105 @@ async def test_patched_edit_text_answers_instead_of_editing_under_the_flag(monke
 
     answered.assert_awaited_once()
     assert answered.await_args.args[1] == 'Экран'
+
+
+# ─── rich-меню ───
+#
+# «🏠 На главную» идёт не через edit_or_answer_photo, а через
+# try_edit_rich_main_menu: он правит сообщение rich-блоком, а сообщение с
+# фото (рассылка с картинкой) пересоздаёт — то есть УДАЛЯЛ рассылку.
+
+
+def _rich_patches(monkeypatch, send):
+    monkeypatch.setattr(rich, 'is_rich_menu_enabled', lambda: True)
+    monkeypatch.setattr(rich, 'build_main_menu_rich_html', AsyncMock(return_value='<p>меню</p>'))
+    monkeypatch.setattr(rich, '_send_rich_menu', send)
+    monkeypatch.setattr(rich, 'remember_live_menu', AsyncMock())
+
+
+def _rich_callback(*, with_photo: bool):
+    cb = MagicMock()
+    cb.message = MagicMock()
+    cb.message.chat = Chat(id=CHAT_ID, type='private')
+    cb.message.message_id = 10
+    cb.message.photo = [SimpleNamespace(file_id='broadcast-photo')] if with_photo else None
+    cb.message.text = None if with_photo else 'Текст рассылки'
+    cb.message.rich_message = None
+    cb.message.delete = AsyncMock()
+    cb.bot = AsyncMock()
+    return cb
+
+
+def _rich_user():
+    return SimpleNamespace(id=1, language='ru')
+
+
+def _rich_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text='🎫 Промокод', callback_data='menu_promocode')]]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('with_photo', [True, False])
+async def test_rich_main_menu_leaves_the_broadcast_alone_under_the_flag(monkeypatch, with_photo):
+    send = AsyncMock(return_value=SimpleNamespace(message_id=11))
+    _rich_patches(monkeypatch, send)
+    cb = _rich_callback(with_photo=with_photo)
+
+    with force_new_screen():
+        handled = await rich.try_edit_rich_main_menu(cb, _rich_user(), MagicMock(), AsyncMock(), _rich_keyboard())
+
+    assert handled is True
+    send.assert_awaited_once()
+    # Ни удаления рассылки, ни правки её текста.
+    cb.message.delete.assert_not_awaited()
+    cb.bot.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_rich_main_menu_still_edits_in_place_without_the_flag(monkeypatch):
+    """Контрольный кейс: обычная навигация по меню правит текущее сообщение."""
+    send = AsyncMock(return_value=SimpleNamespace(message_id=11))
+    _rich_patches(monkeypatch, send)
+    cb = _rich_callback(with_photo=False)
+
+    handled = await rich.try_edit_rich_main_menu(cb, _rich_user(), MagicMock(), AsyncMock(), _rich_keyboard())
+
+    assert handled is True
+    cb.bot.assert_awaited_once()
+    send.assert_not_awaited()
+    cb.message.delete.assert_not_awaited()
+
+
+# ─── инвариант для всех кнопок рассылки ───
+
+
+BROADCAST_DESTINATIONS = (
+    ('app/handlers/balance/main.py', 'show_payment_methods'),
+    ('app/handlers/referral.py', 'show_referral_info'),
+    ('app/handlers/promocode.py', 'show_promocode_menu'),
+    ('app/handlers/subscription/links.py', 'handle_connect_subscription'),
+    ('app/handlers/subscription/purchase.py', 'show_subscription_info'),
+    ('app/handlers/support.py', 'show_support_info'),
+    ('app/handlers/menu.py', 'handle_back_to_menu'),
+)
+
+
+@pytest.mark.parametrize(('path', 'name'), BROADCAST_DESTINATIONS)
+def test_destination_handler_never_deletes_the_source_message(path, name):
+    """Экраны, куда ведут кнопки рассылки, не вправе удалять сообщение.
+
+    Отправку новым сообщением включает флаг в двух точках отрисовки, но
+    собственный `message.delete()` в хендлере обошёл бы их и унёс рассылку.
+    Сейчас такого ни в одном нет — кейс держит это свойство.
+    """
+    tree = ast.parse(pathlib.Path(path).read_text(encoding='utf-8'))
+    handler = next(node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef) and node.name == name)
+
+    deletes = [
+        ast.unparse(node.func)
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'delete'
+    ]
+    assert not deletes, f'{name} удаляет сообщение: {deletes}'

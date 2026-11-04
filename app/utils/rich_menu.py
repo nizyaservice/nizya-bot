@@ -52,6 +52,7 @@ from app.utils.logo_fingerprint import logo_version
 from app.utils.miniapp_buttons import build_miniapp_startapp_url
 from app.utils.promo_offer import build_promo_offer_hint, build_test_access_hint
 from app.utils.rich_buttons import render_keyboard_as_rich_html
+from app.utils.screen_delivery import force_new_screen_enabled
 from app.utils.subscription_time import local_days_until
 from app.utils.subscription_utils import get_happ_cryptolink_redirect_link
 from app.utils.timezone import format_local_datetime
@@ -825,10 +826,20 @@ async def try_edit_rich_main_menu(
 
     chat_id = message.chat.id
     language = db_user.language
-    rich_html, keyboard = _apply_inline_buttons(rich_html, keyboard, for_edit=True)
+    # Кнопка из сообщения рассылки: его нельзя ни править, ни удалять — меню
+    # уходит новым сообщением, а рассылка остаётся в чате. Без этого «🏠 На
+    # главную» в рассылке удаляла её и присылала меню заново.
+    # См. app/utils/screen_delivery.py.
+    keep_source_message = force_new_screen_enabled()
+
+    # for_edit отдаёт пустую клавиатуру вместо None (у editMessageText
+    # отсутствующий reply_markup значит «не трогать»). Для новой отправки нужна
+    # именно None — как в try_send_rich_main_menu.
+    rich_html, keyboard = _apply_inline_buttons(rich_html, keyboard, for_edit=not keep_source_message)
 
     is_editable_as_rich = (
-        not isinstance(message, InaccessibleMessage)
+        not keep_source_message
+        and not isinstance(message, InaccessibleMessage)
         and not getattr(message, 'photo', None)
         and (message.text is not None or getattr(message, 'rich_message', None) is not None)
     )
@@ -851,7 +862,7 @@ async def try_edit_rich_main_menu(
             # Фото/медиа-сообщение (логотип) или недоступное (>48ч) нельзя превратить
             # в rich редактированием — пересоздаём, как это делает edit_or_answer_photo
             # при смене типа сообщения.
-            if not isinstance(message, InaccessibleMessage):
+            if not keep_source_message and not isinstance(message, InaccessibleMessage):
                 try:
                     await message.delete()
                 except (TelegramBadRequest, TelegramForbiddenError) as delete_error:
