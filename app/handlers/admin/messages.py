@@ -147,9 +147,7 @@ def create_broadcast_keyboard(
                     )
                 )
             else:
-                row_buttons.append(
-                    types.InlineKeyboardButton(text=button_config['text'], callback_data=callback_data)
-                )
+                row_buttons.append(types.InlineKeyboardButton(text=button_config['text'], callback_data=callback_data))
         if row_buttons:
             keyboard.append(row_buttons)
 
