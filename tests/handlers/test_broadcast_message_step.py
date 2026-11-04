@@ -167,5 +167,5 @@ def test_module_has_no_raw_caption_length_checks():
     source = Path(admin_messages.__file__).read_text(encoding='utf-8')
 
     assert re.search(r'len\([^)]*\)\s*<=\s*1024', source) is None
-    # вход текста, предпросмотр у админа и отправка получателям
+    # вход текста, предпросмотр у админа и общий доставщик сообщения рассылки
     assert source.count('_caption_fits(') >= 4

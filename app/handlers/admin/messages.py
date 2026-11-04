@@ -75,6 +75,27 @@ async def safe_edit_or_send_text(callback: types.CallbackQuery, text: str, reply
             raise
 
 
+async def _deliver_preview_screen(callback: types.CallbackQuery, text: str, markup, *, force_new: bool) -> None:
+    """Предпросмотр: правим экран на месте либо шлём новым сообщением.
+
+    ``force_new`` нужен тестовой отправке: её сообщения ложатся поверх
+    прежнего экрана, и предпросмотр должен снова стать последним — иначе
+    кнопку «Отправить» пришлось бы искать выше тестовых сообщений.
+    Редактированием тут не обойтись: ``safe_edit_or_send_text`` переотправляет
+    сообщение только на «there is no text in the message to edit», а на
+    «message to edit not found» (мы его сами удалили) бросает дальше.
+    """
+    if not force_new:
+        await safe_edit_or_send_text(callback, text, reply_markup=markup, parse_mode='HTML')
+        return
+
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.bot.send_message(chat_id=callback.message.chat.id, text=text, reply_markup=markup, parse_mode='HTML')
+
+
 BUTTON_ROWS = BROADCAST_BUTTON_ROWS
 DEFAULT_SELECTED_BUTTONS = DEFAULT_BROADCAST_BUTTONS
 
@@ -801,6 +822,65 @@ def _caption_fits(text: str) -> bool:
     return not caption_exceeds_telegram_limit(text)
 
 
+async def deliver_broadcast_message(
+    bot,
+    chat_id: int,
+    message_text: str,
+    *,
+    has_media: bool,
+    media_type: str | None,
+    media_file_id: str | None,
+    reply_markup,
+) -> None:
+    """Отправляет одно сообщение рассылки: медиа с подписью либо текст.
+
+    Один путь доставки на настоящую рассылку и на тестовую отправку админам —
+    иначе «тест» показывал бы не то, что получат люди. Ошибки не глушим: их
+    разбирают вызывающие (повторы и FloodWait у рассылки, подсчёт у теста).
+    """
+    send_method = None
+    if has_media and media_file_id:
+        send_method = {
+            'photo': bot.send_photo,
+            'video': bot.send_video,
+            'document': bot.send_document,
+        }.get(media_type)
+
+    if send_method is None:
+        # Медиа нет или тип неизвестен — уходим текстом.
+        await bot.send_message(chat_id=chat_id, text=message_text, parse_mode='HTML', reply_markup=reply_markup)
+        return
+
+    media_kwarg = {'photo': 'photo', 'video': 'video', 'document': 'document'}[media_type]
+
+    # Telegram ограничивает подпись 1024 символами разобранного текста
+    if _caption_fits(message_text):
+        await send_method(
+            chat_id=chat_id,
+            **{media_kwarg: media_file_id},
+            caption=message_text,
+            parse_mode='HTML',
+            reply_markup=reply_markup,
+        )
+        return
+
+    # Медиа без caption + текст отдельным сообщением
+    await send_method(chat_id=chat_id, **{media_kwarg: media_file_id})
+    await bot.send_message(chat_id=chat_id, text=message_text, parse_mode='HTML', reply_markup=reply_markup)
+
+
+def _admin_test_recipients(acting_admin_telegram_id: int | None) -> list[int]:
+    """Кому уходит тестовая рассылка: админы из ``ADMIN_IDS`` плюс инициатор.
+
+    Инициатора добавляем отдельно: человек, нажавший «тест», обязан увидеть
+    результат, даже если его id в списке почему-то нет.
+    """
+    recipients = list(dict.fromkeys(settings.get_admin_ids()))
+    if acting_admin_telegram_id and acting_admin_telegram_id not in recipients:
+        recipients.append(acting_admin_telegram_id)
+    return recipients
+
+
 def _authored_html(message: types.Message) -> str | None:
     """Текст сообщения в HTML: из ``text`` или из подписи к файлу.
 
@@ -1133,9 +1213,15 @@ async def toggle_button_selection(callback: types.CallbackQuery, db_user: User, 
     await callback.answer()
 
 
-@admin_required
-@error_handler
-async def confirm_button_selection(callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession):
+async def _show_broadcast_preview(
+    callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession, *, force_new: bool = False
+) -> None:
+    """Рисует экран предпросмотра рассылки.
+
+    Вынесено из хендлера, потому что на него возвращается и тестовая отправка
+    админам: после теста экран должен снова оказаться последним в чате, иначе
+    кнопку «Отправить» пришлось бы искать выше тестовых сообщений.
+    """
     data = await state.get_data()
     target = data.get('broadcast_target')
     message_text = data.get('broadcast_message')
@@ -1184,7 +1270,8 @@ async def confirm_button_selection(callback: types.CallbackQuery, db_user: User,
         [
             types.InlineKeyboardButton(text='✅ Отправить', callback_data='admin_confirm_broadcast'),
             types.InlineKeyboardButton(text='📘 Изменить кнопки', callback_data='edit_buttons'),
-        ]
+        ],
+        [types.InlineKeyboardButton(text='🧪 Тест админам', callback_data='admin_broadcast_test')],
     ]
 
     if has_media:
@@ -1223,20 +1310,90 @@ async def confirm_button_selection(callback: types.CallbackQuery, db_user: User,
                     parse_mode='HTML',
                 )
         else:
-            # Если нет file_id, используем safe редактирование
-            await safe_edit_or_send_text(
+            # Если нет file_id — обычным текстовым экраном
+            await _deliver_preview_screen(
                 callback,
                 preview_text,
-                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode='HTML',
+                types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+                force_new=force_new,
             )
     else:
-        # Для текстовых сообщений или других типов медиа используем safe редактирование
-        await safe_edit_or_send_text(
-            callback, preview_text, reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='HTML'
+        # Текст или другие типы медиа — обычным текстовым экраном
+        await _deliver_preview_screen(
+            callback, preview_text, types.InlineKeyboardMarkup(inline_keyboard=keyboard), force_new=force_new
         )
 
+
+@admin_required
+@error_handler
+async def confirm_button_selection(callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession):
+    await _show_broadcast_preview(callback, db_user, state, db)
     await callback.answer()
+
+
+@admin_required
+@error_handler
+async def send_broadcast_test(callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession):
+    """Кнопка «🧪 Тест админам» на предпросмотре: то же сообщение — админам.
+
+    Тест ничего не пишет в историю рассылок и не касается выбранной
+    аудитории: выбор получателей, текст, медиа и кнопки остаются в FSM, так
+    что после теста остаётся нажать «Отправить» или «Отмена».
+    """
+    data = await state.get_data()
+    message_text = data.get('broadcast_message')
+    if not message_text:
+        await callback.answer('⚠️ Текст рассылки потерялся — составьте сообщение заново', show_alert=True)
+        return
+
+    selected_buttons = data.get('selected_buttons')
+    if selected_buttons is None:
+        selected_buttons = list(DEFAULT_SELECTED_BUTTONS)
+    broadcast_keyboard = create_broadcast_keyboard(selected_buttons, db_user.language)
+
+    recipients = _admin_test_recipients(db_user.telegram_id)
+    sent = 0
+    failed = 0
+    for telegram_id in recipients:
+        try:
+            await deliver_broadcast_message(
+                callback.bot,
+                telegram_id,
+                message_text,
+                has_media=data.get('has_media', False),
+                media_type=data.get('media_type'),
+                media_file_id=data.get('media_file_id'),
+                reply_markup=broadcast_keyboard,
+            )
+            sent += 1
+        except Exception as error:
+            # Админ мог не начинать чат с ботом или заблокировать его — это не
+            # причина терять экран предпросмотра.
+            failed += 1
+            logger.warning(
+                'Тестовая рассылка не дошла до админа',
+                telegram_id=telegram_id,
+                error=str(error)[:200],
+            )
+
+    logger.info(
+        'Тестовая рассылка отправлена админам',
+        admin_id=db_user.id,
+        sent=sent,
+        failed=failed,
+    )
+
+    # Перерисовываем предпросмотр, чтобы он снова был последним сообщением в
+    # чате: тестовые сообщения только что легли поверх прежнего экрана.
+    await _show_broadcast_preview(callback, db_user, state, db, force_new=True)
+
+    if sent and not failed:
+        result = f'🧪 Тест отправлен ({sent})'
+    elif sent:
+        result = f'🧪 Тест отправлен: {sent}, не дошло: {failed}'
+    else:
+        result = '❌ Тест не дошёл ни до одного админа — проверьте ADMIN_IDS и чат с ботом'
+    await callback.answer(result, show_alert=True)
 
 
 @admin_required
@@ -1344,54 +1501,15 @@ async def confirm_broadcast(callback: types.CallbackQuery, db_user: User, state:
                 await asyncio.sleep(flood_wait_until - now)
 
             try:
-                if has_media and media_file_id:
-                    send_method = {
-                        'photo': callback.bot.send_photo,
-                        'video': callback.bot.send_video,
-                        'document': callback.bot.send_document,
-                    }.get(media_type)
-                    if send_method:
-                        media_kwarg = {
-                            'photo': 'photo',
-                            'video': 'video',
-                            'document': 'document',
-                        }[media_type]
-                        # Telegram ограничивает подпись 1024 символами разобранного текста
-                        if _caption_fits(message_text):
-                            await send_method(
-                                chat_id=telegram_id,
-                                **{media_kwarg: media_file_id},
-                                caption=message_text,
-                                parse_mode='HTML',
-                                reply_markup=broadcast_keyboard,
-                            )
-                        else:
-                            # Медиа без caption + текст отдельным сообщением
-                            await send_method(
-                                chat_id=telegram_id,
-                                **{media_kwarg: media_file_id},
-                            )
-                            await callback.bot.send_message(
-                                chat_id=telegram_id,
-                                text=message_text,
-                                parse_mode='HTML',
-                                reply_markup=broadcast_keyboard,
-                            )
-                    else:
-                        # Неизвестный media_type — отправляем как текст
-                        await callback.bot.send_message(
-                            chat_id=telegram_id,
-                            text=message_text,
-                            parse_mode='HTML',
-                            reply_markup=broadcast_keyboard,
-                        )
-                else:
-                    await callback.bot.send_message(
-                        chat_id=telegram_id,
-                        text=message_text,
-                        parse_mode='HTML',
-                        reply_markup=broadcast_keyboard,
-                    )
+                await deliver_broadcast_message(
+                    callback.bot,
+                    telegram_id,
+                    message_text,
+                    has_media=has_media,
+                    media_type=media_type,
+                    media_file_id=media_file_id,
+                    reply_markup=broadcast_keyboard,
+                )
                 return 'sent'
 
             except TelegramRetryAfter as e:
@@ -2193,6 +2311,7 @@ def register_handlers(dp: Dispatcher):
 
     dp.callback_query.register(toggle_button_selection, F.data.startswith('btn_'))
     dp.callback_query.register(confirm_button_selection, F.data == 'buttons_confirm')
+    dp.callback_query.register(send_broadcast_test, F.data == 'admin_broadcast_test')
     dp.callback_query.register(show_button_selector_callback, F.data == 'edit_buttons')
     dp.callback_query.register(handle_media_selection, F.data.startswith('add_media_'))
     dp.callback_query.register(handle_media_selection, F.data == 'skip_media')
