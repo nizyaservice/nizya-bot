@@ -99,6 +99,13 @@ async def test_truthy_and_garbage_keep_the_button(monkeypatch, raw):
     assert await sbp_settings.is_button_visible(AsyncMock()) is True
 
 
+async def test_unreadable_setting_keeps_the_button(monkeypatch):
+    """Сорвавшееся чтение настройки не должно уносить экран автоплатежа."""
+    monkeypatch.setattr(sbp_settings, 'get_setting_value', AsyncMock(side_effect=RuntimeError('db down')))
+
+    assert await sbp_settings.is_button_visible(AsyncMock()) is True
+
+
 async def test_setter_writes_and_commits(monkeypatch):
     upsert = AsyncMock()
     monkeypatch.setattr(sbp_settings, 'upsert_system_setting', upsert)

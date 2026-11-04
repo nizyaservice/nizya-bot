@@ -26,6 +26,15 @@ def _screens_without_banners(without_section_banners):
     фото) им только мешает — см. фикстуру в tests/conftest.py."""
 
 
+@pytest.fixture(autouse=True)
+def _sbp_button_visible(monkeypatch):
+    """Видимость кнопки СБП читается из ``system_settings``, а здесь двойник
+    сессии: ``AsyncMock`` отдаёт из ``scalar_one_or_none()`` корутину, и чтение
+    падало бы на ``.value``. Кейсы самого выключателя — в
+    ``tests/handlers/test_sbp_recurring_visibility.py``."""
+    monkeypatch.setattr(autopay_mod, 'is_sbp_button_visible', AsyncMock(return_value=True))
+
+
 def _configure_gate(monkeypatch, enabled: bool) -> None:
     """Same fields as test_platega_recurrent_cancel_hooks.py's _configure_gate_on,
     toggled both ways — is_platega_recurrent_enabled() reads all four."""

@@ -37,7 +37,14 @@ async def is_button_visible(db: AsyncSession) -> bool:
     Ключа нет — показываем: включение фичи не должно требовать ещё и
     отдельного «да» в админке, иначе у всех, кто обновился, кнопка пропала бы.
     """
-    raw = await get_setting_value(db, BUTTON_VISIBLE_SETTING_KEY)
+    try:
+        raw = await get_setting_value(db, BUTTON_VISIBLE_SETTING_KEY)
+    except Exception as error:
+        # Выключатель — не причина терять экран автоплатежа целиком: читаем
+        # мягко и показываем кнопку, то есть ведём себя как до выключателя.
+        logger.warning('Не удалось прочитать выключатель СБП-кнопки', error=str(error)[:200])
+        return True
+
     if raw is None:
         return True
 
