@@ -1945,7 +1945,8 @@ async def _show_privacy_policy_after_rules(
     # его удалил) — тогда политику шлём новым сообщением, иначе шаг регистрации
     # срывался с AttributeError и человек застревал без политики.
     sendable = sendable_message(callback.message)
-    chat_id = callback.message.chat.id if callback.message else callback.from_user.id
+    chat = getattr(callback.message, 'chat', None)
+    chat_id = getattr(chat, 'id', None) or callback.from_user.id
 
     try:
         if sendable is None:

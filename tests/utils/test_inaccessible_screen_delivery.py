@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -23,8 +22,8 @@ CHAT_ID = 474467678
 
 
 def _inaccessible() -> InaccessibleMessage:
-    epoch = datetime.fromtimestamp(0, UTC)
-    return InaccessibleMessage(chat=Chat(id=CHAT_ID, type='private'), message_id=4, date=epoch)
+    # date у InaccessibleMessage — литеральный 0, так его описывает Telegram.
+    return InaccessibleMessage(chat=Chat(id=CHAT_ID, type='private'), message_id=4, date=0)
 
 
 def _callback(bot) -> SimpleNamespace:
