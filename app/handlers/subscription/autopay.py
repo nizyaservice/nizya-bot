@@ -26,6 +26,7 @@ from app.keyboards.inline import (
     get_traffic_packages_keyboard,
 )
 from app.localization.texts import get_texts
+from app.services.sbp_recurring_settings import is_button_visible as is_sbp_button_visible
 from app.services.section_image_service import get_section_media_kwargs
 from app.services.subscription_checkout_service import (
     clear_subscription_checkout_draft,
@@ -52,6 +53,41 @@ async def _resolve_subscription(callback, db_user, db, state=None):
     from .common import resolve_subscription_from_context
 
     return await resolve_subscription_from_context(callback, db_user, db, state)
+
+
+async def _has_live_sbp_recurring(db: AsyncSession, subscription) -> bool:
+    """Есть ли у подписки живая СБП-привязка (PENDING/ACTIVE/PAST_DUE)."""
+    from app.database.crud.platega_subscription import get_active_platega_subscription_by_subscription
+
+    try:
+        return await get_active_platega_subscription_by_subscription(db, subscription.id) is not None
+    except Exception as error:  # необязательная строка не должна ломать меню автоплатежа
+        logger.warning('Не удалось получить состояние СБП-автопродления', error=str(error))
+        return False
+
+
+async def _sbp_recurring_rows(db: AsyncSession, subscription, texts) -> list[list[types.InlineKeyboardButton]]:
+    """Строка «Автопродление через СБП»; пусто, если кнопка скрыта.
+
+    Видимость переключается в админке: Настройки → «Продление через СБП».
+    Скрытую кнопку всё равно показываем тому, у кого привязка жива: как и у
+    Cashera, списания продолжаются, и остановить их человек должен мочь из
+    бота.
+    """
+    if not settings.is_platega_recurrent_enabled():
+        return []
+
+    if not await is_sbp_button_visible(db) and not await _has_live_sbp_recurring(db, subscription):
+        return []
+
+    return [
+        [
+            types.InlineKeyboardButton(
+                text=texts.t('SBP_RECURRING_MENU_BUTTON', '⚡ Автопродление через СБП'),
+                callback_data='sbp_recurring_menu',
+            )
+        ]
+    ]
 
 
 async def _cashera_recurring_rows(db: AsyncSession, subscription, texts) -> list[list[types.InlineKeyboardButton]]:
@@ -111,15 +147,7 @@ async def handle_autopay_menu(callback: types.CallbackQuery, db_user: User, db: 
         # Platega суточный интервал поддерживает (`day`) — вход в него должен
         # оставаться достижимым, поэтому кнопку добавляем в тот же экран.
         daily_keyboard_rows: list[list[types.InlineKeyboardButton]] = []
-        if settings.is_platega_recurrent_enabled():
-            daily_keyboard_rows.append(
-                [
-                    types.InlineKeyboardButton(
-                        text=texts.t('SBP_RECURRING_MENU_BUTTON', '⚡ Автопродление через СБП'),
-                        callback_data='sbp_recurring_menu',
-                    )
-                ]
-            )
+        daily_keyboard_rows.extend(await _sbp_recurring_rows(db, subscription, texts))
         daily_keyboard_rows.extend(await _cashera_recurring_rows(db, subscription, texts))
         back_cb = f'sm:{sub_id}' if sub_id and settings.is_multi_tariff_enabled() else 'menu_subscription'
         daily_keyboard_rows.append([types.InlineKeyboardButton(text=texts.BACK, callback_data=back_cb)])
@@ -159,18 +187,11 @@ async def handle_autopay_menu(callback: types.CallbackQuery, db_user: User, db: 
     ).format(status=status, days=days, period=period_text)
 
     keyboard = get_autopay_keyboard(db_user.language, sub_id=sub_id)
-    if settings.is_platega_recurrent_enabled():
-        # Вставляем перед последней строкой (Back), чтобы кнопка СБП была
-        # среди основных действий, а не под ней.
-        keyboard.inline_keyboard.insert(
-            -1,
-            [
-                types.InlineKeyboardButton(
-                    text=texts.t('SBP_RECURRING_MENU_BUTTON', '⚡ Автопродление через СБП'),
-                    callback_data='sbp_recurring_menu',
-                )
-            ],
-        )
+
+    # Вставляем перед последней строкой (Back), чтобы кнопки автопродления были
+    # среди основных действий, а не под ней.
+    for row in await _sbp_recurring_rows(db, subscription, texts):
+        keyboard.inline_keyboard.insert(-1, row)
 
     for row in await _cashera_recurring_rows(db, subscription, texts):
         keyboard.inline_keyboard.insert(-1, row)
@@ -431,6 +452,16 @@ async def handle_sbp_recurring_menu(
     from app.database.crud.platega_subscription import get_active_platega_subscription_by_subscription
 
     record = await get_active_platega_subscription_by_subscription(db, subscription.id)
+
+    # Кнопку скрыли в админке: подключать нечего, но у кого привязка жива —
+    # экран остаётся, иначе списания продолжатся, а отменить их будет негде.
+    if record is None and not await is_sbp_button_visible(db):
+        await callback.answer(
+            texts.t('SBP_RECURRING_UNAVAILABLE', '⚠️ Автопродление через СБП сейчас недоступно'),
+            show_alert=True,
+        )
+        return
+
     status_text = _platega_sbp_status_text(record, texts)
 
     text = texts.t(
@@ -476,7 +507,8 @@ async def handle_sbp_recurring_enable(
     показать кнопку подтверждения в банке."""
     texts = get_texts(db_user.language)
 
-    if not settings.is_platega_recurrent_enabled():
+    # Скрытая кнопка не должна подключаться из старого сообщения в чате.
+    if not settings.is_platega_recurrent_enabled() or not await is_sbp_button_visible(db):
         await callback.answer(
             texts.t('SBP_RECURRING_UNAVAILABLE', '⚠️ Автопродление через СБП сейчас недоступно'),
             show_alert=True,
@@ -606,9 +638,10 @@ async def handle_sbp_recurring_cancel(
 
     await cancel_platega_recurring_for_subscription_safe(db, subscription.id)
     await callback.answer(texts.t('SBP_RECURRING_CANCELLED', '✅ Автопродление через СБП отменено'))
-    # Меню гейтится флагом — при выключенной фиче не дёргаем его, чтобы после
-    # успешной отмены юзер не получил второй алерт «недоступно».
-    if settings.is_platega_recurrent_enabled():
+    # Меню гейтится флагом и выключателем кнопки — при выключенных не дёргаем
+    # его, чтобы после успешной отмены юзер не получил второй алерт
+    # «недоступно»: привязки больше нет, и экран бы его как раз и показал.
+    if settings.is_platega_recurrent_enabled() and await is_sbp_button_visible(db):
         await handle_sbp_recurring_menu(callback, db_user, db, state)
 
 

@@ -1105,6 +1105,9 @@
 - `app/handlers/admin/rules.py` — Python-модуль
   Классы: нет
   Функции: `show_rules_management`, `cycle_rules_display_mode`, `view_current_rules`, `start_edit_rules`, `process_rules_edit`, `save_rules`, `clear_rules_confirmation`, `confirm_clear_rules`, `show_html_help`, `register_handlers`
+- `app/handlers/admin/sbp_recurring.py` — Python-модуль
+  Классы: нет
+  Функции: `show_sbp_recurring_panel`, `toggle_sbp_recurring_button`, `register_handlers`
 - `app/handlers/admin/section_images.py` — Python-модуль
   Классы: нет
   Функции: `show_section_images_panel`, `show_section_image_detail`, `start_section_image_edit`, `cancel_section_image_edit`, `delete_section_image`, `save_section_image`, `reject_non_photo_section_image`, `register_handlers`
@@ -1815,6 +1818,9 @@
 - `app/services/s2s_postback_service.py` — Python-модуль
   Классы: нет
   Функции: `send_postback` — Send S2S postback for an event.
+- `app/services/sbp_recurring_settings.py` — Python-модуль
+  Классы: нет
+  Функции: `is_button_visible` — Показывать ли кнопку «Автопродление через СБП»., `set_button_visible` — Сохраняет состояние выключателя и коммитит: правка идёт из админки.
 - `app/services/section_image_service.py` — Python-модуль
   Классы: `SectionImageDefinition`
   Функции: `get_section_image_path` — Путь к файлу баннера раздела; None — файла нет., `section_file_media` — file_id, если файл уже отправляли и он не менялся, иначе сам файл., `remember_file_photo` — Запомнить file_id отправленного файла. Безопасна для любого media., `reset_file_id_cache` — Сбросить кеш file_id (тесты и ручная перезаливка)., `get_section_image_definition`, `get_section_image_setting_key`, `get_section_image_file_id` — File_id картинки раздела; при language='en' сначала ключ '<key>.en', затем база., `get_section_media_kwargs` — Короткий хелпер для хендлеров: media=... если картинка задана, иначе {}., `get_cached_section_file_id` — File_id секции из кеша (массовая загрузка всех ui_section_image.* раз в минуту)., `resolve_cached_section_file_id` — File_id с фолбэком по иерархии: 'referral.analytics' → 'referral' → алиас → None., `resolve_section_media` — Картинка раздела для автодетекта: загруженная в админку, иначе файл из репозитория., `set_tariff_image_context` — Запомнить картинку выбранного тарифа до конца обработки апдейта., `get_tariff_image_context`, `reset_tariff_image_context` — Сбросить контекст (тесты, а также экраны без выбранного тарифа)., `get_user_language_cached` — Язык юзера из users по telegram_id (кеш 5 мин). None — не нашли/группа., `invalidate_section_cache` — Сброс кеша (вызывается после загрузки/удаления картинки в админке)., `resolve_section_image_file_id` — File_id с фолбэками; при language='en' каждый ключ сперва пробуется как '<key>.en'., `set_section_image_file_id`, `delete_section_image_file_id`
@@ -4755,6 +4761,9 @@
 - `tests/handlers/test_sbp_recurring_handlers.py` — Python-модуль
   Классы: нет
   Функции: `test_autopay_menu_daily_tariff_still_shows_sbp_entry` — Daily-tariff subscriptions can't use balance-autopay, but Platega's SBP, `test_autopay_menu_daily_tariff_gate_off_hides_sbp_entry` — Counterpart of the reachability test: with the Platega recurrent gate, `test_menu_gate_off_shows_alert_and_does_not_render`, `test_menu_no_active_record_shows_enable_button`, `test_menu_active_record_shows_cancel_button`, `test_menu_no_subscription_shows_alert`, `test_enable_gate_off_shows_alert`, `test_enable_trial_subscription_blocked_before_helper` — Trial subscriptions must not be able to authorize a real recurring bank, `test_enable_without_tariff_shows_alert_and_skips_helper` — No tariff on the subscription -> must short-circuit BEFORE calling the, `test_enable_value_error_shows_friendly_alert`, `test_enable_runtime_error_shows_friendly_alert`, `test_enable_success_shows_redirect_url_button`, `test_enable_idempotent_return_without_redirect_shows_status` — Idempotent return (already-active record) may carry no redirect_url —, `test_cancel_works_even_when_gate_off` — Отмена НЕ гейтится (паритет с кабинетным cancel): выключение фичи при, `test_cancel_gate_on_calls_helper_and_refreshes_menu`, `test_toggle_autopay_enable_cancels_active_sbp_recurring`, `test_toggle_autopay_disable_does_not_touch_sbp` — Disabling balance-autopay must NOT cancel SBP — only the enable path, `test_toggle_autopay_enable_blocked_before_cancel_for_trial` — A trial subscription is rejected before update_subscription_autopay is, `test_tariff_confirm_keyboard_shows_sbp_button_when_gate_on`, `test_tariff_confirm_keyboard_hides_sbp_button_when_gate_off`, `test_daily_tariff_confirm_keyboard_gates_sbp_button`
+- `tests/handlers/test_sbp_recurring_visibility.py` — Python-модуль
+  Классы: нет
+  Функции: `test_missing_setting_means_visible`, `test_falsey_values_hide_the_button`, `test_truthy_and_garbage_keep_the_button` — Нечитаемое значение не должно прятать кнопку молча., `test_setter_writes_and_commits`, `test_hidden_switch_removes_the_button`, `test_hidden_switch_keeps_the_button_for_a_live_mandate` — Иначе списания продолжатся, а отменить их будет негде., `test_visible_switch_keeps_the_button`, `test_menu_refuses_when_hidden_and_nothing_to_cancel`, `test_menu_opens_when_hidden_but_mandate_is_live`, `test_enable_refuses_when_hidden` — Старое сообщение в чате не должно подключать скрытую фичу., `test_cancel_works_when_hidden_and_does_not_reopen_the_menu` — После отмены привязки нет — перерисованное меню выдало бы «недоступно»., `test_admin_panel_offers_to_hide_a_visible_button`, `test_admin_panel_offers_to_show_a_hidden_button`, `test_admin_panel_names_the_gateway_when_it_is_off` — Выключен шлюз — экран обязан это сказать, иначе «кнопка показана» врёт., `test_admin_toggle_flips_and_saves`
 - `tests/handlers/test_setting_save_confirmation.py` — Python-модуль
   Классы: нет
   Функции: `test_env_pinned_setting_warns_instead_of_ok`, `test_regular_setting_reports_ok`

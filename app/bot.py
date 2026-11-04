@@ -53,6 +53,7 @@ from app.handlers.admin import (
     required_channels as admin_required_channels,
     router_link as admin_router_link,
     rules as admin_rules,
+    sbp_recurring as admin_sbp_recurring,
     section_images as admin_section_images,
     servers as admin_servers,
     statistics as admin_statistics,
@@ -218,6 +219,7 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
     admin_monitoring.register_handlers(dp)
     admin_section_images.register_handlers(dp)
     admin_router_link.register_handlers(dp)
+    admin_sbp_recurring.register_handlers(dp)
     admin_referrals.register_handlers(dp)
     admin_referral_levels.register_handlers(dp)
     admin_rules.register_handlers(dp)

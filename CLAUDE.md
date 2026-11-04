@@ -132,6 +132,15 @@ make docs-structure          # перегенерить docs/project_structure_r
 - главное правило: ключ запрашивается у панели только ПОСЛЕ списания, до оплаты
   наружу уходит лишь имя локации. Подробности и причины — `docs/router-link.md`
 
+Третья — **выключатель кнопки «Автопродление через СБП»** (админка → Настройки →
+«⚡ Продление через СБП», `app/handlers/admin/sbp_recurring.py` +
+`app/services/sbp_recurring_settings.py`). Ключ `sbp_recurring.button_visible` в
+`system_settings`, а не поле `Settings`, именно потому, что `PLATEGA_RECURRENT_ENABLED`
+задан в прод-`.env`: такие ключи попадают в `ENV_OVERRIDE_KEYS`, и запись из админки
+сохранилась бы в БД, но на живой процесс не применилась. Выключатель прячет только
+подключение — у кого привязка жива, кнопка остаётся (иначе списания идут, а отменить
+нечем; тот же принцип, что у строки Cashera в `handlers/subscription/autopay.py`).
+
 Остальной fork-diff по хендлерам (`handlers/balance/*`, `subscription/*`, `menu.py`…) —
 в основном подстановка `media`/баннеров в вызовы отправки сообщений.
 
