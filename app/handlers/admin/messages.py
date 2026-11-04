@@ -789,6 +789,18 @@ async def select_broadcast_target(callback: types.CallbackQuery, db_user: User, 
     await callback.answer()
 
 
+def _caption_fits(text: str) -> bool:
+    """Влезет ли текст рассылки в подпись к медиа.
+
+    Считаем по разобранному тексту: Telegram не учитывает HTML-теги, а в
+    рассылке они есть всегда — форматирование автора уходит именно тегами.
+    Сырой ``len()`` завышал длину на величину разметки, и рассылка с картинкой
+    разъезжалась на два сообщения: фото без подписи, а текст отдельно. Та же
+    проверка стоит на входе текста, чтобы вход и отправка не расходились.
+    """
+    return not caption_exceeds_telegram_limit(text)
+
+
 def _authored_html(message: types.Message) -> str | None:
     """Текст сообщения в HTML: из ``text`` или из подписи к файлу.
 
@@ -839,7 +851,7 @@ async def process_broadcast_message(message: types.Message, db_user: User, state
         # Текст и файл пришли одним сообщением — шаг выбора медиа не нужен.
         # Подпись отдельно не храним: broadcast_service берёт
         # `media.caption or message_text`, и текст рассылки станет подписью.
-        if caption_exceeds_telegram_limit(broadcast_text):
+        if not _caption_fits(broadcast_text):
             await message.answer(
                 '❌ С картинкой Telegram разрешает подпись до 1024 символов, а текст длиннее.\n\n'
                 'Пришлите текст короче — или отправьте его без картинки, тогда её можно будет '
@@ -1189,8 +1201,8 @@ async def confirm_button_selection(callback: types.CallbackQuery, db_user: User,
                 await callback.message.delete()
             except Exception:
                 pass
-            # Telegram ограничивает caption до 1024 символов
-            if len(preview_text) <= 1024:
+            # Telegram ограничивает подпись 1024 символами разобранного текста
+            if _caption_fits(preview_text):
                 await callback.bot.send_photo(
                     chat_id=callback.message.chat.id,
                     photo=media_file_id,
@@ -1344,8 +1356,8 @@ async def confirm_broadcast(callback: types.CallbackQuery, db_user: User, state:
                             'video': 'video',
                             'document': 'document',
                         }[media_type]
-                        # Telegram ограничивает caption до 1024 символов
-                        if len(message_text) <= 1024:
+                        # Telegram ограничивает подпись 1024 символами разобранного текста
+                        if _caption_fits(message_text):
                             await send_method(
                                 chat_id=telegram_id,
                                 **{media_kwarg: media_file_id},

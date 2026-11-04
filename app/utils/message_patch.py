@@ -160,11 +160,17 @@ _HTML_TAG_RE = re.compile(r'<[^<>]+>')
 
 
 def caption_exceeds_telegram_limit(text: str | None) -> bool:
-    """Check if text exceeds Telegram's caption limit (1024 parsed chars)."""
+    """Check if text exceeds Telegram's caption limit (1024 parsed chars).
+
+    Длина считается в кодовых единицах UTF-16 — так её считает сам Telegram.
+    Эмодзи весит две единицы, и подпись, набитая эмодзи, упирается в лимит
+    раньше, чем ``len()`` по символам: отправка отбивалась «caption is too
+    long» там, где проверка показывала запас.
+    """
     if not text:
         return False
     stripped = html_module.unescape(_HTML_TAG_RE.sub('', text))
-    return len(stripped) > TELEGRAM_CAPTION_LIMIT
+    return len(stripped.encode('utf-16-le')) // 2 > TELEGRAM_CAPTION_LIMIT
 
 
 _PRIVACY_RESTRICTED_CODE = 'BUTTON_USER_PRIVACY_RESTRICTED'

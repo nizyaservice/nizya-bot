@@ -4679,7 +4679,7 @@
   Функции: `test_keyboard_passes_icon_custom_emoji_id`, `test_schema_roundtrips_icon_custom_emoji_id`, `test_schema_defaults_to_none_and_rejects_garbage`
 - `tests/handlers/test_broadcast_message_step.py` — Python-модуль
   Классы: нет
-  Функции: `test_photo_with_caption_keeps_text_and_picks_up_the_photo`, `test_plain_text_keeps_formatting_and_asks_for_media`, `test_photo_without_caption_asks_for_text`, `test_too_long_caption_is_refused_before_sending` — С картинкой Telegram ограничивает подпись 1024 символами.
+  Функции: `test_photo_with_caption_keeps_text_and_picks_up_the_photo`, `test_plain_text_keeps_formatting_and_asks_for_media`, `test_photo_without_caption_asks_for_text`, `test_too_long_caption_is_refused_before_sending` — С картинкой Telegram ограничивает подпись 1024 символами., `test_caption_rule_ignores_markup`, `test_caption_rule_refuses_long_text`, `test_caption_rule_counts_emoji_as_two_units` — Telegram считает длину в кодовых единицах UTF-16., `test_module_has_no_raw_caption_length_checks` — Сырой len() против 1024 — та самая причина двух сообщений.
 - `tests/handlers/test_cashera_topup_flow.py` — Python-модуль
   Классы: нет
   Функции: `test_single_button_by_default`, `test_inline_methods_show_one_button_per_method`, `test_prefilled_amount_keeps_method_in_callback`, `test_quick_amounts_resolve_to_cashera_config`, `test_hidden_when_disabled`, `test_several_methods_ask_to_choose`, `test_choosing_a_method_asks_for_amount`, `test_disabled_method_is_refused`, `test_invoice_is_a_qr_photo_when_requisites_are_ready`

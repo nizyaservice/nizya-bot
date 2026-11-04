@@ -8,7 +8,9 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -133,3 +135,36 @@ async def test_too_long_caption_is_refused_before_sending(monkeypatch):
     data = await state.get_data()
     assert 'has_media' not in data
     preview.assert_not_awaited()
+
+
+# --- одна линейка для подписи на входе, в предпросмотре и в отправке ---
+# Рассылка с картинкой приходила двумя сообщениями: фото без подписи, а текст
+# отдельно. Отправка мерила сырой len() вместе с HTML-тегами и видела перебор
+# там, где Telegram считает только разобранный текст.
+
+
+def test_caption_rule_ignores_markup():
+    plain = 'я' * 1000
+    with_markup = f'{plain[:500]}<code>{plain[500:]}</code>'
+
+    assert len(with_markup) > 1024, 'разметка обязана завышать сырую длину — иначе тест ничего не проверяет'
+    assert admin_messages._caption_fits(with_markup) is True
+
+
+def test_caption_rule_refuses_long_text():
+    assert admin_messages._caption_fits('я' * 1100) is False
+
+
+def test_caption_rule_counts_emoji_as_two_units():
+    """Telegram считает длину в кодовых единицах UTF-16."""
+    assert admin_messages._caption_fits('👋' * 512) is True
+    assert admin_messages._caption_fits('👋' * 600) is False
+
+
+def test_module_has_no_raw_caption_length_checks():
+    """Сырой len() против 1024 — та самая причина двух сообщений."""
+    source = Path(admin_messages.__file__).read_text(encoding='utf-8')
+
+    assert re.search(r'len\([^)]*\)\s*<=\s*1024', source) is None
+    # вход текста, предпросмотр у админа и отправка получателям
+    assert source.count('_caption_fits(') >= 4
