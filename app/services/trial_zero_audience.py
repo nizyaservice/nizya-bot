@@ -169,7 +169,5 @@ def pick_zero_traffic_users(
             spent_anything.add(user.id)
 
     return [
-        user
-        for user_id, user in candidates.items()
-        if alive_accounts.get(user_id) and user_id not in spent_anything
+        user for user_id, user in candidates.items() if alive_accounts.get(user_id) and user_id not in spent_anything
     ]
