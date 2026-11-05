@@ -1,5 +1,6 @@
 import asyncio
 import html
+import time
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -106,10 +107,90 @@ PANEL_AUDIENCE_UNAVAILABLE_TEXT = (
 )
 
 
-def _panel_unavailable_keyboard() -> types.InlineKeyboardMarkup:
+BROADCAST_DRAFT_LOST_TEXT = (
+    '⚠️ <b>Черновик рассылки потерялся</b>\n\n'
+    'Похоже, это сообщение осталось от прежней рассылки: аудитория и текст в боте больше не хранятся. '
+    'Начните заново: «Сообщения» → «Рассылки».'
+)
+
+#: Снимок черновика на время теста админам.
+#:
+#: Кнопки в тестовом сообщении настоящие, и «🏠 На главную» среди них зовёт
+#: handle_back_to_menu, а тот делает ``state.clear()`` — FSM-черновик админа
+#: стирался, и «Отправить» на всё ещё висящем экране предпросмотра падал на
+#: ``target=None``. Снимок переживает очистку и восстанавливается при входе на
+#: предпросмотр и на отправку.
+BROADCAST_DRAFT_SNAPSHOT_TTL = 1800.0
+
+_DRAFT_SNAPSHOT_KEYS = (
+    'broadcast_target',
+    'broadcast_message',
+    'selected_buttons',
+    'has_media',
+    'media_type',
+    'media_file_id',
+    'media_caption',
+)
+
+_broadcast_draft_snapshots: dict[int, tuple[float, dict]] = {}
+
+
+def remember_broadcast_draft(admin_telegram_id: int | None, data: dict) -> None:
+    """Запомнить черновик, чтобы он пережил очистку FSM."""
+    if not admin_telegram_id or not data.get('broadcast_target'):
+        return
+    _broadcast_draft_snapshots[admin_telegram_id] = (
+        time.monotonic(),
+        {key: data[key] for key in _DRAFT_SNAPSHOT_KEYS if key in data},
+    )
+
+
+def recall_broadcast_draft(admin_telegram_id: int | None) -> dict | None:
+    """Запомненный черновик или ``None``, если его нет или он просрочен."""
+    if not admin_telegram_id:
+        return None
+
+    remembered = _broadcast_draft_snapshots.get(admin_telegram_id)
+    if remembered is None:
+        return None
+
+    saved_at, snapshot = remembered
+    if time.monotonic() - saved_at > BROADCAST_DRAFT_SNAPSHOT_TTL:
+        _broadcast_draft_snapshots.pop(admin_telegram_id, None)
+        return None
+    return dict(snapshot)
+
+
+def forget_broadcast_draft(admin_telegram_id: int | None) -> None:
+    """Черновик больше не нужен: рассылка ушла или отменена."""
+    if admin_telegram_id:
+        _broadcast_draft_snapshots.pop(admin_telegram_id, None)
+
+
+def _back_to_messages_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(
         inline_keyboard=[[types.InlineKeyboardButton(text='⬅️ К рассылкам', callback_data='admin_messages')]]
     )
+
+
+async def _broadcast_draft(callback: types.CallbackQuery, db_user: User, state: FSMContext) -> dict | None:
+    """Черновик рассылки: из FSM, иначе из снимка. ``None`` — черновика нет.
+
+    При ``None`` экран «черновик потерялся» уже показан; вызывающему остаётся
+    ответить на callback и выйти. Падать на ``target=None``, как раньше, нельзя:
+    админ видит в чате прежний экран предпросмотра с живой кнопкой «Отправить».
+    """
+    data = await state.get_data()
+    if data.get('broadcast_target'):
+        return data
+
+    restored = recall_broadcast_draft(getattr(db_user, 'telegram_id', None))
+    if restored is None:
+        await safe_edit_or_send_text(callback, BROADCAST_DRAFT_LOST_TEXT, reply_markup=_back_to_messages_keyboard())
+        return None
+
+    await state.update_data(**restored)
+    return restored
 
 
 BUTTON_ROWS = BROADCAST_BUTTON_ROWS
@@ -279,6 +360,11 @@ async def _persist_broadcast_result(
 @admin_required
 @error_handler
 async def show_messages_menu(callback: types.CallbackQuery, db_user: User, db: AsyncSession):
+    # Вход в меню рассылок — это и «Отмена» с экрана предпросмотра: снимок
+    # черновика тут и забываем, иначе он ожил бы при нажатии «Отправить» на
+    # прежнем экране, оставшемся висеть в чате.
+    forget_broadcast_draft(getattr(db_user, 'telegram_id', None))
+
     text = """
 📨 <b>Управление рассылками</b>
 
@@ -813,7 +899,7 @@ async def select_broadcast_target(callback: types.CallbackQuery, db_user: User, 
         user_count = await get_target_users_count(db, target)
     except PanelAudienceUnavailableError:
         await safe_edit_or_send_text(
-            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_panel_unavailable_keyboard()
+            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_back_to_messages_keyboard()
         )
         await callback.answer()
         return
@@ -1248,7 +1334,10 @@ async def _show_broadcast_preview(
     админам: после теста экран должен снова оказаться последним в чате, иначе
     кнопку «Отправить» пришлось бы искать выше тестовых сообщений.
     """
-    data = await state.get_data()
+    data = await _broadcast_draft(callback, db_user, state)
+    if data is None:
+        return
+
     target = data.get('broadcast_target')
     message_text = data.get('broadcast_message')
     selected_buttons = data.get('selected_buttons')
@@ -1266,7 +1355,7 @@ async def _show_broadcast_preview(
         )
     except PanelAudienceUnavailableError:
         await safe_edit_or_send_text(
-            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_panel_unavailable_keyboard()
+            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_back_to_messages_keyboard()
         )
         return
 
@@ -1416,6 +1505,11 @@ async def send_broadcast_test(callback: types.CallbackQuery, db_user: User, stat
         failed=failed,
     )
 
+    # Кнопки в тестовом сообщении настоящие: «🏠 На главную» среди них чистит
+    # FSM, поэтому черновик кладём в снимок — иначе «Отправить» после теста
+    # падал на пустом состоянии.
+    remember_broadcast_draft(db_user.telegram_id, data)
+
     # Перерисовываем предпросмотр, чтобы он снова был последним сообщением в
     # чате: тестовые сообщения только что легли поверх прежнего экрана.
     await _show_broadcast_preview(callback, db_user, state, db, force_new=True)
@@ -1432,7 +1526,11 @@ async def send_broadcast_test(callback: types.CallbackQuery, db_user: User, stat
 @admin_required
 @error_handler
 async def confirm_broadcast(callback: types.CallbackQuery, db_user: User, state: FSMContext, db: AsyncSession):
-    data = await state.get_data()
+    data = await _broadcast_draft(callback, db_user, state)
+    if data is None:
+        await callback.answer()
+        return
+
     target = data.get('broadcast_target')
     message_text = data.get('broadcast_message')
     selected_buttons = data.get('selected_buttons')
@@ -1473,7 +1571,7 @@ async def confirm_broadcast(callback: types.CallbackQuery, db_user: User, state:
         # До создания записи истории: рассылки не было, и состояние не теряем —
         # текст и аудитория остаются в FSM, можно повторить позже.
         await safe_edit_or_send_text(
-            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_panel_unavailable_keyboard()
+            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_back_to_messages_keyboard()
         )
         await callback.answer()
         return
@@ -1705,6 +1803,10 @@ async def confirm_broadcast(callback: types.CallbackQuery, db_user: User, state:
         status=status,
         blocked_count=blocked_count,
     )
+
+    # Рассылка ушла — снимок черновика больше не нужен, иначе он подставился бы
+    # в следующую рассылку, если её бросить на полпути.
+    forget_broadcast_draft(admin_telegram_id)
 
     success_rate = round(sent_count / total_users_count * 100, 1) if total_users_count else 0
     media_info = f'\n🖼️ <b>Медиафайл:</b> {media_type}' if has_media else ''

@@ -65,6 +65,13 @@ def _state(**data):
 
 
 @pytest.fixture(autouse=True)
+def _clean_draft_snapshots():
+    admin_messages._broadcast_draft_snapshots.clear()
+    yield
+    admin_messages._broadcast_draft_snapshots.clear()
+
+
+@pytest.fixture(autouse=True)
 def _no_db_counts(monkeypatch):
     """Предпросмотр считает получателей в БД — здесь двойник сессии."""
     monkeypatch.setattr(admin_messages, 'get_target_users_count', AsyncMock(return_value=42))
@@ -251,3 +258,96 @@ def test_broadcast_and_test_share_one_deliverer():
     assert source.count('deliver_broadcast_message(') >= 3, 'определение + рассылка + тест'
     # Прежняя развилка «медиа или текст» внутри send_single_broadcast ушла в доставщик.
     assert re.search(r"'photo': callback\.bot\.send_photo", source) is None
+
+
+# ─── черновик переживает нажатия в тестовом сообщении ───
+#
+# Прод-падение (05.11.2026): AttributeError 'NoneType' has no attribute
+# 'startswith' в confirm_broadcast. Админ нажал «🏠 На главную» в тестовом
+# сообщении — кнопки там настоящие, а handle_back_to_menu делает state.clear().
+# FSM-черновик стёрся, экран предпросмотра остался висеть в чате (он больше не
+# перезаписывается), и «Отправить» ушло с target=None.
+
+
+@pytest.mark.asyncio
+async def test_test_send_remembers_the_draft():
+    cb, state = _callback(), _state()
+
+    await _unwrap(admin_messages.send_broadcast_test)(cb, _admin(), state, AsyncMock())
+
+    remembered = admin_messages.recall_broadcast_draft(ACTING_ADMIN)
+    assert remembered['broadcast_target'] == 'all'
+    assert remembered['broadcast_message'] == '<b>Привет</b>'
+
+
+@pytest.mark.asyncio
+async def test_draft_is_restored_when_the_fsm_was_cleared():
+    admin_messages.remember_broadcast_draft(ACTING_ADMIN, {'broadcast_target': 'all', 'broadcast_message': 'Текст'})
+    cb = _callback()
+    state = MagicMock()
+    state.get_data = AsyncMock(return_value={})
+    state.update_data = AsyncMock()
+
+    data = await admin_messages._broadcast_draft(cb, _admin(), state)
+
+    assert data['broadcast_target'] == 'all'
+    # Восстановленный черновик возвращается в FSM, чтобы дальше шаги работали.
+    assert state.update_data.await_args.kwargs['broadcast_target'] == 'all'
+
+
+@pytest.mark.asyncio
+async def test_lost_draft_reports_instead_of_crashing():
+    cb = _callback()
+    state = MagicMock()
+    state.get_data = AsyncMock(return_value={})
+    state.update_data = AsyncMock()
+
+    data = await admin_messages._broadcast_draft(cb, _admin(), state)
+
+    assert data is None
+    assert 'потерялся' in cb.message.edit_text.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_confirm_without_a_draft_answers_and_sends_nothing():
+    """Та самая прод-ошибка: падало на target.startswith() при пустом состоянии."""
+    cb = _callback()
+    state = MagicMock()
+    state.get_data = AsyncMock(return_value={})
+    state.update_data = AsyncMock()
+    db = AsyncMock()
+    db.add = MagicMock()
+
+    await _unwrap(admin_messages.confirm_broadcast)(cb, _admin(), state, db)
+
+    cb.answer.assert_awaited_once()
+    db.add.assert_not_called()
+    cb.bot.send_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_returning_to_the_broadcasts_menu_forgets_the_draft():
+    """Иначе «Отмена» оставляла бы черновик, готовый ожить на старом экране."""
+    admin_messages.remember_broadcast_draft(ACTING_ADMIN, {'broadcast_target': 'all'})
+    cb = _callback()
+
+    await _unwrap(admin_messages.show_messages_menu)(cb, _admin(), AsyncMock())
+
+    assert admin_messages.recall_broadcast_draft(ACTING_ADMIN) is None
+
+
+def test_stale_snapshot_is_dropped():
+    admin_messages.remember_broadcast_draft(ACTING_ADMIN, {'broadcast_target': 'all'})
+    saved_at, snapshot = admin_messages._broadcast_draft_snapshots[ACTING_ADMIN]
+    admin_messages._broadcast_draft_snapshots[ACTING_ADMIN] = (
+        saved_at - admin_messages.BROADCAST_DRAFT_SNAPSHOT_TTL - 1,
+        snapshot,
+    )
+
+    assert admin_messages.recall_broadcast_draft(ACTING_ADMIN) is None
+
+
+def test_snapshot_without_a_target_is_not_kept():
+    admin_messages.remember_broadcast_draft(ACTING_ADMIN, {'broadcast_message': 'без аудитории'})
+
+    assert admin_messages.recall_broadcast_draft(ACTING_ADMIN) is None
