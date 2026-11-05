@@ -43,6 +43,7 @@ from app.services.pinned_message_service import (
     set_active_pinned_message,
     unpin_active_pinned_message,
 )
+from app.services.trial_zero_audience import PanelAudienceUnavailableError, get_trial_zero_traffic_users
 from app.states import AdminStates
 from app.utils.decorators import admin_required, error_handler
 from app.utils.message_patch import caption_exceeds_telegram_limit
@@ -95,6 +96,20 @@ async def _deliver_preview_screen(callback: types.CallbackQuery, text: str, mark
     except Exception:
         pass
     await callback.bot.send_message(chat_id=callback.message.chat.id, text=text, reply_markup=markup, parse_mode='HTML')
+
+
+PANEL_AUDIENCE_UNAVAILABLE_TEXT = (
+    '⚠️ <b>Панель не ответила</b>\n\n'
+    'Аудиторию «Триал 0 ГБ» бот считает по Remnawave: оттуда берётся и точный расход трафика, '
+    'и ответ на вопрос «аккаунт ещё не удалён». Пока панель недоступна, список получателей '
+    'собрать нечем — попробуйте позже.'
+)
+
+
+def _panel_unavailable_keyboard() -> types.InlineKeyboardMarkup:
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=[[types.InlineKeyboardButton(text='⬅️ К рассылкам', callback_data='admin_messages')]]
+    )
 
 
 BUTTON_ROWS = BROADCAST_BUTTON_ROWS
@@ -794,7 +809,14 @@ async def select_broadcast_target(callback: types.CallbackQuery, db_user: User, 
         else:
             target_name = f'Тариф #{tariff_id}'
 
-    user_count = await get_target_users_count(db, target)
+    try:
+        user_count = await get_target_users_count(db, target)
+    except PanelAudienceUnavailableError:
+        await safe_edit_or_send_text(
+            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_panel_unavailable_keyboard()
+        )
+        await callback.answer()
+        return
 
     await state.update_data(broadcast_target=target)
 
@@ -1236,11 +1258,18 @@ async def _show_broadcast_preview(
     has_media = data.get('has_media', False)
     media_type = data.get('media_type')
 
-    user_count = (
-        await get_target_users_count(db, target)
-        if not target.startswith('custom_')
-        else await get_custom_users_count(db, target.replace('custom_', ''))
-    )
+    try:
+        user_count = (
+            await get_target_users_count(db, target)
+            if not target.startswith('custom_')
+            else await get_custom_users_count(db, target.replace('custom_', ''))
+        )
+    except PanelAudienceUnavailableError:
+        await safe_edit_or_send_text(
+            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_panel_unavailable_keyboard()
+        )
+        return
+
     target_display = get_target_display_name(target)
 
     media_info = ''
@@ -1435,10 +1464,19 @@ async def confirm_broadcast(callback: types.CallbackQuery, db_user: User, state:
 
     # Загружаем пользователей и сразу извлекаем telegram_id в список
     # чтобы не обращаться к ORM-объектам во время долгой рассылки
-    if target.startswith('custom_'):
-        users_orm = await get_custom_users(db, target.replace('custom_', ''))
-    else:
-        users_orm = await get_target_users(db, target)
+    try:
+        if target.startswith('custom_'):
+            users_orm = await get_custom_users(db, target.replace('custom_', ''))
+        else:
+            users_orm = await get_target_users(db, target)
+    except PanelAudienceUnavailableError:
+        # До создания записи истории: рассылки не было, и состояние не теряем —
+        # текст и аудитория остаются в FSM, можно повторить позже.
+        await safe_edit_or_send_text(
+            callback, PANEL_AUDIENCE_UNAVAILABLE_TEXT, reply_markup=_panel_unavailable_keyboard()
+        )
+        await callback.answer()
+        return
 
     # Извлекаем только telegram_id - это всё что нужно для отправки
     # Фильтруем None (email-only пользователи)
@@ -1869,19 +1907,10 @@ async def get_target_users_count(db: AsyncSession, target: str) -> int:
         return result.scalar() or 0
 
     if target == 'trial_zero':
-        # Триальные с нулевым трафиком
-        query = (
-            select(sql_func.count(distinct(User.id)))
-            .join(Subscription, User.id == Subscription.user_id)
-            .where(
-                base_filter,
-                Subscription.is_trial == True,
-                Subscription.status == SubscriptionStatus.ACTIVE.value,
-                or_(Subscription.traffic_used_gb == None, Subscription.traffic_used_gb <= 0),
-            )
-        )
-        result = await db.execute(query)
-        return result.scalar() or 0
+        # Та же функция, что и у отправки: число в предпросмотре обязано
+        # совпадать с фактическими получателями. Считает по панели — там и
+        # точный расход, и ответ «аккаунт не удалён».
+        return len(await get_trial_zero_traffic_users(db))
 
     if target == 'zero':
         # Все активные с нулевым трафиком
@@ -1997,6 +2026,11 @@ async def get_target_users_count(db: AsyncSession, target: str) -> int:
 
 
 async def get_target_users(db: AsyncSession, target: str) -> list:
+    # «Триал 0 ГБ» считается адресным запросом — до загрузки всех активных
+    # пользователей с их подписками, которая этой аудитории не нужна.
+    if target == 'trial_zero':
+        return await get_trial_zero_traffic_users(db)
+
     # Загружаем всех активных пользователей батчами, чтобы не ограничиваться 10к
     users: list[User] = []
     offset = 0
@@ -2062,16 +2096,6 @@ async def get_target_users(db: AsyncSession, target: str) -> list:
             for user in users
             if any(
                 not s.is_trial and s.is_active and (s.traffic_used_gb or 0) <= 0
-                for s in (getattr(user, 'subscriptions', None) or [])
-            )
-        ]
-
-    if target == 'trial_zero':
-        return [
-            user
-            for user in users
-            if any(
-                s.is_trial and s.is_active and (s.traffic_used_gb or 0) <= 0
                 for s in (getattr(user, 'subscriptions', None) or [])
             )
         ]
