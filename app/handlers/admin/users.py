@@ -47,7 +47,7 @@ from app.services.subscription_service import SubscriptionService
 from app.services.user_service import UserService
 from app.states import AdminStates
 from app.utils.decorators import admin_required, error_handler
-from app.utils.formatters import format_datetime, format_time_ago
+from app.utils.formatters import format_bonus_points, format_datetime, format_time_ago
 from app.utils.formatting import user_html_link
 from app.utils.photo_message import safe_edit_or_resend
 from app.utils.subscription_time import format_time_left, local_days_until
@@ -1301,6 +1301,15 @@ async def show_user_management(callback: types.CallbackQuery, db_user: User, db:
         )
     ]
 
+    # Баллы показываем всегда: оператор должен видеть текущее значение до того,
+    # как нажмёт «🎁 Баллы». Отдельной строкой, а не внутри шаблона профиля, —
+    # иначе пришлось бы править существующий ключ во всех локалях и оба слоя.
+    sections.append(
+        texts.t('ADMIN_USER_BONUS_POINTS_LINE', '🎁 <b>Бонусные баллы:</b> {points}').format(
+            points=format_bonus_points(user.bonus_points_kopeks)
+        )
+    )
+
     if subscription:
         subscription_type = (
             texts.ADMIN_USER_SUBSCRIPTION_TYPE_TRIAL
@@ -2275,6 +2284,90 @@ async def start_balance_edit(callback: types.CallbackQuery, db_user: User, state
 
     await state.set_state(AdminStates.editing_user_balance)
     await callback.answer()
+
+
+@admin_required
+@error_handler
+async def start_bonus_points_edit(callback: types.CallbackQuery, db_user: User, state: FSMContext) -> None:
+    """Экран начисления бонусных баллов — парный «💰 Баланс»."""
+    user_id = int(callback.data.split('_')[-1])
+
+    await state.update_data(editing_user_id=user_id)
+
+    await callback.message.edit_text(
+        '🎁 <b>Изменение бонусных баллов</b>\n\n'
+        'Введите количество баллов:\n'
+        '• Положительное число — начислить\n'
+        '• Отрицательное — снять\n'
+        '• Примеры: 100, -50, 25.5\n\n'
+        '1 балл = 1 ₽. Баллы тратятся раньше денег при любой оплате с баланса.\n\n'
+        'Или нажмите /cancel для отмены',
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [types.InlineKeyboardButton(text='❌ Отмена', callback_data=f'admin_user_manage_{user_id}')]
+            ]
+        ),
+    )
+
+    await state.set_state(AdminStates.editing_user_bonus_points)
+    await callback.answer()
+
+
+@admin_required
+@error_handler
+async def process_bonus_points_edit(message: types.Message, db_user: User, state: FSMContext, db: AsyncSession) -> None:
+    data = await state.get_data()
+    user_id = data.get('editing_user_id')
+
+    if not user_id:
+        await message.answer('❌ Ошибка: пользователь не найден')
+        await state.clear()
+        return
+
+    try:
+        amount_points = float((message.text or '').replace(',', '.'))
+    except ValueError:
+        await message.answer('❌ Введите корректное число (например: 100 или -50)')
+        return
+
+    amount_kopeks = int(round(amount_points * 100))
+    if amount_kopeks == 0:
+        await message.answer('❌ Ноль баллов начислять нечего')
+        return
+
+    # Тот же предел, что у баланса: 100 000 баллов за одно начисление.
+    if abs(amount_kopeks) > 10000000:
+        await message.answer('❌ Слишком много баллов (максимум 100 000 за раз)')
+        return
+
+    user_service = UserService()
+    success = await user_service.update_user_bonus_points(
+        db,
+        user_id,
+        amount_kopeks,
+        db_user.id,
+        bot=message.bot,
+        admin_name=db_user.full_name,
+    )
+
+    if success:
+        action = 'начислены' if amount_kopeks > 0 else 'списаны'
+        await message.answer(
+            f'✅ Бонусные баллы {action}: {format_bonus_points(abs(amount_kopeks))}',
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        types.InlineKeyboardButton(
+                            text='👤 К пользователю', callback_data=f'admin_user_manage_{user_id}'
+                        )
+                    ]
+                ]
+            ),
+        )
+    else:
+        await message.answer('❌ Не удалось изменить баллы (возможно, их недостаточно для списания)')
+
+    await state.clear()
 
 
 @admin_required
@@ -6366,8 +6459,10 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(set_user_promo_group, F.data.startswith('admin_user_promo_group_toggle_'))
 
     dp.callback_query.register(start_balance_edit, F.data.startswith('admin_user_balance_'))
+    dp.callback_query.register(start_bonus_points_edit, F.data.startswith('admin_user_points_'))
 
     dp.message.register(process_balance_edit, AdminStates.editing_user_balance)
+    dp.message.register(process_bonus_points_edit, AdminStates.editing_user_bonus_points)
 
     dp.callback_query.register(
         show_user_referrals, F.data.startswith('admin_user_referrals_') & ~F.data.contains('_edit')

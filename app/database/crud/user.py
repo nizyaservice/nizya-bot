@@ -671,6 +671,55 @@ async def add_user_balance_by_id(
         return False
 
 
+async def change_user_bonus_points(
+    db: AsyncSession,
+    user: User,
+    amount_kopeks: int,
+    *,
+    commit: bool = True,
+) -> bool:
+    """Начислить (плюс) или снять (минус) бонусные баллы. ``False`` — не хватило.
+
+    Денежной транзакции не создаёт намеренно: ``transactions`` кормит
+    финансовые отчёты, и депозит на 500 ₽ баллами выглядел бы там как
+    полученные деньги. Факт начисления пишется в лог и уезжает человеку
+    уведомлением.
+    """
+    if amount_kopeks == 0:
+        return True
+
+    # Блокируем строку: баллы меняются и из админки, и списанием при оплате.
+    locked = await db.execute(select(User).where(User.id == user.id).with_for_update())
+    locked_user = locked.scalar_one()
+
+    current = locked_user.bonus_points_kopeks or 0
+    if amount_kopeks < 0 and current < abs(amount_kopeks):
+        logger.warning(
+            'Не хватает бонусных баллов для списания',
+            user_id=locked_user.id,
+            bonus_points_kopeks=current,
+            amount_kopeks=amount_kopeks,
+        )
+        return False
+
+    locked_user.bonus_points_kopeks = current + amount_kopeks
+    locked_user.updated_at = datetime.now(UTC)
+
+    if commit:
+        await db.commit()
+        await db.refresh(locked_user)
+    else:
+        await db.flush()
+
+    logger.info(
+        'Бонусные баллы изменены',
+        user_id=locked_user.id,
+        amount_kopeks=amount_kopeks,
+        bonus_points_kopeks=locked_user.bonus_points_kopeks,
+    )
+    return True
+
+
 async def lock_user_for_pricing(db: AsyncSession, user_id: int) -> User:
     """Lock user row with FOR UPDATE and return refreshed instance.
 
@@ -767,13 +816,19 @@ async def subtract_user_balance(
                 if not log_context['percent'] and offer.discount_percent:
                     log_context['percent'] = offer.discount_percent
 
-    if user.balance_kopeks < amount_kopeks:
+    if user.available_balance_kopeks < amount_kopeks:
         logger.error('   ❌ НЕДОСТАТОЧНО СРЕДСТВ!')
         return False
 
     try:
         old_balance = user.balance_kopeks
-        user.balance_kopeks -= amount_kopeks
+        # Бонусные баллы тратятся раньше денег — одна точка на все оплаты с
+        # баланса, поэтому отдельным флоу (тарифы, докупки, подарки, автоплатёж)
+        # об очерёдности знать не нужно.
+        points_before = user.bonus_points_kopeks or 0
+        paid_from_points = min(points_before, amount_kopeks)
+        user.bonus_points_kopeks = points_before - paid_from_points
+        user.balance_kopeks -= amount_kopeks - paid_from_points
 
         if consume_promo_offer and getattr(user, 'promo_offer_discount_percent', 0):
             user.promo_offer_discount_percent = 0
@@ -790,12 +845,19 @@ async def subtract_user_balance(
                 create_transaction as create_trans,
             )
 
+            # Транзакция на всю сумму: в истории человек видит цену покупки, а
+            # не её денежную часть. Сколько закрыли баллами — в описании, иначе
+            # по истории не понять, почему с баланса ушло меньше.
+            transaction_description = description
+            if paid_from_points > 0:
+                transaction_description = f'{description} (баллами: {settings.format_price(paid_from_points)})'
+
             await create_trans(
                 db=db,
                 user_id=user.id,
                 type=transaction_type,
                 amount_kopeks=amount_kopeks,
-                description=description,
+                description=transaction_description,
                 payment_method=payment_method,
                 commit=commit,
             )

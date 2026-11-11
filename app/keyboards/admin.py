@@ -1129,9 +1129,15 @@ def get_user_management_keyboard(
                 text=_t(texts, 'ADMIN_USER_BALANCE', '💰 Баланс'), callback_data=f'admin_user_balance_{user_id}'
             ),
             InlineKeyboardButton(
+                text=_t(texts, 'ADMIN_USER_BONUS_POINTS', '🎁 Баллы'),
+                callback_data=f'admin_user_points_{user_id}',
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text=_t(texts, 'ADMIN_USER_SUBSCRIPTION_SETTINGS', '📱 Подписка и настройки'),
                 callback_data=f'admin_user_subscription_{user_id}',
-            ),
+            )
         ],
         [
             InlineKeyboardButton(

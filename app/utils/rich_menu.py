@@ -47,7 +47,7 @@ from app.database.crud.user_message import get_random_active_message
 from app.database.models import User
 from app.localization.texts import Texts
 from app.utils.cache import cache
-from app.utils.formatters import format_username_link
+from app.utils.formatters import format_bonus_points, format_username_link
 from app.utils.logo_fingerprint import logo_version
 from app.utils.miniapp_buttons import build_miniapp_startapp_url
 from app.utils.promo_offer import build_promo_offer_hint, build_test_access_hint
@@ -352,7 +352,7 @@ def live_menu_fingerprint(user: User, texts) -> str:
         )
         for s in user.subscriptions or []
     ]
-    return repr((user.language, user.balance_kopeks, subscriptions))
+    return repr((user.language, user.balance_kopeks, getattr(user, 'bonus_points_kopeks', 0) or 0, subscriptions))
 
 
 async def remember_live_menu(chat_id: int, message_id: int | None, user: User, texts) -> None:
@@ -591,6 +591,14 @@ async def build_main_menu_rich_html(user: User, texts, db: AsyncSession) -> str:
     trial_link = _trial_offer_link(user, texts)
     if trial_link:
         blocks.append(f'<p>{trial_link}</p>')
+
+    # Баллы — строкой НАД балансом: это второй кошелёк, и он тратится первым.
+    # Нулевые не показываем, чтобы не плодить строку у всех, кому баллов не давали.
+    points_kopeks = getattr(user, 'bonus_points_kopeks', 0) or 0
+    if points_kopeks > 0:
+        points_template = texts.t('MAIN_MENU_RICH_BONUS_POINTS', '🎁 Бонусные баллы: {points}')
+        points_value = f'<b>{html.escape(format_bonus_points(points_kopeks))}</b>'
+        blocks.append(f'<p>{_rich_text(points_template).replace("{points}", points_value)}</p>')
 
     balance_template = texts.t('MAIN_MENU_RICH_BALANCE', '💰 Баланс: {balance}')
     balance_value = f'<b>{html.escape(settings.format_price(user.balance_kopeks))}</b>'

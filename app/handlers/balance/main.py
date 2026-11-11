@@ -472,7 +472,7 @@ async def handle_successful_topup_with_cart(user_id: int, amount_kopeks: int, bo
                 ]
             )
 
-            if 0 < total_price <= user.balance_kopeks:
+            if 0 < total_price <= user.available_balance_kopeks:
                 balance_hint = 'Средств на балансе достаточно для оформления.'
             else:
                 missing = max(total_price - user.balance_kopeks, 0)

@@ -316,7 +316,9 @@ async def purchase_location(db: AsyncSession, user: User, host_uuid: str) -> Pur
             location=location,
         )
 
-    balance = locked_user.balance_kopeks or 0
+    # Баллы тратятся раньше денег, поэтому «хватает ли» считаем по сумме обоих
+    # кошельков — само списание разложит её subtract_user_balance.
+    balance = locked_user.available_balance_kopeks
     if balance < price_kopeks:
         await db.commit()
         return PurchaseOutcome(

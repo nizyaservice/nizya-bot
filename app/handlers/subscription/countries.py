@@ -333,8 +333,8 @@ async def apply_countries_changes(callback: types.CallbackQuery, db_user: User, 
             total_discount=total_discount / 100,
         )
 
-    if total_cost > 0 and db_user.balance_kopeks < total_cost:
-        missing_kopeks = total_cost - db_user.balance_kopeks
+    if total_cost > 0 and db_user.available_balance_kopeks < total_cost:
+        missing_kopeks = total_cost - db_user.available_balance_kopeks
         required_text = f'{texts.format_price(total_cost)} (за {charged_days} дн.)'
         message_text = texts.t(
             'ADDON_INSUFFICIENT_FUNDS_MESSAGE',
@@ -347,7 +347,7 @@ async def apply_countries_changes(callback: types.CallbackQuery, db_user: User, 
             ),
         ).format(
             required=required_text,
-            balance=texts.format_price(db_user.balance_kopeks, round_kopeks=False),
+            balance=texts.format_price(db_user.available_balance_kopeks, round_kopeks=False),
             missing=texts.format_price(missing_kopeks, round_kopeks=False),
         )
 
@@ -879,8 +879,8 @@ async def confirm_add_countries_to_subscription(
         if country['uuid'] in removed_countries:
             removed_countries_names.append(html.escape(country['name']))
 
-    if new_countries and total_price > 0 and db_user.balance_kopeks < total_price:
-        missing_kopeks = total_price - db_user.balance_kopeks
+    if new_countries and total_price > 0 and db_user.available_balance_kopeks < total_price:
+        missing_kopeks = total_price - db_user.available_balance_kopeks
         message_text = texts.t(
             'ADDON_INSUFFICIENT_FUNDS_MESSAGE',
             (
@@ -892,7 +892,7 @@ async def confirm_add_countries_to_subscription(
             ),
         ).format(
             required=texts.format_price(total_price, round_kopeks=False),
-            balance=texts.format_price(db_user.balance_kopeks, round_kopeks=False),
+            balance=texts.format_price(db_user.available_balance_kopeks, round_kopeks=False),
             missing=texts.format_price(missing_kopeks, round_kopeks=False),
         )
 

@@ -65,6 +65,7 @@ class AdminStates(StatesGroup):
     waiting_for_bulk_ban_list = State()
     sending_user_message = State()
     editing_user_balance = State()
+    editing_user_bonus_points = State()
     extending_subscription = State()
     adding_traffic = State()
     granting_subscription = State()

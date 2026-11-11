@@ -2397,6 +2397,10 @@ class User(Base):
     status = Column(String(20), default=UserStatus.ACTIVE.value)
     language = Column(String(5), default='ru')
     balance_kopeks = Column(Integer, default=0)
+    # Бонусные баллы — второй кошелёк: 1 балл = 1 ₽, хранится в копейках, чтобы
+    # вся арифметика цен (прораты, скидки) работала без пересчётов. Тратятся
+    # раньше денег — см. subtract_user_balance.
+    bonus_points_kopeks = Column(Integer, default=0, nullable=False, server_default='0')
     used_promocodes = Column(Integer, default=0)
     has_had_paid_subscription = Column(Boolean, default=False, nullable=False)
     # Когда админ последний раз открыл человеку триал заново (кнопка «Сбросить триал»).
@@ -2547,6 +2551,20 @@ class User(Base):
         return self.balance_kopeks / 100
 
     @property
+    def bonus_points_rubles(self) -> float:
+        return (self.bonus_points_kopeks or 0) / 100
+
+    @property
+    def available_balance_kopeks(self) -> int:
+        """Чем человек может заплатить: баллы плюс деньги.
+
+        Этим проверяется «хватает ли на покупку» — списание всё равно идёт через
+        subtract_user_balance, который сначала снимает баллы. Выплаты и выводы
+        денег считают по ``balance_kopeks``: баллы наружу не выводятся.
+        """
+        return (self.balance_kopeks or 0) + (self.bonus_points_kopeks or 0)
+
+    @property
     def full_name(self) -> str:
         """Полное имя пользователя с поддержкой email-only юзеров."""
         parts = [self.first_name, self.last_name]
@@ -2603,11 +2621,19 @@ class User(Base):
     def add_balance(self, kopeks: int) -> None:
         self.balance_kopeks += kopeks
 
+    def add_bonus_points(self, kopeks: int) -> None:
+        self.bonus_points_kopeks = (self.bonus_points_kopeks or 0) + kopeks
+
     def subtract_balance(self, kopeks: int) -> bool:
-        if self.balance_kopeks >= kopeks:
-            self.balance_kopeks -= kopeks
-            return True
-        return False
+        """Списывает сначала баллы, потом деньги. ``False`` — не хватило всего."""
+        if self.available_balance_kopeks < kopeks:
+            return False
+
+        points = self.bonus_points_kopeks or 0
+        from_points = min(points, kopeks)
+        self.bonus_points_kopeks = points - from_points
+        self.balance_kopeks -= kopeks - from_points
+        return True
 
 
 class Subscription(Base):

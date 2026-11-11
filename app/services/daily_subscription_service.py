@@ -157,7 +157,7 @@ class DailySubscriptionService:
         daily_price, _ = PricingEngine.daily_group_price(raw_daily_price, user)
 
         # Проверяем баланс (при 100% скидке — пропускаем)
-        if daily_price > 0 and user.balance_kopeks < daily_price:
+        if daily_price > 0 and user.available_balance_kopeks < daily_price:
             # Недостаточно средств - приостанавливаем подписку
             await suspend_daily_subscription_insufficient_balance(db, subscription)
 
@@ -181,7 +181,7 @@ class DailySubscriptionService:
             logger.info(
                 'Подписка приостановлена: недостаточно средств',
                 subscription_id=subscription.id,
-                balance_kopeks=user.balance_kopeks,
+                balance_kopeks=user.available_balance_kopeks,
                 daily_price=daily_price,
             )
             return 'suspended'
