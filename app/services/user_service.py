@@ -631,9 +631,9 @@ class UserService:
         добавлять его значило бы тянуть настройку, которой оператор не просил.
         """
         texts = get_texts(user.language)
-        balance_line = texts.t(
-            'BONUS_POINTS_NOTIFY_TOTAL', '🎁 <b>Всего баллов:</b> {points}'
-        ).format(points=format_bonus_points(user.bonus_points_kopeks))
+        balance_line = texts.t('BONUS_POINTS_NOTIFY_TOTAL', '🎁 <b>Всего баллов:</b> {points}').format(
+            points=format_bonus_points(user.bonus_points_kopeks)
+        )
 
         if amount_kopeks > 0:
             message = texts.t(
@@ -646,9 +646,7 @@ class UserService:
         else:
             message = texts.t(
                 'BONUS_POINTS_NOTIFY_REMOVED',
-                '🎁 <b>Бонусные баллы списаны</b>\n\n'
-                '➖ <b>Списано баллов:</b> {amount}\n'
-                '{total}',
+                '🎁 <b>Бонусные баллы списаны</b>\n\n➖ <b>Списано баллов:</b> {amount}\n{total}',
             ).format(amount=format_bonus_points(abs(amount_kopeks)), total=balance_line)
 
         if not user.telegram_id:

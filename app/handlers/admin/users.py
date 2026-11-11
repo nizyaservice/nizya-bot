@@ -2356,11 +2356,7 @@ async def process_bonus_points_edit(message: types.Message, db_user: User, state
             f'✅ Бонусные баллы {action}: {format_bonus_points(abs(amount_kopeks))}',
             reply_markup=types.InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [
-                        types.InlineKeyboardButton(
-                            text='👤 К пользователю', callback_data=f'admin_user_manage_{user_id}'
-                        )
-                    ]
+                    [types.InlineKeyboardButton(text='👤 К пользователю', callback_data=f'admin_user_manage_{user_id}')]
                 ]
             ),
         )
