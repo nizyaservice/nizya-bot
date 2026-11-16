@@ -51,7 +51,15 @@ def render(monkeypatch):
 
 
 def _user(balance_kopeks: int = 100_000):
-    return SimpleNamespace(id=42, telegram_id=1, language='ru', balance_kopeks=balance_kopeks)
+    # available_balance_kopeks — то, чем человек может заплатить: баллы + деньги.
+    return SimpleNamespace(
+        id=42,
+        telegram_id=1,
+        language='ru',
+        balance_kopeks=balance_kopeks,
+        bonus_points_kopeks=0,
+        available_balance_kopeks=balance_kopeks,
+    )
 
 
 def _callback(data: str = 'router_link'):

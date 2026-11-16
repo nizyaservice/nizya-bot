@@ -37,6 +37,18 @@ from app.states import GiftPurchaseStates
 # ── Mock Redis ──────────────────────────────────────────────────────────────
 
 
+def _set_balance(user, kopeks: int) -> None:
+    """Деньги и баллы у двойника пользователя.
+
+    Пути оплаты считают «хватает ли» по ``available_balance_kopeks`` (баллы +
+    деньги), и у ``MagicMock(spec=User)`` это свойство само по себе отдаёт мок,
+    а не число.
+    """
+    user.balance_kopeks = kopeks
+    user.bonus_points_kopeks = 0
+    user.available_balance_kopeks = kopeks
+
+
 class MockRedis:
     def __init__(self):
         self.storage: dict[str, str] = {}
@@ -98,7 +110,7 @@ def mock_db_user():
     user.telegram_id = 123456789
     user.username = 'gift_tester'
     user.language = 'ru'
-    user.balance_kopeks = 10025  # 100.25 RUB
+    _set_balance(user, 10025)  # 100.25 RUB
     user.subscription = None
     return user
 
@@ -536,7 +548,7 @@ class TestGiftTopupSuccessKeyboardAndResume:
         monkeypatch.setattr('app.handlers.subscription.gift.user_cart_service', test_cart_service)
 
         # Balance 10025, quote 30050 -> missing 20025
-        mock_db_user.balance_kopeks = 10025
+        _set_balance(mock_db_user, 10025)
 
         await test_cart_service.save_user_cart(
             mock_db_user.id,
@@ -569,7 +581,7 @@ class TestGiftTopupSuccessKeyboardAndResume:
         """When resuming with now-sufficient balance and unchanged price, render confirmation summary."""
         monkeypatch.setattr('app.handlers.subscription.gift.user_cart_service', test_cart_service)
 
-        mock_db_user.balance_kopeks = 50000  # More than 30050
+        _set_balance(mock_db_user, 50000)  # More than 30050
 
         checkout_id = 'chk_resumed_ok'
         await test_cart_service.save_user_cart(
@@ -609,7 +621,7 @@ class TestGiftTopupSuccessKeyboardAndResume:
         """When price changed after top-up, update quote, require reconfirmation and alert user."""
         monkeypatch.setattr('app.handlers.subscription.gift.user_cart_service', test_cart_service)
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
 
         new_quote = GiftQuote(
             tariff_id=1,
@@ -710,7 +722,7 @@ class TestGiftAutoPurchaseAndIsolation:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000  # More than 30050
+        _set_balance(mock_db_user, 50000)  # More than 30050
         checkout_id = 'chk_auto_win'
 
         await test_cart_service.save_user_cart(
@@ -802,7 +814,7 @@ class TestGiftAutoPurchaseAndIsolation:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 20000  # Less than 30050
+        _set_balance(mock_db_user, 20000)  # Less than 30050
 
         await test_cart_service.save_user_cart(
             mock_db_user.id,
@@ -845,7 +857,7 @@ class TestGiftAutoPurchaseAndIsolation:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
 
         drifted_quote = GiftQuote(
             tariff_id=1,
@@ -901,7 +913,7 @@ class TestGiftAutoPurchaseAndIsolation:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
 
         await test_cart_service.save_user_cart(
             mock_db_user.id,
@@ -943,7 +955,7 @@ class TestGiftAutoPurchaseAndIsolation:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
 
         # Seed per-subscription cart
         await test_cart_service.save_subscription_cart(
@@ -1008,7 +1020,7 @@ class TestGiftAutoPurchaseAndIsolation:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
 
         # Normal subscription cart
         await test_cart_service.save_user_cart(
@@ -1061,7 +1073,7 @@ class TestGiftAutoPurchaseDeliveryAndPriceChangeSafeguards:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
         await test_cart_service.save_user_cart(
             mock_db_user.id,
             {
@@ -1097,7 +1109,7 @@ class TestGiftAutoPurchaseDeliveryAndPriceChangeSafeguards:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
         await test_cart_service.save_user_cart(
             mock_db_user.id,
             {
@@ -1146,7 +1158,7 @@ class TestGiftAutoPurchaseDeliveryAndPriceChangeSafeguards:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
         await test_cart_service.save_user_cart(
             mock_db_user.id,
             {
@@ -1194,7 +1206,7 @@ class TestGiftAutoPurchaseDeliveryAndPriceChangeSafeguards:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
         checkout_id = 'chk_retry_idempotent'
         await test_cart_service.save_user_cart(
             mock_db_user.id,
@@ -1269,7 +1281,7 @@ class TestGiftAutoPurchaseDeliveryAndPriceChangeSafeguards:
             test_cart_service,
         )
 
-        mock_db_user.balance_kopeks = 50000
+        _set_balance(mock_db_user, 50000)
         # User had saved cart for 30000 kopeks with fresh intent
         await test_cart_service.save_user_cart(
             mock_db_user.id,

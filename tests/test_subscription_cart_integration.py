@@ -15,6 +15,18 @@ from app.handlers.subscription.autopay import handle_subscription_cancel
 from app.handlers.subscription.purchase import clear_saved_cart, return_to_saved_cart, save_cart_and_redirect_to_topup
 
 
+def _set_balance(user, kopeks: int) -> None:
+    """Деньги и баллы у двойника пользователя.
+
+    Пути оплаты считают «хватает ли» по ``available_balance_kopeks`` (баллы +
+    деньги), и у ``MagicMock(spec=User)`` это свойство само по себе отдаёт мок,
+    а не число.
+    """
+    user.balance_kopeks = kopeks
+    user.bonus_points_kopeks = 0
+    user.available_balance_kopeks = kopeks
+
+
 @pytest.fixture
 def mock_callback_query():
     callback = AsyncMock(spec=CallbackQuery)
@@ -31,7 +43,7 @@ def mock_user():
     user.id = 12345
     user.telegram_id = 12345
     user.language = 'ru'
-    user.balance_kopeks = 10000
+    _set_balance(user, 10000)
     user.subscription = None
     user.has_had_paid_subscription = False
     user.promo_group = None
@@ -150,7 +162,7 @@ async def test_return_to_saved_cart_success(mock_callback_query, mock_state, moc
         mock_get_texts.return_value = mock_texts
 
         # Увеличиваем баланс пользователя, чтобы его хватило
-        mock_user.balance_kopeks = 50000
+        _set_balance(mock_user, 50000)
 
         # Вызываем функцию
         await return_to_saved_cart(mock_callback_query, mock_state, mock_user, mock_db)
@@ -212,7 +224,7 @@ async def test_return_to_saved_cart_skips_edit_when_message_matches(
         mock_settings.is_devices_selection_enabled.return_value = True
         mock_settings.is_traffic_fixed.return_value = False
 
-        mock_user.balance_kopeks = 50000
+        _set_balance(mock_user, 50000)
 
         summary_text = (
             '🛒 Восстановленная корзина\n\n'
@@ -293,7 +305,7 @@ async def test_return_to_saved_cart_normalizes_devices_when_disabled(
         mock_settings.is_traffic_fixed.return_value = False
         mock_settings.get_fixed_traffic_limit.return_value = 0
 
-        mock_user.balance_kopeks = 60000
+        _set_balance(mock_user, 60000)
 
         await return_to_saved_cart(mock_callback_query, mock_state, mock_user, mock_db)
 
@@ -351,7 +363,7 @@ async def test_return_to_saved_cart_insufficient_funds(mock_callback_query, mock
         mock_get_texts.return_value = mock_texts
 
         # Баланс пользователя меньше стоимости подписки
-        mock_user.balance_kopeks = 10000
+        _set_balance(mock_user, 10000)
 
         # Вызываем функцию
         await return_to_saved_cart(mock_callback_query, mock_state, mock_user, mock_db)

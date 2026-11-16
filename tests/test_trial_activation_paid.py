@@ -46,6 +46,10 @@ async def test_activate_trial_paid_shows_payment_screen_with_trial_price(
     balance_kopeks = 100
 
     trial_user.balance_kopeks = balance_kopeks
+    # Пути оплаты считают «хватает ли» по баллам + деньгам; у мока со spec=User
+    # само свойство отдаёт мок, а не число.
+    trial_user.bonus_points_kopeks = 0
+    trial_user.available_balance_kopeks = balance_kopeks
     trial_user.restriction_subscription = False
     trial_user.auth_type = 'telegram'
     trial_user.is_trial_already_used.return_value = False

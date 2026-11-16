@@ -245,9 +245,10 @@ def test_rich_menu_shows_points_above_the_balance():
 def test_live_menu_fingerprint_includes_points():
     """Иначе живое меню не перерисуется после начисления баллов."""
     source = (REPO / 'app' / 'utils' / 'rich_menu.py').read_text(encoding='utf-8')
-    fingerprint = source[source.index('def live_menu_fingerprint') : source.index('def live_menu_fingerprint') + 600]
+    start = source.index('def live_menu_fingerprint')
+    end = source.index('\ndef ', start + 1)
 
-    assert 'bonus_points_kopeks' in fingerprint
+    assert 'bonus_points_kopeks' in source[start:end]
 
 
 # ─── проверки «хватает ли средств» ───
