@@ -70,6 +70,7 @@ def _make_user(
     language: str = 'ru',
     email_verification_source: str | None = None,
     promo_group_id: int | None = None,
+    bonus_points_kopeks: int = 0,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         id=id,
@@ -83,6 +84,8 @@ def _make_user(
         discord_id=discord_id,
         vk_id=vk_id,
         balance_kopeks=balance_kopeks,
+        # Второй кошелёк: слияние переносит баллы так же, как деньги.
+        bonus_points_kopeks=bonus_points_kopeks,
         username=username,
         first_name=first_name,
         status=status,
@@ -646,6 +649,22 @@ class TestExecuteMergeBalance:
 
         assert result.balance_kopeks == 8000
         assert secondary.balance_kopeks == 0
+
+    async def test_sums_bonus_points(self, monkeypatch):
+        """Баллы — такой же кошелёк: при слиянии они переезжают, а не исчезают."""
+        db = _make_db()
+        primary = _make_user(id=1, bonus_points_kopeks=5000)
+        secondary = _make_user(id=2, bonus_points_kopeks=3000)
+        monkeypatch.setattr(
+            account_merge_service,
+            'get_user_by_id',
+            AsyncMock(side_effect=[primary, secondary]),
+        )
+        with _patch_remnawave_delete():
+            result = await execute_merge(db, 1, 2)
+
+        assert result.bonus_points_kopeks == 8000
+        assert secondary.bonus_points_kopeks == 0
 
     async def test_negative_balance_transferred(self, monkeypatch):
         """Negative balance (debt) must be transferred, not silently discarded."""
