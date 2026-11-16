@@ -36,8 +36,12 @@ async def home(
         session.user = profile
         await store.save(session)
 
-    subscription = await _safe(api, session, store, api.subscription, 'подписку')
+    status = await _safe(api, session, store, api.subscription, 'подписку')
     balance = await _safe(api, session, store, api.balance, 'баланс')
+
+    # Ручка отдаёт обёртку {has_subscription, subscription}: разворачиваем здесь,
+    # чтобы шаблон не знал про форму ответа API.
+    subscription = status.get('subscription') if isinstance(status, dict) else None
 
     return render(
         request,

@@ -5,22 +5,32 @@
 <section class="card">
   <h1>Личный кабинет</h1>
 
-  {% if balance is not none %}
-    <p class="row"><span class="muted">Баланс</span>
-      <b>{{ balance.balance_rubles if balance.balance_rubles is defined else balance.balance_kopeks }}</b></p>
+  {% if balance %}
+    <p class="row"><span class="muted">Баланс</span> <b>{{ '%.2f'|format(balance.balance_rubles) }} ₽</b></p>
   {% endif %}
 
   {% if subscription %}
     <h2>Подписка</h2>
-    <p class="row"><span class="muted">Статус</span> <b>{{ subscription.status or '—' }}</b></p>
-    {% if subscription.end_date %}
-      <p class="row"><span class="muted">Действует до</span> <b>{{ subscription.end_date }}</b></p>
+    {% if subscription.tariff_name %}
+      <p class="row"><span class="muted">Тариф</span> <b>{{ subscription.tariff_name }}</b></p>
     {% endif %}
+    <p class="row"><span class="muted">Статус</span> <b>{{ subscription.status|status }}</b></p>
+    <p class="row"><span class="muted">Действует до</span> <b>{{ subscription.end_date|moment }}</b></p>
+    {% if subscription.time_left_display %}
+      <p class="row"><span class="muted">Осталось</span> <b>{{ subscription.time_left_display }}</b></p>
+    {% endif %}
+    <p class="row"><span class="muted">Трафик</span>
+      <b>{% if subscription.traffic_limit_gb %}
+           {{ subscription.traffic_used_gb }} из {{ subscription.traffic_limit_gb }} ГБ
+         {% else %}♾️ без ограничений{% endif %}</b></p>
+    <p class="row"><span class="muted">Устройств</span> <b>{{ subscription.device_limit }}</b></p>
+    <p><a href="/tariffs">Продлить или сменить тариф</a></p>
   {% else %}
     <p class="muted">Подписки пока нет.</p>
+    <p><a href="/tariffs">Выбрать тариф</a></p>
   {% endif %}
 
-  {# Разделы добавляются следующими шагами: покупка тарифов, устройства,
+  {# Разделы добавляются следующими шагами: устройства, пополнение баланса,
      рефералка, промокод, язык, правила. #}
 </section>
 {% endblock %}

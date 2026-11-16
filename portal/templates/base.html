@@ -14,6 +14,7 @@
     <a class="brand" href="/">{{ brand_name }}</a>
     {% if session %}
       <nav class="top-nav">
+        <a href="/tariffs">Тарифы</a>
         {% if user and user.email %}<span class="muted">{{ user.email }}</span>{% endif %}
         <form method="post" action="/logout">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

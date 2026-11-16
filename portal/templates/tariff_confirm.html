@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Подтверждение — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{% if is_renewal %}Продление тарифа{% else %}Оформление тарифа{% endif %}</h1>
+
+  <p class="row"><span class="muted">Тариф</span> <b>{{ tariff.name }}</b></p>
+  <p class="row"><span class="muted">Срок</span> <b>{{ period.label }}</b></p>
+  <p class="row"><span class="muted">Трафик</span> <b>{{ tariff.traffic_limit_label }}</b></p>
+  <p class="row"><span class="muted">Устройств</span> <b>{{ tariff.device_limit }}</b></p>
+  <p class="row"><span class="muted">К списанию</span> <b>{{ period.price_label }}</b></p>
+  <p class="row"><span class="muted">На балансе</span> <b>{{ balance_label }}</b></p>
+
+  {% if enough_balance %}
+    <form method="post" action="/tariffs/{{ tariff.id }}/buy" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="days" value="{{ period.days }}">
+      <button type="submit">Оплатить с баланса</button>
+    </form>
+  {% else %}
+    {# Окончательное слово всё равно за ботом при списании: тут мы лишь не ведём
+       человека в отказ, если денег уже видно, что не хватает. #}
+    <p class="error" role="alert">На балансе недостаточно средств. Пополните баланс в боте
+      и вернитесь к оформлению.</p>
+  {% endif %}
+
+  <p><a href="/tariffs">Выбрать другой тариф</a></p>
+</section>
+{% endblock %}

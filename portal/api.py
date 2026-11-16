@@ -105,6 +105,26 @@ class CabinetApi:
         """Какие документы требуется принять на первом входе."""
         return await self._call('GET', '/info/legal-consent')
 
+    # ─── покупка тарифа ───
+
+    async def purchase_options(self, token: str) -> Any:
+        """Каталог: тарифы с ценами уже со скидками группы и баланс человека."""
+        return await self._call('GET', '/subscription/purchase-options', token=token)
+
+    async def purchase_tariff(self, token: str, tariff_id: int, period_days: int) -> Any:
+        """Купить тариф с баланса.
+
+        Цену считает бот: портал присылает только выбор человека. Иначе
+        скидка группы, промо-предложение и продление считались бы дважды и
+        расходились бы с тем, что спишется.
+        """
+        return await self._call(
+            'POST',
+            '/subscription/purchase-tariff',
+            json={'tariff_id': tariff_id, 'period_days': period_days},
+            token=token,
+        )
+
 
 def _detail_of(response: httpx.Response) -> str:
     """Человеческая причина ошибки из ответа бота."""
@@ -122,6 +142,11 @@ def _detail_of(response: httpx.Response) -> str:
             first = detail[0]
             if isinstance(first, dict) and isinstance(first.get('msg'), str):
                 return first['msg']
+        if isinstance(detail, dict):
+            # Отказы с кодом (не хватает денег и т.п.) приходят объектом.
+            message = detail.get('message')
+            if isinstance(message, str):
+                return message
     return 'Неизвестная ошибка'
 
 

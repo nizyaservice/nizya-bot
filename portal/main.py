@@ -19,7 +19,7 @@ from redis.asyncio import from_url
 from .api import CabinetUnavailableError, build_client
 from .config import get_settings
 from .deps import CsrfError, LoginRequiredError
-from .routes import auth as auth_routes, pages as page_routes
+from .routes import auth as auth_routes, pages as page_routes, tariffs as tariff_routes
 from .sessions import SessionStore
 from .templating import render
 
@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
     app.include_router(auth_routes.router)
     app.include_router(page_routes.router)
+    app.include_router(tariff_routes.router)
 
     @app.exception_handler(LoginRequiredError)
     async def _login_required(_request: Request, _exc: LoginRequiredError) -> RedirectResponse:

@@ -137,3 +137,43 @@ button.link {
 
 .foot { padding: 16px; border-top: 1px solid var(--line); text-align: center; }
 .foot a, a { color: var(--brand-alt); }
+
+/* ─── каталог тарифов ─── */
+
+.card + .card { margin-top: 12px; }
+
+.tariff-top { border-color: var(--brand); }
+
+.tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-alt);
+  border: 1px solid var(--brand-alt);
+  border-radius: 999px;
+  padding: 1px 8px;
+  vertical-align: middle;
+}
+
+.specs { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+
+.periods { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+
+.period {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.period:hover { border-color: var(--brand); }
+.period-top { border-color: var(--brand-alt); }
+.period-price { font-weight: 600; white-space: nowrap; }
+.period-price s { margin-left: 6px; font-weight: 400; font-size: 13px; }
+
+.note { margin-top: 12px; font-size: 14px; }

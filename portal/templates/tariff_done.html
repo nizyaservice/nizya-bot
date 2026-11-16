@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Тариф оформлен — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Готово</h1>
+  <p>{{ result.message or 'Тариф активирован.' }}</p>
+
+  {% if result.charged_label %}
+    <p class="row"><span class="muted">Списано</span> <b>{{ result.charged_label }}</b></p>
+  {% endif %}
+  {% if result.balance_label %}
+    <p class="row"><span class="muted">Остаток на балансе</span> <b>{{ result.balance_label }}</b></p>
+  {% endif %}
+  {% if result.subscription and result.subscription.end_date %}
+    <p class="row"><span class="muted">Действует до</span> <b>{{ result.subscription.end_date|moment }}</b></p>
+  {% endif %}
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

@@ -165,6 +165,29 @@ make docs-structure          # перегенерить docs/project_structure_r
 Остальной fork-diff по хендлерам (`handlers/balance/*`, `subscription/*`, `menu.py`…) —
 в основном подстановка `media`/баннеров в вызовы отправки сообщений.
 
+## Веб-портал (`portal/`)
+
+Отдельное приложение рядом с ботом: часть функций бота в браузере. **Не пакет
+`app/`** — свой процесс, своя ВПС, своё Redis; в API бота (`app/cabinet/`,
+`CABINET_ENABLED=true`) ходит по туннелю WireGuard. В образ бота не попадает
+(`portal/` в `.dockerignore`), разворачивается своим compose из
+`portal/deploy/`. Карта экранов, причины решений и что нужно поднять —
+`portal/deploy/README.md`.
+
+- FastAPI + Jinja (серверный рендер, HTMX по месту), токены человека лежат в
+  Redis портала, в браузер уходит только идентификатор сессии (`portal/sessions.py`)
+- вход — **только по коду из письма, пароля нет**: `portal/routes/auth.py` →
+  ручки бота `/cabinet/auth/email/otp/{request,verify}` (`app/cabinet/auth/login_otp.py`,
+  6 цифр, 15 минут, 5 попыток)
+- покупка тарифа с баланса: `portal/routes/tariffs.py`. **Цену считает бот** —
+  портал показывает его подписи и передаёт выбор; подтверждение GET'ом,
+  списание POST'ом с CSRF-токеном
+- в `portal/**` нет послаблений ruff (в отличие от `app/**`): локальные импорты,
+  неиспользуемые аргументы и прочее ловятся по полной
+- тесты — `tests/web_portal/` (каталог назван не `portal`: pytest кладёт
+  `tests/` в `sys.path`, и одноимённый пакет перекрыл бы настоящий)
+- системы бонусных баллов на портале нет и не планируется — только бот
+
 ## Правила работы в репо
 
 - Стиль: ruff с очень широким набором правил (`line-length = 120`, одинарные кавычки,
@@ -202,6 +225,7 @@ make docs-structure          # перегенерить docs/project_structure_r
 | Интеграция с панелью | `external/remnawave_api.py`, `services/panel_sync/` |
 | Баннеры/брендирование | см. раздел «Наши кастомизации» |
 | Веб-кабинет | `app/cabinet/` + внешний репо фронта; `docs/web-admin-integration-guide.md` |
+| Веб-портал | `portal/` + `portal/deploy/README.md`; тесты `tests/web_portal/` |
 | Реферальная/партнёрская | `handlers/referral.py`, `app/referral_levels.py`, `services/partner_*` |
 
 Профильная документация по фичам — в `docs/` (miniapp-setup, broadcast_audiences,

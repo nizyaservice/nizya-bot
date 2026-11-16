@@ -5,6 +5,10 @@
 <section class="card">
   <h1>{{ title or 'Что-то пошло не так' }}</h1>
   <p class="muted">{{ message }}</p>
-  <p><a href="/">На главную</a></p>
+  {% if back_url %}
+    <p><a href="{{ back_url }}">Назад</a> · <a href="/">На главную</a></p>
+  {% else %}
+    <p><a href="/">На главную</a></p>
+  {% endif %}
 </section>
 {% endblock %}
