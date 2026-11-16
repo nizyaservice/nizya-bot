@@ -1,0 +1,18 @@
+# Домен подставляется из окружения Caddy (PORTAL_DOMAIN) — сертификат
+# выпускается автоматически при первом обращении.
+{$PORTAL_DOMAIN} {
+	encode zstd gzip
+
+	# Статику портала отдаёт он сам: файлов мало, отдельный volume ни к чему.
+	reverse_proxy portal:8000
+
+	header {
+		# Портал рендерится на сервере и не подключает сторонние скрипты,
+		# поэтому политика может быть строгой с самого начала.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Ошибка — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{{ title or 'Что-то пошло не так' }}</h1>
+  <p class="muted">{{ message }}</p>
+  <p><a href="/">На главную</a></p>
+</section>
+{% endblock %}

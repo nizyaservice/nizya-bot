@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Личный кабинет — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Личный кабинет</h1>
+
+  {% if balance is not none %}
+    <p class="row"><span class="muted">Баланс</span>
+      <b>{{ balance.balance_rubles if balance.balance_rubles is defined else balance.balance_kopeks }}</b></p>
+  {% endif %}
+
+  {% if subscription %}
+    <h2>Подписка</h2>
+    <p class="row"><span class="muted">Статус</span> <b>{{ subscription.status or '—' }}</b></p>
+    {% if subscription.end_date %}
+      <p class="row"><span class="muted">Действует до</span> <b>{{ subscription.end_date }}</b></p>
+    {% endif %}
+  {% else %}
+    <p class="muted">Подписки пока нет.</p>
+  {% endif %}
+
+  {# Разделы добавляются следующими шагами: покупка тарифов, устройства,
+     рефералка, промокод, язык, правила. #}
+</section>
+{% endblock %}

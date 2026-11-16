@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Вход — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Вход</h1>
+  <p class="muted">Пришлём код на почту — пароль не нужен.</p>
+
+  <form method="post" action="/login" class="form">
+    <label for="email">Почта</label>
+    <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
+           required autofocus value="{{ email or '' }}">
+    <button type="submit">Получить код</button>
+  </form>
+</section>
+{% endblock %}

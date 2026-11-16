@@ -39,6 +39,7 @@
   Функции: `main`
 - `menu_images/`
 - `migrations/`
+- `portal/`
 - `pyproject.toml` — файл
 - `release-please-config.json` — файл
 - `scripts/`
@@ -3631,6 +3632,67 @@
   Классы: нет
   Функции: `upgrade`, `downgrade`
 
+## portal
+
+- `portal/__init__.py` — Python-модуль
+  Классы: нет
+  Функции: нет
+- `portal/api.py` — Python-модуль
+  Классы: `CabinetApiError` (1 методов), `CabinetUnavailableError` (1 методов), `CabinetApi` (10 методов)
+  Функции: `build_client` — Клиент к боту: один на процесс, создаётся в lifespan приложения.
+- `portal/config.py` — Python-модуль
+  Классы: `PortalSettings`
+  Функции: `get_settings` — Настройки одним экземпляром на процесс.
+- `portal/deploy/`
+- `portal/deps.py` — Python-модуль
+  Классы: `LoginRequiredError`, `SessionExpiredError`, `CsrfError`
+  Функции: `get_api`, `get_store`, `get_portal_settings`, `get_session` — Сессия по cookie; ``None`` — не вошёл., `require_session`, `with_fresh_token` — Выполнить запрос с токеном сессии, обновив его при 401 — один раз., `check_csrf` — Сверить токен формы с токеном сессии.
+- `portal/main.py` — Python-модуль
+  Классы: нет
+  Функции: `lifespan`, `create_app`
+- `portal/routes/`
+- `portal/sessions.py` — Python-модуль
+  Классы: `Session` (1 методов), `SessionStore` (6 методов)
+  Функции: нет
+- `portal/static/`
+- `portal/templates/`
+- `portal/templating.py` — Python-модуль
+  Классы: нет
+  Функции: `render` — Отрендерить страницу с общим контекстом.
+
+### portal/deploy
+
+- `portal/deploy/.env.example` — файл
+- `portal/deploy/Caddyfile` — файл
+- `portal/deploy/Dockerfile` — файл
+- `portal/deploy/README.md` — файл
+- `portal/deploy/docker-compose.yml` — файл
+- `portal/deploy/requirements.txt` — файл
+
+### portal/routes
+
+- `portal/routes/__init__.py` — Python-модуль
+  Классы: нет
+  Функции: нет
+- `portal/routes/auth.py` — Python-модуль
+  Классы: нет
+  Функции: `login_form`, `request_code` — Отправить код и сразу показать экран ввода., `submit_code`, `logout`
+- `portal/routes/pages.py` — Python-модуль
+  Классы: нет
+  Функции: `home`, `healthz` — Проверка живости для Caddy и docker healthcheck.
+
+### portal/static
+
+- `portal/static/portal.css` — файл
+
+### portal/templates
+
+- `portal/templates/base.html` — файл
+- `portal/templates/error.html` — файл
+- `portal/templates/home.html` — файл
+- `portal/templates/login.html` — файл
+- `portal/templates/login_code.html` — файл
+
 ## scripts
 
 - `scripts/__init__.py` — Python-модуль
@@ -3666,6 +3728,7 @@
 - `tests/live/`
 - `tests/middlewares/`
 - `tests/migrations/`
+- `tests/portal/`
 - `tests/services/`
 - `tests/test_bonus_points.py` — Python-модуль
   Классы: нет
@@ -4947,6 +5010,27 @@
 - `tests/migrations/test_0128_dpichecker_actions.py` — Python-модуль
   Классы: нет
   Функции: `test_revision_chain`, `test_upgrade_matches_model_and_downgrade_drops`
+
+### tests/portal
+
+- `tests/portal/__init__.py` — Python-модуль
+  Классы: нет
+  Функции: нет
+- `tests/portal/conftest.py` — Python-модуль
+  Классы: `FakeRedis` (4 методов)
+  Функции: `fake_redis`, `store`, `portal_app` — Приложение портала с подменёнными хранилищем и клиентом API., `api_from_handler` — Клиент к боту, отвечающий переданной функцией (httpx.MockTransport).
+- `tests/portal/test_api_client.py` — Python-модуль
+  Классы: нет
+  Функции: `test_request_goes_to_the_cabinet_prefix`, `test_token_is_sent_as_bearer`, `test_unauthenticated_calls_send_no_token`, `test_error_detail_reaches_the_page`, `test_validation_error_detail_is_unwrapped` — FastAPI отдаёт 422 списком объектов — человеку нужен msg, а не структура., `test_non_json_error_does_not_crash_the_client`, `test_dead_tunnel_is_not_a_bot_error` — Разница существенная: туннель лёг — заглушка; бот отказал — текст ошибки., `test_empty_body_is_not_parsed_as_json` — Выход из кабинета отвечает пустым телом — это не повод падать., `test_consent_documents_are_passed_only_when_present`
+- `tests/portal/test_login_flow.py` — Python-модуль
+  Классы: нет
+  Функции: `client`, `test_login_page_opens`, `test_requesting_a_code_shows_the_code_screen`, `test_empty_email_is_refused_without_calling_the_bot`, `test_bot_refusal_is_shown_to_the_person`, `test_correct_code_opens_a_session`, `test_wrong_code_keeps_the_person_on_the_code_screen`, `test_consent_is_asked_once_and_then_submitted` — Бот отвечает 428, пока не присланы галочки, — портал их и рисует., `test_home_requires_login`, `test_home_opens_with_a_session`, `test_logout_without_csrf_token_does_nothing`, `test_logout_with_csrf_token_closes_the_session`, `test_healthz_does_not_need_the_bot` — Проверка живости не должна падать вместе с туннелем до бота., `await_session` — Синхронная обёртка: тесты страниц синхронные, а хранилище асинхронное.
+- `tests/portal/test_sessions.py` — Python-модуль
+  Классы: нет
+  Функции: `test_created_session_has_unpredictable_id`, `test_tokens_live_in_storage_not_in_the_identifier`, `test_session_round_trip`, `test_each_session_gets_its_own_csrf_token`, `test_missing_and_empty_identifiers_are_no_session`, `test_deleted_session_is_gone`, `test_broken_record_is_discarded_instead_of_crashing` — Мусор в Redis (чужой ключ, обрезанный JSON) не должен ронять страницу., `test_record_without_tokens_is_discarded`, `test_session_expires_with_the_refresh_token` — Держать сессию дольше refresh-токена нечем: он и есть её срок жизни., `test_saving_updates_tokens_in_place`
+- `tests/portal/test_token_refresh.py` — Python-модуль
+  Классы: нет
+  Функции: `test_fresh_token_passes_through`, `test_expired_token_is_refreshed_once_and_the_call_repeats`, `test_rotation_is_optional` — Если бот не прислал новый refresh-токен — остаётся прежний, не пустой., `test_dead_refresh_token_closes_the_session`, `test_other_errors_are_not_treated_as_expiry` — 403 или 500 обновлением токена не лечатся — пробрасываем как есть., `test_second_401_does_not_loop` — Свежий токен тоже получил 401 — отдаём ошибку, а не крутим обновления., `test_csrf_token_must_match`
 
 ### tests/services
 

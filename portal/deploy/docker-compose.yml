@@ -1,0 +1,47 @@
+# Портал на отдельной ВПС: сам портал, его Redis и Caddy с автоматическим TLS.
+# Бот тут не поднимается — портал ходит в его API через туннель WireGuard.
+services:
+  portal:
+    build:
+      context: ../..
+      dockerfile: portal/deploy/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORTAL_REDIS_URL: redis://portal_redis:6379/0
+    depends_on:
+      portal_redis:
+        condition: service_healthy
+    networks: [portal]
+
+  portal_redis:
+    image: redis:8-alpine
+    container_name: portal_redis
+    restart: unless-stopped
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [portal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [portal]
+    networks: [portal]
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  portal:

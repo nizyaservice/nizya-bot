@@ -51,3 +51,6 @@ Thumbs.db
 
 # Дампы базы (scripts/pg-upgrade.sh) не должны попадать в образ
 backups/
+
+# Веб-портал: отдельный сервис со своим образом (portal/deploy/Dockerfile)
+portal/

@@ -196,7 +196,7 @@ async def test_resend_allowed_after_the_pause(cache):
 def test_request_endpoint_keeps_account_existence_secret():
     """Разный ответ для знакомого и незнакомого адреса — оракул для перебора почт."""
     source = (REPO / 'app' / 'cabinet' / 'routes' / 'auth.py').read_text(encoding='utf-8')
-    start = source.index("async def request_email_otp")
+    start = source.index('async def request_email_otp')
     body = source[start : source.index('\n@router.', start)]
 
     # Все выходы из ручки, кроме явных отказов, отдают один и тот же ответ.

@@ -95,6 +95,9 @@ GATED_HANDLERS = (
     'resend_verification',
     'resend_verification_public',
     'login_email',
+    # Вход по одноразовому коду — тот же почтовый вход, и гейт у него тот же.
+    'request_email_otp',
+    'verify_email_otp',
     'forgot_password',
     'reset_password',
 )

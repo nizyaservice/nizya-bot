@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>{% block title %}{{ brand_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/portal.css">
+  {# HTMX подключается здесь, когда появятся экраны, которым он нужен:
+     файл вендорится в /static, из сети на рантайме ничего не тянем. #}
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">{{ brand_name }}</a>
+    {% if session %}
+      <nav class="top-nav">
+        {% if user and user.email %}<span class="muted">{{ user.email }}</span>{% endif %}
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="link" type="submit">Выйти</button>
+        </form>
+      </nav>
+    {% endif %}
+  </header>
+
+  <main class="wrap">
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="foot">
+    {% if support_url %}<a href="{{ support_url }}">Поддержка</a>{% endif %}
+  </footer>
+</body>
+</html>
