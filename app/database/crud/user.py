@@ -1706,7 +1706,9 @@ async def get_users_with_active_subscriptions(db: AsyncSession) -> list[User]:
 async def create_user_by_email(
     db: AsyncSession,
     email: str,
-    password_hash: str,
+    # None — аккаунт без пароля: вход по одноразовому коду или через OAuth.
+    # Колонка nullable, так что это не исключение, а штатный случай.
+    password_hash: str | None,
     first_name: str | None = None,
     language: str = 'ru',
     referred_by_id: int | None = None,

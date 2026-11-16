@@ -1105,6 +1105,8 @@
   "MAINTENANCE_MODE_API_ERROR": "\n🔧 Технічні роботи!\n\nСервіс тимчасово недоступний через проблеми з підключенням до серверів.\n\n⏰ Ми працюємо над відновленням. Спробуйте за декілька хвилин.\n\n🔄 Остання перевірка: {last_check}\n",
   "MAIN_MENU": "👤 <b>{user_name}</b>\n   \n📱 <b>Підписка:</b> {subscription_status}\n\nОберіть дію:\n",
   "MAIN_MENU_ACTION_PROMPT": "Оберіть дію:",
+  "CABINET_LOGIN_CODE_SUBJECT": "Код для входу в особистий кабінет",
+  "CABINET_LOGIN_CODE_BODY": "<p>Ваш код для входу: <b style=\"font-size:20px;letter-spacing:2px\">{code}</b></p><p>Код діє {minutes} хвилин і підходить для одного входу.</p><p>Якщо вхід запитували не ви — просто не вводьте код, робити нічого не потрібно.</p>",
   "MAIN_MENU_BONUS_POINTS": "🎁 Бонусні бали: {points}",
   "MAIN_MENU_RICH_BONUS_POINTS": "🎁 Бонусні бали: {points}",
   "BONUS_POINTS_NOTIFY_TOTAL": "🎁 <b>Усього балів:</b> {points}",

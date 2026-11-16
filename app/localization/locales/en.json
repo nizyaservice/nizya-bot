@@ -1166,6 +1166,8 @@
   "MAINTENANCE_MODE_API_ERROR": "\n🔧 Maintenance in progress!\n\nThe service is temporarily unavailable due to connection issues with the servers.\n\n⏰ We're working on it. Please try again in a few minutes.\n\n🔄 Last check: {last_check}\n",
   "MAIN_MENU": "👤 <b>{user_name}</b>\n\n📱 <b>Subscription:</b> {subscription_status}\n\nChoose an option:\n",
   "MAIN_MENU_ACTION_PROMPT": "Choose an option:",
+  "CABINET_LOGIN_CODE_SUBJECT": "Your login code",
+  "CABINET_LOGIN_CODE_BODY": "<p>Your login code: <b style=\"font-size:20px;letter-spacing:2px\">{code}</b></p><p>The code is valid for {minutes} minutes and works for one login.</p><p>If you did not request this, just ignore the code — no action is needed.</p>",
   "MAIN_MENU_BONUS_POINTS": "🎁 Bonus points: {points}",
   "MAIN_MENU_RICH_BONUS_POINTS": "🎁 Bonus points: {points}",
   "BONUS_POINTS_NOTIFY_TOTAL": "🎁 <b>Points in total:</b> {points}",

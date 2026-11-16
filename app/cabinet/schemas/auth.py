@@ -190,6 +190,42 @@ class EmailRegisterStandaloneRequest(BaseModel):
     )
 
 
+class EmailOtpRequest(BaseModel):
+    """Запрос одноразового кода для входа по почте (без пароля)."""
+
+    email: EmailStr = Field(..., description='Email address')
+
+
+class EmailOtpSentResponse(BaseModel):
+    """Код отправлен (или не отправлен — ответ одинаков, чтобы не выдавать наличие аккаунта)."""
+
+    expires_in_seconds: int = Field(..., description='Сколько живёт код')
+    resend_after_seconds: int = Field(..., description='Через сколько секунд можно запросить новый код')
+
+
+class EmailOtpVerifyRequest(BaseModel):
+    """Вход по одноразовому коду. Первый успешный вход создаёт аккаунт."""
+
+    email: EmailStr = Field(..., description='Email address')
+    code: str = Field(..., min_length=4, max_length=8, pattern=r'^[0-9]+$', description='Код из письма')
+    language: str = Field('ru', max_length=5, pattern=r'^[a-z]{2}$', description='Preferred language (ISO 639-1)')
+    first_name: str | None = Field(None, max_length=64, description='First name')
+    referral_code: str | None = Field(
+        None, max_length=32, pattern=r'^[a-zA-Z0-9_-]+$', description='Referral code of inviter'
+    )
+    campaign_slug: str | None = Field(
+        None, min_length=1, max_length=64, pattern=r'^[a-zA-Z0-9_-]+$', description='Campaign slug from web link'
+    )
+    accepted_legal_documents: list[str] | None = Field(
+        None,
+        max_length=8,
+        description=(
+            'Ключи документов, с которыми пользователь согласился на экране входа '
+            '(см. GET /cabinet/info/legal-consent). Нужны только при первом входе, когда аккаунт создаётся.'
+        ),
+    )
+
+
 class CampaignBonusInfo(BaseModel):
     """Info about campaign bonus applied during auth."""
 

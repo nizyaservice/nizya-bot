@@ -1103,6 +1103,8 @@
   "MAINTENANCE_MODE_API_ERROR": "\n🔧正在进行技术维护！\n\n由于连接服务器出现问题，服务暂时不可用。\n\n⏰我们正在努力恢复。请几分钟后再试。\n\n🔄最后检查时间：{last_check}\n",
   "MAIN_MENU": "👤<b>{user_name}</b>\n  \n📱<b>订阅：</b>{subscription_status}\n\n请选择操作：\n",
   "MAIN_MENU_ACTION_PROMPT": "请选择操作：",
+  "CABINET_LOGIN_CODE_SUBJECT": "登录验证码",
+  "CABINET_LOGIN_CODE_BODY": "<p>您的登录验证码：<b style=\"font-size:20px;letter-spacing:2px\">{code}</b></p><p>验证码 {minutes} 分钟内有效，仅可使用一次。</p><p>如果不是您本人请求登录，忽略此验证码即可，无需任何操作。</p>",
   "MAIN_MENU_BONUS_POINTS": "🎁 奖励积分：{points}",
   "MAIN_MENU_RICH_BONUS_POINTS": "🎁 奖励积分：{points}",
   "BONUS_POINTS_NOTIFY_TOTAL": "🎁 <b>积分总计：</b>{points}",

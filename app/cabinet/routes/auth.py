@@ -87,6 +87,16 @@ from ..auth.email_verification import (
     is_token_expired,
 )
 from ..auth.jwt_handler import get_refresh_token_expires_at
+from ..auth.login_otp import (
+    LOGIN_OTP_RESEND_AFTER_SECONDS,
+    LOGIN_OTP_TTL_SECONDS,
+    clear_login_code,
+    generate_login_code,
+    normalize_email,
+    seconds_until_resend_allowed,
+    store_login_code,
+    verify_login_code,
+)
 from ..auth.merge_service import (
     clear_email_merge_otp,
     create_merge_token,
@@ -106,6 +116,9 @@ from ..schemas.auth import (
     EmailChangeVerifyRequest,
     EmailLoginRequest,
     EmailMergeVerifyRequest,
+    EmailOtpRequest,
+    EmailOtpSentResponse,
+    EmailOtpVerifyRequest,
     EmailRegisterRequest,
     EmailRegisterStandaloneRequest,
     EmailVerifyRequest,
@@ -123,6 +136,7 @@ from ..schemas.auth import (
 )
 from ..services.email_service import email_service
 from ..services.email_template_overrides import get_rendered_override
+from ..services.login_code_mailer import send_login_code
 
 
 logger = structlog.get_logger(__name__)
@@ -1907,6 +1921,249 @@ async def login_email(
         response.user = _user_to_response(user)
 
     return response
+
+
+@router.post('/email/otp/request', response_model=EmailOtpSentResponse)
+async def request_email_otp(
+    request: EmailOtpRequest,
+    raw_request: Request,
+    db: AsyncSession = Depends(get_cabinet_db),
+):
+    """Отправить одноразовый код для входа по почте — вход без пароля.
+
+    Ответ одинаков и для знакомого адреса, и для незнакомого: иначе ручка
+    становится оракулом «есть ли у вас аккаунт», и по ней можно перебирать
+    чужие почты.
+
+    Аккаунт здесь НЕ создаётся — только при успешной проверке кода. Иначе
+    рассылкой кодов на случайные адреса можно было бы нагенерировать пустых
+    пользователей, ничего не подтверждая.
+    """
+    await require_email_auth_enabled(db)
+
+    client_ip = get_client_ip(raw_request)
+    if await RateLimitCache.is_ip_rate_limited(client_ip, 'email_otp_request', limit=5, window=60, fail_closed=True):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='Too many requests',
+            headers={'Retry-After': '60'},
+        )
+
+    email_lower = normalize_email(request.email)
+
+    def _sent(resend_after: int = LOGIN_OTP_RESEND_AFTER_SECONDS) -> EmailOtpSentResponse:
+        return EmailOtpSentResponse(expires_in_seconds=LOGIN_OTP_TTL_SECONDS, resend_after_seconds=resend_after)
+
+    # Код ещё жив и пауза не вышла: второго письма не шлём, но и не
+    # рассказываем, что код уже существует.
+    pause = await seconds_until_resend_allowed(email_lower)
+    if pause > 0:
+        return _sent(pause)
+
+    if not email_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail='Email service is not configured',
+        )
+
+    # Одноразовые ящики — это не вход, а способ наплодить аккаунтов.
+    if disposable_email_service.is_disposable(email_lower):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Disposable email addresses are not allowed',
+        )
+
+    # Адреса из ADMIN_EMAILS: код подтверждает ящик и ставит email_verified, а
+    # на нём висят админские права — выдавать их по письму нельзя. Тот же
+    # заслон стоит в standalone-регистрации и в смене почты.
+    if email_lower and email_lower in {e.lower() for e in settings.get_admin_emails()}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='This email address cannot be used for login',
+        )
+
+    result = await db.execute(select(User).where(func.lower(User.email) == email_lower))
+    user = result.scalar_one_or_none()
+
+    if user is not None:
+        # Заблокированный или удалённый аккаунт: отвечаем как всегда, письма не
+        # шлём. Сказать правду значило бы подтвердить, что такой аккаунт есть.
+        if user.status != UserStatus.ACTIVE.value:
+            logger.info('Код входа не отправлен: аккаунт не активен', user_id=user.id, status=user.status)
+            return _sent()
+        language = user.language or settings.DEFAULT_LANGUAGE
+    else:
+        # Незнакомый адрес: первый успешный вход создаст аккаунт, поэтому
+        # спрашиваем разрешение теми же воротами, что у обычной регистрации.
+        await enforce_email_registration_throttle(client_ip)
+        access = await evaluate_public_registration(
+            db,
+            channel=RegistrationChannel.CABINET_EMAIL,
+            existing_user=None,
+            email=email_lower,
+            email_verified=False,
+            verified_admin=False,
+        )
+        if not access.allowed:
+            logger.info('Код входа не отправлен: регистрация закрыта', reason=str(access.reason))
+            return _sent()
+
+        # «user+1@gmail.com» — другой адрес для нас, но письма уйдут владельцу
+        # «user@gmail.com»: чужой ящик получал бы коды входа в новый аккаунт.
+        alias_owner = await get_user_by_email_alias(db, email_lower)
+        if alias_owner:
+            logger.info('Код входа не отправлен: адрес — алиас существующего', existing_user_id=alias_owner.id)
+            return _sent()
+
+        language = settings.DEFAULT_LANGUAGE
+
+    code = generate_login_code()
+    await store_login_code(email_lower, code)
+    await send_login_code(email_lower, code, language)
+    return _sent()
+
+
+@router.post('/email/otp/verify', response_model=AuthResponse)
+async def verify_email_otp(
+    request: EmailOtpVerifyRequest,
+    raw_request: Request,
+    db: AsyncSession = Depends(get_cabinet_db),
+):
+    """Войти по одноразовому коду. Первый успешный вход создаёт аккаунт.
+
+    Верный код доказывает владение ящиком, поэтому отдельного подтверждения
+    почты после него не требуется — ставим ``email_verified`` сразу.
+    """
+    await require_email_auth_enabled(db)
+
+    client_ip = get_client_ip(raw_request)
+    if await RateLimitCache.is_ip_rate_limited(client_ip, 'email_otp_verify', limit=10, window=60, fail_closed=True):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='Too many requests',
+            headers={'Retry-After': '60'},
+        )
+
+    email_lower = normalize_email(request.email)
+    verdict = await verify_login_code(email_lower, request.code)
+
+    if verdict == 'too_many_attempts':
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='Too many invalid codes, request a new one',
+        )
+    if verdict != 'ok':
+        # «нет кода» и «код неверен» — один ответ: по разнице можно было бы
+        # узнать, запрашивал ли владелец адреса вход.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Invalid or expired code',
+        )
+
+    result = await db.execute(select(User).where(func.lower(User.email) == email_lower))
+    user = result.scalar_one_or_none()
+
+    if user is not None:
+        if user.status != UserStatus.ACTIVE.value:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid or expired code',
+            )
+        if not user.email_verified:
+            # Код пришёл на этот ящик и был введён — владение доказано.
+            user.email_verified = True
+            user.email_verified_at = datetime.now(UTC)
+    else:
+        user = await _create_user_for_otp_login(db, request, email_lower, client_ip)
+
+    user.cabinet_last_login = datetime.now(UTC)
+    await db.commit()
+
+    response = await _create_auth_response(user, db)
+    await _store_refresh_token(db, user.id, response.refresh_token)
+
+    response.campaign_bonus = await _process_campaign_bonus(db, user, request.campaign_slug)
+    if response.campaign_bonus:
+        response.user = _user_to_response(user)
+
+    return response
+
+
+async def _create_user_for_otp_login(
+    db: AsyncSession,
+    request: EmailOtpVerifyRequest,
+    email_lower: str,
+    client_ip: str,
+) -> User:
+    """Создать аккаунт при первом входе по коду.
+
+    Повторяет заслоны standalone-регистрации: закрытая регистрация, алиас
+    чужого ящика, самореферал, согласие с документами. Пароля у аккаунта нет —
+    вход только по коду, пока человек не привяжет его к Telegram.
+    """
+    access = await evaluate_public_registration(
+        db,
+        channel=RegistrationChannel.CABINET_EMAIL,
+        existing_user=None,
+        email=email_lower,
+        email_verified=True,
+        verified_admin=False,
+        start_parameter=request.referral_code or request.campaign_slug,
+    )
+    raise_for_registration_decision(access)
+
+    alias_owner = await get_user_by_email_alias(db, email_lower)
+    if alias_owner:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='This email is already registered',
+        )
+
+    referrer = None
+    if request.referral_code:
+        referrer = await get_user_by_referral_code(db, request.referral_code)
+        if referrer and referrer.email and referrer.email.lower() == email_lower:
+            logger.warning('Самореферал при входе по коду заблокирован', email=email_lower)
+            referrer = None
+
+    language = request.language or settings.DEFAULT_LANGUAGE
+    # Согласие проверяем ДО создания: иначе аккаунт уже есть, а галочки нет.
+    consent_documents = await _require_legal_consent(db, accepted=request.accepted_legal_documents, language=language)
+
+    user = await create_user_by_email(
+        db=db,
+        email=email_lower,
+        password_hash=None,
+        first_name=request.first_name,
+        language=language,
+        referred_by_id=referrer.id if referrer else None,
+    )
+    await legal_consent_service.record_consent(
+        db, user, consent_documents, source='cabinet_email_otp', ip_address=client_ip
+    )
+
+    user.email_verified = True
+    user.email_verified_at = datetime.now(UTC)
+    await db.commit()
+
+    # У адреса могла остаться подписка, купленная до появления аккаунта.
+    try:
+        await _sync_subscription_from_panel_by_email(db, user)
+    except Exception:
+        logger.warning('Не удалось подтянуть подписку панели после входа по коду', user_id=user.id, exc_info=True)
+
+    if referrer:
+        try:
+            from app.bot_factory import create_bot
+
+            async with create_bot() as bot:
+                await process_referral_registration(db, user.id, referrer.id, bot=bot)
+        except Exception as error:
+            # Реферальная система не должна мешать входу.
+            logger.error('Не удалось обработать реферальную регистрацию', error=error)
+
+    logger.info('Аккаунт создан первым входом по коду', user_id=user.id)
+    return user
 
 
 @router.post('/refresh', response_model=TokenResponse)
