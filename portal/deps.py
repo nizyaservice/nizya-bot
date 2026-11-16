@@ -95,7 +95,13 @@ def check_csrf(session: Session, submitted: str | None) -> None:
     Без этого чужая страница могла бы отправить POST с нашей cookie —
     ``SameSite=Lax`` ловит не все случаи, а на покупках цена ошибки деньги.
     """
-    if not submitted or not hmac.compare_digest(session.csrf_token, submitted):
+    if not submitted:
+        raise CsrfError
+
+    # Сравниваем байты: ``compare_digest`` на строках с не-ASCII символами
+    # бросает TypeError, и подделанный токен с кириллицей получал бы 500
+    # вместо отказа.
+    if not hmac.compare_digest(session.csrf_token.encode(), submitted.encode()):
         raise CsrfError
 
 

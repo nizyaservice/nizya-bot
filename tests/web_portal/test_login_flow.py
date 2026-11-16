@@ -193,6 +193,18 @@ def test_logout_with_csrf_token_closes_the_session(client: TestClient, store: Se
     assert await_session(store, sid) is None
 
 
+def test_logout_with_a_foreign_csrf_token_does_nothing(client: TestClient, store: SessionStore):
+    """Токен с не-ASCII символами — отказ, а не пятисотка: ``compare_digest``
+    на таких строках бросает TypeError, если сравнивать их напрямую."""
+    client.post('/login/code', data={'email': 'user@example.com', 'code': '123456'})
+    sid = client.cookies.get('portal_session')
+
+    response = client.post('/logout', data={'csrf_token': 'подделка'})
+
+    assert response.status_code == 303
+    assert await_session(store, sid) is not None
+
+
 def test_healthz_does_not_need_the_bot(client: TestClient):
     """Проверка живости не должна падать вместе с туннелем до бота."""
     assert client.get('/healthz').json() == {'status': 'ok'}
