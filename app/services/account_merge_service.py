@@ -148,6 +148,8 @@ def _build_user_preview(user: User) -> dict[str, Any]:
         'email': user.email,
         'auth_methods': compute_auth_methods(user),
         'balance_kopeks': user.balance_kopeks,
+        # Баллы в превью: человек подтверждает слияние, видя оба кошелька.
+        'bonus_points_kopeks': user.bonus_points_kopeks or 0,
         'subscription': _build_subscription_preview(subs[0] if subs else None),
         'subscriptions_count': len(subs),
         'created_at': user.created_at,
@@ -861,6 +863,29 @@ async def execute_merge(
             primary_id=primary.id,
             secondary_id=secondary.id,
             transferred_kopeks=transferred_kopeks,
+        )
+
+    # 4b. Бонусные баллы — такой же кошелёк, и терять их при слиянии нельзя.
+    # Блокировку строк берём ту же, что для баланса (выше), либо берём здесь,
+    # если баланс был нулевым и до неё не дошло.
+    transferred_points = secondary.bonus_points_kopeks or 0
+    if transferred_points != 0:
+        from app.database.models import User as UserModel
+
+        if transferred_kopeks == 0 and isinstance(primary, UserModel):
+            from app.database.crud.user import lock_user_for_update
+
+            primary = await lock_user_for_update(db, primary)
+            secondary = await lock_user_for_update(db, secondary)
+            transferred_points = secondary.bonus_points_kopeks or 0
+
+        primary.bonus_points_kopeks = (primary.bonus_points_kopeks or 0) + transferred_points
+        secondary.bonus_points_kopeks = 0
+        logger.info(
+            'Перенесены бонусные баллы',
+            primary_id=primary.id,
+            secondary_id=secondary.id,
+            transferred_points=transferred_points,
         )
 
     # 4a. Объединение булевых флагов (True побеждает — пользователь имел опыт)

@@ -231,6 +231,19 @@ async def test_crediting_points_writes_no_money_transaction():
     created.assert_not_awaited()
 
 
+# ─── слияние аккаунтов ───
+
+
+def test_merge_carries_bonus_points_over():
+    """Баллы — такой же кошелёк: при слиянии их нельзя терять вместе с аккаунтом."""
+    source = (REPO / 'app' / 'services' / 'account_merge_service.py').read_text(encoding='utf-8')
+
+    assert 'primary.bonus_points_kopeks = (primary.bonus_points_kopeks or 0) + transferred_points' in source
+    assert 'secondary.bonus_points_kopeks = 0' in source
+    # И в превью, по которому человек подтверждает слияние.
+    assert "'bonus_points_kopeks': user.bonus_points_kopeks or 0," in source
+
+
 # ─── главное меню ───
 
 

@@ -182,6 +182,7 @@ class MergePreviewUser(BaseModel):
     email: str | None = None
     auth_methods: list[str]
     balance_kopeks: int = 0
+    bonus_points_kopeks: int = 0
     subscription: MergePreviewSubscription | None = None
     created_at: datetime | None = None
 
