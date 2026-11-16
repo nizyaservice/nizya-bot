@@ -421,8 +421,8 @@ async def confirm_change_devices(
         total_discount = int(discount_per_month * charged_days / 30)
         period_label = f'{charged_days} дн.' if charged_days > 1 else '1 день'
 
-        if price > 0 and db_user.balance_kopeks < price:
-            missing_kopeks = price - db_user.balance_kopeks
+        if price > 0 and db_user.available_balance_kopeks < price:
+            missing_kopeks = price - db_user.available_balance_kopeks
             required_text = f'{texts.format_price(price)} (за {period_label})'
             message_text = texts.t(
                 'ADDON_INSUFFICIENT_FUNDS_MESSAGE',
@@ -435,7 +435,7 @@ async def confirm_change_devices(
                 ),
             ).format(
                 required=required_text,
-                balance=texts.format_price(db_user.balance_kopeks),
+                balance=texts.format_price(db_user.available_balance_kopeks),
                 missing=texts.format_price(missing_kopeks),
             )
 
@@ -1889,8 +1889,8 @@ async def confirm_add_devices(callback: types.CallbackQuery, db_user: User, db: 
         total_discount=total_discount / 100,
     )
 
-    if price > 0 and db_user.balance_kopeks < price:
-        missing_kopeks = price - db_user.balance_kopeks
+    if price > 0 and db_user.available_balance_kopeks < price:
+        missing_kopeks = price - db_user.available_balance_kopeks
         required_text = f'{texts.format_price(price)} (за {period_label})'
         message_text = texts.t(
             'ADDON_INSUFFICIENT_FUNDS_MESSAGE',
@@ -1903,7 +1903,7 @@ async def confirm_add_devices(callback: types.CallbackQuery, db_user: User, db: 
             ),
         ).format(
             required=required_text,
-            balance=texts.format_price(db_user.balance_kopeks),
+            balance=texts.format_price(db_user.available_balance_kopeks),
             missing=texts.format_price(missing_kopeks),
         )
 

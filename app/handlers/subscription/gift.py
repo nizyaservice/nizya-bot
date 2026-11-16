@@ -1001,8 +1001,8 @@ async def handle_return_to_gift_cart(
         return
 
     # Check if balance is still insufficient
-    if db_user.balance_kopeks < quote.final_price_kopeks:
-        new_missing = quote.final_price_kopeks - db_user.balance_kopeks
+    if db_user.available_balance_kopeks < quote.final_price_kopeks:
+        new_missing = quote.final_price_kopeks - db_user.available_balance_kopeks
         cart_data['total_price'] = quote.final_price_kopeks
         cart_data['missing_amount'] = new_missing
         await user_cart_service.save_user_cart(db_user.id, cart_data)
@@ -1016,7 +1016,7 @@ async def handle_return_to_gift_cart(
         )
 
         req_str = texts.format_price(quote.final_price_kopeks)
-        bal_str = texts.format_price(db_user.balance_kopeks)
+        bal_str = texts.format_price(db_user.available_balance_kopeks)
         missing_str = texts.format_price(new_missing)
 
         text = texts.t(

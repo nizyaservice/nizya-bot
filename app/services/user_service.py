@@ -14,6 +14,7 @@ from app.database.crud.subscription import get_subscription_by_user_id
 from app.database.crud.transaction import get_user_transactions_count
 from app.database.crud.user import (
     add_user_balance,
+    change_user_bonus_points,
     get_inactive_users,
     get_referrals,
     get_user_by_id,
@@ -58,6 +59,7 @@ from app.services.notification_delivery_service import (
     NotificationType,
     notification_delivery_service,
 )
+from app.utils.formatters import format_bonus_points
 
 
 logger = structlog.get_logger(__name__)
@@ -583,6 +585,83 @@ class UserService:
 
         except Exception as e:
             logger.error('Ошибка изменения баланса пользователя', error=e)
+            return False
+
+    async def update_user_bonus_points(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        amount_kopeks: int,
+        admin_id: int,
+        bot: Bot | None = None,
+        admin_name: str | None = None,
+    ) -> bool:
+        """Начислить или снять бонусные баллы — ручка админки, парная update_user_balance."""
+        try:
+            user = await get_user_by_id(db, user_id)
+            if not user:
+                return False
+
+            success = await change_user_bonus_points(db, user, amount_kopeks)
+            if not success:
+                return False
+
+            logger.info(
+                'Админ изменил бонусные баллы пользователя',
+                admin_id=admin_id,
+                user_id=user_id,
+                amount_kopeks=amount_kopeks,
+            )
+
+            if bot:
+                await db.refresh(user)
+                await self._send_bonus_points_notification(bot, user, amount_kopeks)
+
+            return True
+
+        except Exception as e:
+            logger.error('Ошибка изменения бонусных баллов пользователя', error=e)
+            return False
+
+    async def _send_bonus_points_notification(self, bot: Bot, user: User, amount_kopeks: int) -> bool:
+        """Сообщить человеку о начисленных или снятых баллах.
+
+        Шлём напрямую, а не через notification_delivery_service: у того свои
+        типы уведомлений с настройками включения, и для баллов там типа нет —
+        добавлять его значило бы тянуть настройку, которой оператор не просил.
+        """
+        texts = get_texts(user.language)
+        balance_line = texts.t('BONUS_POINTS_NOTIFY_TOTAL', '🎁 <b>Всего баллов:</b> {points}').format(
+            points=format_bonus_points(user.bonus_points_kopeks)
+        )
+
+        if amount_kopeks > 0:
+            message = texts.t(
+                'BONUS_POINTS_NOTIFY_ADDED',
+                '🎁 <b>Начислены бонусные баллы!</b>\n\n'
+                '➕ <b>Начислено баллов:</b> {amount}\n'
+                '{total}\n\n'
+                'Баллы тратятся раньше денег при любой оплате с баланса.',
+            ).format(amount=format_bonus_points(amount_kopeks), total=balance_line)
+        else:
+            message = texts.t(
+                'BONUS_POINTS_NOTIFY_REMOVED',
+                '🎁 <b>Бонусные баллы списаны</b>\n\n➖ <b>Списано баллов:</b> {amount}\n{total}',
+            ).format(amount=format_bonus_points(abs(amount_kopeks)), total=balance_line)
+
+        if not user.telegram_id:
+            return False
+
+        try:
+            await bot.send_message(chat_id=user.telegram_id, text=message, parse_mode='HTML')
+            return True
+        except Exception as error:
+            # Человек мог заблокировать бота — начисление от этого не отменяется.
+            logger.warning(
+                'Не удалось сообщить о бонусных баллах',
+                user_id=user.id,
+                error=str(error)[:200],
+            )
             return False
 
     async def update_user_promo_group(

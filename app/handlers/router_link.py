@@ -136,7 +136,7 @@ async def show_router_link_menu(callback: types.CallbackQuery, db_user: User, db
         '💳 Ваш баланс: {balance}',
     ).format(
         price=texts.format_price(price_kopeks),
-        balance=texts.format_price(db_user.balance_kopeks or 0),
+        balance=texts.format_price(db_user.available_balance_kopeks),
     )
     await edit_or_answer_photo(
         callback=callback,
@@ -169,7 +169,7 @@ async def confirm_router_link(callback: types.CallbackQuery, db_user: User, db: 
         return
 
     price_kopeks = await get_price_kopeks(db)
-    balance = db_user.balance_kopeks or 0
+    balance = db_user.available_balance_kopeks
     caption = texts.t(
         'ROUTER_LINK_CONFIRM',
         '📶 <b>Ссылка для роутера</b>\n\n'

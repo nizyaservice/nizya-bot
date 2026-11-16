@@ -18,6 +18,18 @@ from app.services.subscription_purchase_service import (
 )
 
 
+def _set_balance(user, kopeks: int) -> None:
+    """Деньги и баллы у двойника пользователя.
+
+    Пути оплаты считают «хватает ли» по ``available_balance_kopeks`` (баллы +
+    деньги), и у ``MagicMock(spec=User)`` это свойство само по себе отдаёт мок,
+    а не число.
+    """
+    user.balance_kopeks = kopeks
+    user.bonus_points_kopeks = 0
+    user.available_balance_kopeks = kopeks
+
+
 @pytest.fixture(autouse=True)
 def _grant_cart_topup_intent(monkeypatch):
     """Эти тесты моделируют «пользователь пополнил баланс ради сохранённой корзины»,
@@ -57,7 +69,7 @@ async def test_auto_purchase_saved_cart_after_topup_success(monkeypatch):
     user = MagicMock(spec=User)
     user.id = 42
     user.telegram_id = 4242
-    user.balance_kopeks = 200_000
+    _set_balance(user, 200_000)
     user.language = 'ru'
     user.subscription = None
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -240,7 +252,7 @@ async def test_auto_purchase_saved_cart_after_topup_extension(monkeypatch):
     user = MagicMock(spec=User)
     user.id = 7
     user.telegram_id = 7007
-    user.balance_kopeks = 200_000
+    _set_balance(user, 200_000)
     user.language = 'ru'
     user.subscription = subscription
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -422,7 +434,7 @@ def _prepare_extend_race_guard_scenario(monkeypatch, *, recent_transactions: lis
     user = MagicMock(spec=User)
     user.id = 820
     user.telegram_id = 820820
-    user.balance_kopeks = 200_000
+    _set_balance(user, 200_000)
     user.language = 'ru'
     user.subscription = subscription
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -617,7 +629,7 @@ async def test_auto_purchase_trial_preserved_on_insufficient_balance(monkeypatch
     user.telegram_id = 9999
     # ИСПРАВЛЕНО: Баланс достаточный для первой проверки (строка 243),
     # но subtract_user_balance вернёт False (симуляция неудачи списания)
-    user.balance_kopeks = 60_000
+    _set_balance(user, 60_000)
     user.language = 'ru'
     user.subscription = subscription
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -730,7 +742,7 @@ async def test_auto_purchase_trial_converted_after_successful_extension(monkeypa
     user = MagicMock(spec=User)
     user.id = 88
     user.telegram_id = 8888
-    user.balance_kopeks = 200_000  # Достаточно денег
+    _set_balance(user, 200_000)  # Достаточно денег
     user.language = 'ru'
     user.subscription = subscription
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -876,7 +888,7 @@ async def test_auto_purchase_trial_preserved_on_extension_failure(monkeypatch):
     user = MagicMock(spec=User)
     user.id = 77
     user.telegram_id = 7777
-    user.balance_kopeks = 200_000  # Достаточно денег
+    _set_balance(user, 200_000)  # Достаточно денег
     user.language = 'ru'
     user.subscription = subscription
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -1013,7 +1025,7 @@ async def test_auto_purchase_trial_remaining_days_transferred(monkeypatch):
     user = MagicMock(spec=User)
     user.id = 66
     user.telegram_id = 6666
-    user.balance_kopeks = 200_000
+    _set_balance(user, 200_000)
     user.language = 'ru'
     user.subscription = subscription
     user.get_primary_promo_group = MagicMock(return_value=None)
@@ -1204,7 +1216,7 @@ async def test_auto_purchase_skipped_without_topup_intent(monkeypatch):
 
     user = MagicMock(spec=User)
     user.id = 555
-    user.balance_kopeks = 500_000
+    _set_balance(user, 500_000)
 
     db_session = AsyncMock(spec=AsyncSession)
     result = await auto_purchase_saved_cart_after_topup(db_session, user, bot=AsyncMock())

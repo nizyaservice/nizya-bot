@@ -413,8 +413,8 @@ async def purchase_gift_from_balance(
     if fresh_price != expected_price_kopeks:
         raise GiftPriceChangedError(expected_price_kopeks=expected_price_kopeks, fresh_quote=fresh_quote)
 
-    if buyer.balance_kopeks < fresh_price:
-        raise GiftInsufficientBalanceError(required_kopeks=fresh_price, available_kopeks=buyer.balance_kopeks)
+    if buyer.available_balance_kopeks < fresh_price:
+        raise GiftInsufficientBalanceError(required_kopeks=fresh_price, available_kopeks=buyer.available_balance_kopeks)
 
     # 6. Prepare contact & recipient info
     contact_type, contact_value = _derive_buyer_contact(buyer)

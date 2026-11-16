@@ -1007,7 +1007,7 @@ class MiniAppSubscriptionPurchaseService:
         if pricing.final_total <= 0 and pricing.base_original_total <= 0:
             raise PurchaseValidationError('Invalid total amount', code='calculation_error')
 
-        if pricing.final_total > 0 and user.balance_kopeks < pricing.final_total:
+        if pricing.final_total > 0 and user.available_balance_kopeks < pricing.final_total:
             raise PurchaseBalanceError(
                 texts.t(
                     'MINIAPP_PURCHASE_STATUS_INSUFFICIENT',

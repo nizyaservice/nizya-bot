@@ -140,7 +140,15 @@ def _callback() -> AsyncMock:
 
 
 def _user(balance: int) -> SimpleNamespace:
-    return SimpleNamespace(id=7, telegram_id=1, language='ru', balance_kopeks=balance)
+    # available_balance_kopeks — то, чем человек может заплатить: баллы + деньги.
+    return SimpleNamespace(
+        id=7,
+        telegram_id=1,
+        language='ru',
+        balance_kopeks=balance,
+        bonus_points_kopeks=0,
+        available_balance_kopeks=balance,
+    )
 
 
 @pytest.mark.asyncio

@@ -1760,7 +1760,7 @@ class MonitoringService:
                     if autopay_key in self._notified_users:
                         continue
 
-                    if user.balance_kopeks >= charge_amount:
+                    if user.available_balance_kopeks >= charge_amount:
                         success = await subtract_user_balance(
                             db,
                             user,
@@ -3630,7 +3630,7 @@ class MonitoringService:
 
             for subscription in autopay_subscriptions:
                 user = await get_user_by_id(db, subscription.user_id)
-                if user and user.balance_kopeks >= settings.PRICE_30_DAYS:
+                if user and user.available_balance_kopeks >= settings.PRICE_30_DAYS:
                     autopay_processed += 1
 
             await self._log_monitoring_event(
