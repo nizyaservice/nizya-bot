@@ -11,6 +11,7 @@ POST-запрос со стороннего сайта не пропустит, 
 
 from __future__ import annotations
 
+import json
 import secrets
 from dataclasses import dataclass, field
 from typing import Any
@@ -108,14 +109,10 @@ class SessionStore:
 
 
 def _encode(payload: dict[str, Any]) -> str:
-    import json
-
     return json.dumps(payload, ensure_ascii=False)
 
 
 def _decode(raw: Any) -> Any:
-    import json
-
     if isinstance(raw, bytes):
         raw = raw.decode('utf-8')
     if not isinstance(raw, str):

@@ -90,7 +90,6 @@ from ..auth.jwt_handler import get_refresh_token_expires_at
 from ..auth.login_otp import (
     LOGIN_OTP_RESEND_AFTER_SECONDS,
     LOGIN_OTP_TTL_SECONDS,
-    clear_login_code,
     generate_login_code,
     normalize_email,
     seconds_until_resend_allowed,

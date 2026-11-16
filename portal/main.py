@@ -14,12 +14,12 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from redis.asyncio import from_url
 
 from .api import CabinetUnavailableError, build_client
 from .config import get_settings
 from .deps import CsrfError, LoginRequiredError
-from .routes import auth as auth_routes
-from .routes import pages as page_routes
+from .routes import auth as auth_routes, pages as page_routes
 from .sessions import SessionStore
 from .templating import render
 
@@ -34,10 +34,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
 
     app.state.api_client = build_client(settings.api_base_url, settings.api_timeout_seconds)
-
-    # redis импортируем здесь: без него собираются и тестируются все части,
-    # кроме фактического хранения сессий.
-    from redis.asyncio import from_url
 
     redis = from_url(settings.redis_url, decode_responses=True)
     app.state.redis = redis
@@ -66,13 +62,13 @@ def create_app() -> FastAPI:
     app.include_router(page_routes.router)
 
     @app.exception_handler(LoginRequiredError)
-    async def _login_required(request: Request, exc: LoginRequiredError) -> RedirectResponse:
+    async def _login_required(_request: Request, _exc: LoginRequiredError) -> RedirectResponse:
         # Страница требует входа. Возвращаем 303, чтобы браузер пошёл GET'ом,
         # а не повторил POST на /login.
         return RedirectResponse('/login', status_code=303)
 
     @app.exception_handler(CsrfError)
-    async def _csrf_failed(request: Request, exc: CsrfError) -> HTMLResponse:
+    async def _csrf_failed(request: Request, _exc: CsrfError) -> HTMLResponse:
         return render(
             request,
             'error.html',
@@ -81,7 +77,7 @@ def create_app() -> FastAPI:
         )
 
     @app.exception_handler(CabinetUnavailableError)
-    async def _api_down(request: Request, exc: CabinetUnavailableError) -> HTMLResponse:
+    async def _api_down(request: Request, _exc: CabinetUnavailableError) -> HTMLResponse:
         # Туннель до бота лёг: честная заглушка вместо стектрейса.
         return render(
             request,

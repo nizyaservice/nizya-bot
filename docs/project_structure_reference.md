@@ -3728,7 +3728,6 @@
 - `tests/live/`
 - `tests/middlewares/`
 - `tests/migrations/`
-- `tests/portal/`
 - `tests/services/`
 - `tests/test_bonus_points.py` — Python-модуль
   Классы: нет
@@ -3863,6 +3862,7 @@
   Классы: нет
   Функции: `test_group_gets_only_actions_and_all_of_them_pass_the_chat_filter`, `test_pending_offers_approve_and_reject_and_approved_offers_complete`, `test_admin_in_private_gets_profile_by_db_id_not_telegram_id`, `test_navigation_only_where_asked`, `test_moderator_and_outsider_get_nothing` — Одобрение — только для админа (@admin_required); модератору кнопки бы отвечали «нет доступа»., `admin_chat`, `test_cabinet_withdrawal_notification_carries_the_same_buttons`, `test_notification_without_request_id_stays_plain`
 - `tests/utils/`
+- `tests/web_portal/`
 - `tests/webapi/`
 - `tests/webserver/`
 
@@ -5011,27 +5011,6 @@
   Классы: нет
   Функции: `test_revision_chain`, `test_upgrade_matches_model_and_downgrade_drops`
 
-### tests/portal
-
-- `tests/portal/__init__.py` — Python-модуль
-  Классы: нет
-  Функции: нет
-- `tests/portal/conftest.py` — Python-модуль
-  Классы: `FakeRedis` (4 методов)
-  Функции: `fake_redis`, `store`, `portal_app` — Приложение портала с подменёнными хранилищем и клиентом API., `api_from_handler` — Клиент к боту, отвечающий переданной функцией (httpx.MockTransport).
-- `tests/portal/test_api_client.py` — Python-модуль
-  Классы: нет
-  Функции: `test_request_goes_to_the_cabinet_prefix`, `test_token_is_sent_as_bearer`, `test_unauthenticated_calls_send_no_token`, `test_error_detail_reaches_the_page`, `test_validation_error_detail_is_unwrapped` — FastAPI отдаёт 422 списком объектов — человеку нужен msg, а не структура., `test_non_json_error_does_not_crash_the_client`, `test_dead_tunnel_is_not_a_bot_error` — Разница существенная: туннель лёг — заглушка; бот отказал — текст ошибки., `test_empty_body_is_not_parsed_as_json` — Выход из кабинета отвечает пустым телом — это не повод падать., `test_consent_documents_are_passed_only_when_present`
-- `tests/portal/test_login_flow.py` — Python-модуль
-  Классы: нет
-  Функции: `client`, `test_login_page_opens`, `test_requesting_a_code_shows_the_code_screen`, `test_empty_email_is_refused_without_calling_the_bot`, `test_bot_refusal_is_shown_to_the_person`, `test_correct_code_opens_a_session`, `test_wrong_code_keeps_the_person_on_the_code_screen`, `test_consent_is_asked_once_and_then_submitted` — Бот отвечает 428, пока не присланы галочки, — портал их и рисует., `test_home_requires_login`, `test_home_opens_with_a_session`, `test_logout_without_csrf_token_does_nothing`, `test_logout_with_csrf_token_closes_the_session`, `test_healthz_does_not_need_the_bot` — Проверка живости не должна падать вместе с туннелем до бота., `await_session` — Синхронная обёртка: тесты страниц синхронные, а хранилище асинхронное.
-- `tests/portal/test_sessions.py` — Python-модуль
-  Классы: нет
-  Функции: `test_created_session_has_unpredictable_id`, `test_tokens_live_in_storage_not_in_the_identifier`, `test_session_round_trip`, `test_each_session_gets_its_own_csrf_token`, `test_missing_and_empty_identifiers_are_no_session`, `test_deleted_session_is_gone`, `test_broken_record_is_discarded_instead_of_crashing` — Мусор в Redis (чужой ключ, обрезанный JSON) не должен ронять страницу., `test_record_without_tokens_is_discarded`, `test_session_expires_with_the_refresh_token` — Держать сессию дольше refresh-токена нечем: он и есть её срок жизни., `test_saving_updates_tokens_in_place`
-- `tests/portal/test_token_refresh.py` — Python-модуль
-  Классы: нет
-  Функции: `test_fresh_token_passes_through`, `test_expired_token_is_refreshed_once_and_the_call_repeats`, `test_rotation_is_optional` — Если бот не прислал новый refresh-токен — остаётся прежний, не пустой., `test_dead_refresh_token_closes_the_session`, `test_other_errors_are_not_treated_as_expiry` — 403 или 500 обновлением токена не лечатся — пробрасываем как есть., `test_second_401_does_not_loop` — Свежий токен тоже получил 401 — отдаём ошибку, а не крутим обновления., `test_csrf_token_must_match`
-
 ### tests/services
 
 - `tests/services/__init__.py` — Python-модуль
@@ -5989,6 +5968,27 @@
 - `tests/utils/test_validators_basic.py` — Python-модуль
   Классы: нет
   Функции: `test_validate_email_handles_expected_patterns` — Проверяем типичные корректные и некорректные адреса., `test_validate_phone_strips_formatting_and_checks_pattern` — Телефон должен соответствовать стандарту E.164 после очистки., `test_validate_telegram_username_enforces_length` — Telegram-логин должен быть 5-32 символов и содержать допустимые символы., `test_validate_amount_returns_float_within_bounds` — Числа должны конвертироваться с уважением к диапазону., `test_validate_positive_integer_enforces_upper_bound` — Положительное целое число выходит за пределы — возвращаем None., `test_validate_traffic_amount_supports_units` — Валидатор трафика распознаёт разные единицы измерения и особые значения., `test_validate_subscription_period_accepts_reasonable_range` — Диапазон допустимой длительности от 1 до 3650 дней., `test_validate_uuid_detects_standard_format` — UUID должен соответствовать HEX шаблону версии 4/5., `test_validate_url_recognises_https_links` — Валидатор URL допускает http/https ссылки и отклоняет произвольные строки., `test_validate_html_tags_rejects_unknown_tags` — Неизвестные HTML теги должны приводить к отказу., `test_validate_html_structure_detects_wrong_nesting` — Неправильная вложенность тегов должна сообщаться пользователю., `test_fix_html_tags_repairs_missing_quotes` — Автоисправление должно добавлять кавычки у ссылок., `test_validate_rules_content_detects_structure_error` — При нарушении структуры должны вернуться сообщение и отсутствие подсказки., `test_validate_rules_content_accepts_supported_markup` — Корректный HTML должен проходить проверку без сообщений.
+
+### tests/web_portal
+
+- `tests/web_portal/__init__.py` — Python-модуль
+  Классы: нет
+  Функции: нет
+- `tests/web_portal/conftest.py` — Python-модуль
+  Классы: `FakeRedis` (4 методов)
+  Функции: `fake_redis`, `store`, `portal_app` — Приложение портала с подменёнными хранилищем и клиентом API., `api_from_handler` — Клиент к боту, отвечающий переданной функцией (httpx.MockTransport).
+- `tests/web_portal/test_api_client.py` — Python-модуль
+  Классы: нет
+  Функции: `test_request_goes_to_the_cabinet_prefix`, `test_token_is_sent_as_bearer`, `test_unauthenticated_calls_send_no_token`, `test_error_detail_reaches_the_page`, `test_validation_error_detail_is_unwrapped` — FastAPI отдаёт 422 списком объектов — человеку нужен msg, а не структура., `test_non_json_error_does_not_crash_the_client`, `test_dead_tunnel_is_not_a_bot_error` — Разница существенная: туннель лёг — заглушка; бот отказал — текст ошибки., `test_empty_body_is_not_parsed_as_json` — Выход из кабинета отвечает пустым телом — это не повод падать., `test_consent_documents_are_passed_only_when_present`
+- `tests/web_portal/test_login_flow.py` — Python-модуль
+  Классы: нет
+  Функции: `client`, `test_login_page_opens`, `test_requesting_a_code_shows_the_code_screen`, `test_empty_email_is_refused_without_calling_the_bot`, `test_bot_refusal_is_shown_to_the_person`, `test_correct_code_opens_a_session`, `test_wrong_code_keeps_the_person_on_the_code_screen`, `test_consent_is_asked_once_and_then_submitted` — Бот отвечает 428, пока не присланы галочки, — портал их и рисует., `test_home_requires_login`, `test_home_opens_with_a_session`, `test_logout_without_csrf_token_does_nothing`, `test_logout_with_csrf_token_closes_the_session`, `test_healthz_does_not_need_the_bot` — Проверка живости не должна падать вместе с туннелем до бота., `await_session` — Синхронная обёртка: тесты страниц синхронные, а хранилище асинхронное.
+- `tests/web_portal/test_sessions.py` — Python-модуль
+  Классы: нет
+  Функции: `test_created_session_has_unpredictable_id`, `test_tokens_live_in_storage_not_in_the_identifier`, `test_session_round_trip`, `test_each_session_gets_its_own_csrf_token`, `test_missing_and_empty_identifiers_are_no_session`, `test_deleted_session_is_gone`, `test_broken_record_is_discarded_instead_of_crashing` — Мусор в Redis (чужой ключ, обрезанный JSON) не должен ронять страницу., `test_record_without_tokens_is_discarded`, `test_session_expires_with_the_refresh_token` — Держать сессию дольше refresh-токена нечем: он и есть её срок жизни., `test_saving_updates_tokens_in_place`
+- `tests/web_portal/test_token_refresh.py` — Python-модуль
+  Классы: нет
+  Функции: `test_fresh_token_passes_through`, `test_expired_token_is_refreshed_once_and_the_call_repeats`, `test_rotation_is_optional` — Если бот не прислал новый refresh-токен — остаётся прежний, не пустой., `test_dead_refresh_token_closes_the_session`, `test_other_errors_are_not_treated_as_expiry` — 403 или 500 обновлением токена не лечатся — пробрасываем как есть., `test_second_401_does_not_loop` — Свежий токен тоже получил 401 — отдаём ошибку, а не крутим обновления., `test_csrf_token_must_match`
 
 ### tests/webapi
 

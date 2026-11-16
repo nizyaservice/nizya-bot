@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -94,8 +95,6 @@ def check_csrf(session: Session, submitted: str | None) -> None:
     Без этого чужая страница могла бы отправить POST с нашей cookie —
     ``SameSite=Lax`` ловит не все случаи, а на покупках цена ошибки деньги.
     """
-    import hmac
-
     if not submitted or not hmac.compare_digest(session.csrf_token, submitted):
         raise CsrfError
 

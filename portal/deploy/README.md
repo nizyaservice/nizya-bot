@@ -62,4 +62,4 @@ PORTAL_COOKIE_SECURE=false PORTAL_API_BASE_URL=http://127.0.0.1:8080 \
 `PORTAL_COOKIE_SECURE=false` нужен только тут: по http браузер cookie с
 флагом `Secure` не сохранит. На проде флаг включён.
 
-Тесты портала — в `tests/portal/`, гоняются общим `make test`.
+Тесты портала — в `tests/web_portal/`, гоняются общим `make test`.
