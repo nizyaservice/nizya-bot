@@ -54,6 +54,13 @@ if 'redis.asyncio' not in sys.modules:
         async def close(self):
             """Закрытие соединения ничего не делает."""
 
+        async def aclose(self):
+            """Способ закрытия из redis-py 5+: ``close`` там объявлен устаревшим.
+
+            Без этого метода заглушка расходится с настоящим клиентом, и код,
+            который закрывает соединение правильно, падает только в тестах.
+            """
+
         async def get(self, key):
             return None
 
