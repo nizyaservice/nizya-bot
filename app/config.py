@@ -1336,8 +1336,6 @@ class Settings(BaseSettings):
     # (<tg-emoji> в тексте, icon_custom_emoji_id у кнопок).
     CUSTOM_EMOJI_ENABLED: bool = True
     LOGO_FILE: str = 'vpn_logo.png'
-    SKIP_RULES_ACCEPT: bool = False
-    SKIP_REFERRAL_CODE: bool = False
 
     DEFAULT_LANGUAGE: str = 'ru'
     AVAILABLE_LANGUAGES: str = 'ru,en,ua,zh,fa'

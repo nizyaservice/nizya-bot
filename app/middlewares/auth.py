@@ -6,7 +6,6 @@ from typing import Any
 import structlog
 from aiogram import BaseMiddleware
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, TelegramObject, User as TgUser
 from sqlalchemy.exc import InterfaceError, OperationalError
 
@@ -14,8 +13,6 @@ from app.config import settings
 from app.database.crud.user import get_user_by_telegram_id
 from app.database.database import AsyncSessionLocal
 from app.services.remnawave_service import RemnaWaveService
-from app.states import RegistrationStates
-from app.utils.check_reg_process import is_registration_process
 from app.utils.validators import sanitize_telegram_name
 
 
@@ -78,27 +75,20 @@ class AuthMiddleware(BaseMiddleware):
                 db_user = await get_user_by_telegram_id(db, user.id)
 
                 if not db_user:
-                    state: FSMContext = data.get('state')
-                    current_state = None
-
-                    if state:
-                        current_state = await state.get_state()
-
-                    is_reg_process = is_registration_process(event, current_state)
-
+                    # Регистрация идёт одним шагом, поэтому незарегистрированного
+                    # пропускаем только на /start и на проверку подписки на канал:
+                    # «середины регистрации», в которой он мог бы застрять, больше нет.
                     is_channel_check = isinstance(event, CallbackQuery) and event.data == 'sub_channel_check'
 
                     is_start_command = isinstance(event, Message) and event.text and event.text.startswith('/start')
 
-                    if is_reg_process or is_channel_check or is_start_command:
+                    if is_channel_check or is_start_command:
                         if is_start_command:
                             logger.info('🚀 Пропускаем команду /start от пользователя', user_id=user.id)
-                        elif is_channel_check:
+                        else:
                             logger.info(
                                 '🔍 Пропускаем незарегистрированного пользователя для проверки канала', user_id=user.id
                             )
-                        else:
-                            logger.info('🔍 Пропускаем пользователя в процессе регистрации', user_id=user.id)
                         data['db'] = db
                         data['db_user'] = None
                         data['is_admin'] = False
@@ -131,38 +121,11 @@ class AuthMiddleware(BaseMiddleware):
                     logger.info('♻️ Снят устаревший BLOCKED с аккаунта админа из env', user_id=user.id)
 
                 if db_user.status == UserStatus.DELETED.value:
-                    state: FSMContext = data.get('state')
-                    current_state = None
-
-                    if state:
-                        current_state = await state.get_state()
-
-                    registration_states = [
-                        RegistrationStates.waiting_for_language.state,
-                        RegistrationStates.waiting_for_rules_accept.state,
-                        RegistrationStates.waiting_for_privacy_policy_accept.state,
-                        RegistrationStates.waiting_for_referral_code.state,
-                    ]
-
+                    # Повторная регистрация начинается и заканчивается на /start;
+                    # подписка на канал — единственная кнопка на этом пути.
                     is_start_or_registration = (
-                        (isinstance(event, Message) and event.text and event.text.startswith('/start'))
-                        or (current_state in registration_states)
-                        or (
-                            isinstance(event, CallbackQuery)
-                            and event.data
-                            and (
-                                event.data
-                                in [
-                                    'rules_accept',
-                                    'rules_decline',
-                                    'privacy_policy_accept',
-                                    'privacy_policy_decline',
-                                    'referral_skip',
-                                ]
-                                or event.data.startswith('language_select:')
-                            )
-                        )
-                    )
+                        isinstance(event, Message) and event.text and event.text.startswith('/start')
+                    ) or (isinstance(event, CallbackQuery) and event.data == 'sub_channel_check')
 
                     if is_start_or_registration:
                         logger.info('🔄 Удаленный пользователь начинает повторную регистрацию', user_id=user.id)

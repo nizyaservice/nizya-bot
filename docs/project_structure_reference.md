@@ -112,7 +112,7 @@
   Функции: нет
 - `app/services/`
 - `app/states.py` — Python-модуль
-  Классы: `RegistrationStates`, `SubscriptionStates`, `GiftPurchaseStates`, `GiftActivationStates`, `BalanceStates`, `PromoCodeStates`, `AdminStates`, `SupportStates`, `TicketStates`, `AdminTicketStates`, `SupportSettingsStates`, `BotConfigStates`, `PricingStates`, `AutoPayStates`, `SquadCreateStates`, `SquadRenameStates`, `SquadMigrationStates`, `RemnaWaveSyncStates`, `ContestStates`, `AdminSubmenuStates`, `BlacklistStates`, `ReferralWithdrawalStates`
+  Классы: `SubscriptionStates`, `GiftPurchaseStates`, `GiftActivationStates`, `BalanceStates`, `PromoCodeStates`, `AdminStates`, `SupportStates`, `TicketStates`, `AdminTicketStates`, `SupportSettingsStates`, `BotConfigStates`, `PricingStates`, `AutoPayStates`, `SquadCreateStates`, `SquadRenameStates`, `SquadMigrationStates`, `RemnaWaveSyncStates`, `ContestStates`, `AdminSubmenuStates`, `BlacklistStates`, `ReferralWithdrawalStates`
   Функции: нет
 - `app/tools/`
 - `app/utils/`
@@ -999,7 +999,7 @@
   Функции: `handle_pre_checkout_query`, `handle_successful_payment`, `register_stars_handlers`
 - `app/handlers/start.py` — Python-модуль
   Классы: нет
-  Функции: `answer_menu_with_media` — Отвечает меню с медиа-шапкой на входящее сообщение (например, /start)., `send_menu_with_media` — Отправляет меню с медиа-шапкой: видео → фото-логотип → обычный текст., `handle_potential_referral_code`, `cmd_start`, `process_language_selection`, `process_rules_accept` — Обрабатывает принятие или отклонение правил пользователем., `process_privacy_policy_accept`, `process_referral_code_input`, `process_referral_code_skip`, `complete_registration_from_callback`, `complete_registration`, `get_referral_code_keyboard`, `get_main_menu_text`, `get_main_menu_text_simple`, `required_sub_channel_check`, `process_webauth_confirm` — Handle web auth confirmation or denial., `register_handlers`
+  Функции: `answer_menu_with_media` — Отвечает меню с медиа-шапкой на входящее сообщение (например, /start)., `send_menu_with_media` — Отправляет меню с медиа-шапкой: видео → фото-логотип → обычный текст., `default_registration_language` — Язык нового аккаунта: при регистрации его не спрашивают., `cmd_start`, `complete_registration_from_callback`, `complete_registration`, `get_main_menu_text`, `get_main_menu_text_simple`, `required_sub_channel_check`, `process_webauth_confirm` — Handle web auth confirmation or denial., `register_handlers`
 - `app/handlers/subscription/`
 - `app/handlers/support.py` — Python-модуль
   Классы: нет
@@ -1327,7 +1327,7 @@
   Функции: `is_group_safe_callback` — Можно ли обрабатывать это нажатие вне лички., `strip_group_unsafe_buttons` — Оставляет для группы только URL-кнопки и разрешённые callback'и.
 - `app/keyboards/inline.py` — Python-модуль
   Классы: нет
-  Функции: `get_main_menu_keyboard_async` — Асинхронная версия get_main_menu_keyboard с поддержкой конструктора меню., `get_rules_keyboard`, `get_privacy_policy_keyboard`, `get_channel_sub_keyboard` — Subscription keyboard for required channels., `get_post_registration_keyboard`, `get_language_selection_keyboard`, `tariff_actions_live_in_main_menu` — Ряд «Продлить тариф» / «Сменить тариф» показывается в главном меню., `build_tariff_actions_row` — Ряд [Продлить тариф] [Сменить тариф] — один на главное меню и «Мою подписку»., `get_more_menu_keyboard` — Подменю «Ещё»: то, что нужно редко и не должно занимать главный экран., `get_main_menu_keyboard`, `get_info_menu_keyboard`, `get_happ_download_button_row`, `get_happ_cryptolink_keyboard`, `get_happ_download_platform_keyboard`, `get_happ_download_link_keyboard`, `get_back_keyboard`, `get_server_status_keyboard`, `get_insufficient_balance_keyboard`, `get_subscription_keyboard`, `get_payment_methods_keyboard_with_cart`, `get_subscription_confirm_keyboard_with_cart`, `get_insufficient_balance_keyboard_with_cart`, `get_trial_keyboard`, `get_subscription_period_keyboard` — Generate subscription period selection keyboard with personalized pricing., `get_traffic_packages_keyboard`, `get_countries_keyboard`, `get_devices_keyboard`, `get_subscription_confirm_keyboard`, `get_balance_keyboard`, `get_payment_methods_keyboard`, `get_yookassa_payment_keyboard`, `get_autopay_notification_keyboard`, `get_referral_keyboard`, `get_support_keyboard`, `get_pagination_keyboard`, `get_confirmation_keyboard`, `get_autopay_keyboard`, `get_saved_cards_keyboard`, `get_confirm_unlink_keyboard`, `get_autopay_days_keyboard`, `get_autopay_period_keyboard` — Period picker for autopay. `current_period=None` means "use default"., `get_add_traffic_keyboard`, `get_add_traffic_keyboard_from_tariff` — Клавиатура для докупки трафика из настроек тарифа., `get_change_devices_keyboard`, `get_confirm_change_devices_keyboard`, `get_reset_traffic_confirm_keyboard`, `get_manage_countries_keyboard`, `get_device_selection_keyboard`, `get_connection_guide_keyboard`, `get_app_selection_keyboard`, `get_specific_app_keyboard`, `get_extend_subscription_keyboard_with_prices`, `get_cryptobot_payment_keyboard`, `get_devices_management_keyboard`, `get_device_card_keyboard` — Карточка одного устройства: переименовать / удалить / назад к списку., `get_devices_reset_all_confirm_keyboard` — Подтверждение сброса всех устройств: «Сбросить все» / «Отмена»., `get_device_delete_confirm_keyboard` — Подтверждение удаления устройства: «Удалить» / «Отмена»., `get_updated_subscription_settings_keyboard`, `get_device_management_help_keyboard`, `get_ticket_cancel_keyboard`, `get_my_tickets_keyboard`, `get_ticket_view_keyboard`, `get_ticket_reply_cancel_keyboard`, `get_admin_tickets_keyboard`, `get_admin_ticket_view_keyboard`, `get_ticket_notification_keyboard` — Клавиатура для уведомления о тикете (личный или групповой админ-чат)., `get_admin_ticket_reply_cancel_keyboard`
+  Функции: `get_main_menu_keyboard_async` — Асинхронная версия get_main_menu_keyboard с поддержкой конструктора меню., `get_channel_sub_keyboard` — Subscription keyboard for required channels., `get_post_registration_keyboard`, `get_language_selection_keyboard`, `tariff_actions_live_in_main_menu` — Ряд «Продлить тариф» / «Сменить тариф» показывается в главном меню., `build_tariff_actions_row` — Ряд [Продлить тариф] [Сменить тариф] — один на главное меню и «Мою подписку»., `get_more_menu_keyboard` — Подменю «Ещё»: то, что нужно редко и не должно занимать главный экран., `get_main_menu_keyboard`, `get_info_menu_keyboard`, `get_happ_download_button_row`, `get_happ_cryptolink_keyboard`, `get_happ_download_platform_keyboard`, `get_happ_download_link_keyboard`, `get_back_keyboard`, `get_server_status_keyboard`, `get_insufficient_balance_keyboard`, `get_subscription_keyboard`, `get_payment_methods_keyboard_with_cart`, `get_subscription_confirm_keyboard_with_cart`, `get_insufficient_balance_keyboard_with_cart`, `get_trial_keyboard`, `get_subscription_period_keyboard` — Generate subscription period selection keyboard with personalized pricing., `get_traffic_packages_keyboard`, `get_countries_keyboard`, `get_devices_keyboard`, `get_subscription_confirm_keyboard`, `get_balance_keyboard`, `get_payment_methods_keyboard`, `get_yookassa_payment_keyboard`, `get_autopay_notification_keyboard`, `get_referral_keyboard`, `get_support_keyboard`, `get_pagination_keyboard`, `get_confirmation_keyboard`, `get_autopay_keyboard`, `get_saved_cards_keyboard`, `get_confirm_unlink_keyboard`, `get_autopay_days_keyboard`, `get_autopay_period_keyboard` — Period picker for autopay. `current_period=None` means "use default"., `get_add_traffic_keyboard`, `get_add_traffic_keyboard_from_tariff` — Клавиатура для докупки трафика из настроек тарифа., `get_change_devices_keyboard`, `get_confirm_change_devices_keyboard`, `get_reset_traffic_confirm_keyboard`, `get_manage_countries_keyboard`, `get_device_selection_keyboard`, `get_connection_guide_keyboard`, `get_app_selection_keyboard`, `get_specific_app_keyboard`, `get_extend_subscription_keyboard_with_prices`, `get_cryptobot_payment_keyboard`, `get_devices_management_keyboard`, `get_device_card_keyboard` — Карточка одного устройства: переименовать / удалить / назад к списку., `get_devices_reset_all_confirm_keyboard` — Подтверждение сброса всех устройств: «Сбросить все» / «Отмена»., `get_device_delete_confirm_keyboard` — Подтверждение удаления устройства: «Удалить» / «Отмена»., `get_updated_subscription_settings_keyboard`, `get_device_management_help_keyboard`, `get_ticket_cancel_keyboard`, `get_my_tickets_keyboard`, `get_ticket_view_keyboard`, `get_ticket_reply_cancel_keyboard`, `get_admin_tickets_keyboard`, `get_admin_ticket_view_keyboard`, `get_ticket_notification_keyboard` — Клавиатура для уведомления о тикете (личный или групповой админ-чат)., `get_admin_ticket_reply_cancel_keyboard`
 - `app/keyboards/reply.py` — Python-модуль
   Классы: нет
   Функции: `get_main_reply_keyboard`, `get_admin_reply_keyboard`, `get_cancel_keyboard`, `get_confirmation_reply_keyboard`, `get_skip_keyboard`, `remove_keyboard`, `get_contact_keyboard`, `get_location_keyboard`
@@ -2288,9 +2288,6 @@
 - `app/utils/chat_scope.py` — Python-модуль
   Классы: нет
   Функции: `callback_from_group` — Сообщение с кнопкой лежит не в личке (группа, супергруппа, канал).
-- `app/utils/check_reg_process.py` — Python-модуль
-  Классы: нет
-  Функции: `is_registration_process`
 - `app/utils/currency_converter.py` — Python-модуль
   Классы: `CurrencyConverter` (8 методов)
   Функции: нет
@@ -2330,9 +2327,6 @@
 - `app/utils/logo_fingerprint.py` — Python-модуль
   Классы: нет
   Функции: `logo_fingerprint` — Отпечаток файла логотипа: меняется при каждой загрузке нового файла., `logo_version` — Короткая версия для ``?v=`` в адресе; ``None`` — файла нет.
-- `app/utils/long_messages.py` — Python-модуль
-  Классы: нет
-  Функции: `sendable_message` — Сообщение, которому можно отвечать и которое можно править, иначе ``None``., `answer_long_text` — message.answer с разбивкой; клавиатура — на последнем куске., `edit_long_text` — message.edit_text с разбивкой., `send_long_text` — bot.send_message с разбивкой; клавиатура — на последнем куске.
 - `app/utils/markdown_to_telegram.py` — Python-модуль
   Классы: нет
   Функции: `github_markdown_to_telegram_html` — Convert GitHub-flavored Markdown to Telegram HTML., `truncate_for_blockquote` — Truncate description HTML to fit within Telegram message limit inside a blockquote.
@@ -4811,6 +4805,9 @@
 - `tests/handlers/test_info_menu_keyboard.py` — Python-модуль
   Классы: нет
   Функции: `test_rules_button_shown_by_default`, `test_rules_button_hidden_when_disabled`, `test_custom_page_buttons_added`, `test_no_custom_buttons_without_pages`
+- `tests/handlers/test_language_switch.py` — Python-модуль
+  Классы: нет
+  Функции: `enabled` — Фича включена, доступны ru и en — независимо от окружения прогона., `test_selected_language_reaches_the_database`, `test_same_language_is_not_written_again`, `test_language_outside_the_available_list_is_refused`, `test_the_callback_is_still_registered_in_the_menu` — Единственный оставшийся обработчик нажатия — меню, состояние пустое.
 - `tests/handlers/test_legacy_subscription_addons.py` — Python-модуль
   Классы: нет
   Функции: `tariffs_mode`, `test_traffic_topup_is_refused_for_legacy_subscription`, `test_device_change_is_refused_for_legacy_subscription`
@@ -4828,7 +4825,7 @@
   Функции: `test_option_map_covers_all_payment_methods`, `test_available_options_without_int`, `test_available_options_with_int`, `test_int_disabled_mid_flow_rejects_and_clears_state`
 - `tests/handlers/test_page_html_is_telegram_safe.py` — Python-модуль
   Классы: нет
-  Функции: `visible` — Все инфо-разделы показываются в боте., `test_faq_page_drops_unsupported_markup`, `test_privacy_policy_drops_unsupported_markup`, `test_public_offer_drops_unsupported_markup`, `test_service_rules_drop_unsupported_markup`, `test_allowed_formatting_survives` — Преобразование не должно съедать разметку, ради которой её и писали., `test_long_page_is_split_without_breaking_a_tag` — Нарезка идёт по преобразованному тексту, иначе тег рвётся посередине., `test_admin_privacy_preview_drops_unsupported_markup` — Экран «Текущий текст политики» показывает то же, что увидит пользователь., `test_admin_offer_preview_drops_unsupported_markup`, `test_registration_privacy_policy_drops_unsupported_markup`, `test_registration_privacy_policy_of_bare_tags_falls_back_to_default`, `test_registration_rules_drop_unsupported_markup`, `test_registration_rules_of_bare_tags_fall_back_to_default`, `test_registration_sends_rules_only_through_the_converter` — Любая новая отправка правил из start.py обязана идти через _rules_for_telegram.
+  Функции: `visible` — Все инфо-разделы показываются в боте., `test_faq_page_drops_unsupported_markup`, `test_privacy_policy_drops_unsupported_markup`, `test_public_offer_drops_unsupported_markup`, `test_service_rules_drop_unsupported_markup`, `test_allowed_formatting_survives` — Преобразование не должно съедать разметку, ради которой её и писали., `test_long_page_is_split_without_breaking_a_tag` — Нарезка идёт по преобразованному тексту, иначе тег рвётся посередине., `test_admin_privacy_preview_drops_unsupported_markup` — Экран «Текущий текст политики» показывает то же, что увидит пользователь., `test_admin_offer_preview_drops_unsupported_markup`
 - `tests/handlers/test_platega_payment_error_screen.py` — Python-модуль
   Классы: нет
   Функции: `test_error_screen_offers_the_way_back` — Провайдер ответил без ссылки на оплату., `test_exception_screen_offers_the_way_back` — Запрос к провайдеру упал с исключением — экран тот же., `test_error_text_is_kept` — Кнопка добавлена к прежнему тексту, а не вместо него.
@@ -4847,9 +4844,6 @@
 - `tests/handlers/test_referral_settings_screen.py` — Python-модуль
   Классы: `TestVisibility` (3 методов), `TestCurrentStateIsVisible` (3 методов), `TestSaving` (7 методов), `TestDaysTargetFollowsTheKindChoice` (2 методов), `TestAmountsAreShown` (2 методов)
   Функции: `allowed`, `sides` — Суммы сторон считает движок по настоящей БД — здесь она не предмет., `subs`, `test_every_handler_is_registered` — Обработчик без регистрации — кнопка, которая молча ничего не делает.
-- `tests/handlers/test_registration_inaccessible_message.py` — Python-модуль
-  Классы: нет
-  Функции: `test_inaccessible_message_is_not_sendable`, `test_policy_is_sent_as_a_new_message_when_the_button_message_is_gone`, `test_policy_still_edits_the_message_when_it_is_accessible` — Обычный путь не меняется: политика правит то же сообщение.
 - `tests/handlers/test_resolve_subscription_footgun_guard.py` — Python-модуль
   Классы: нет
   Функции: `test_underscore_trailing_number_is_NOT_used_as_sub_id`, `test_colon_trailing_real_sub_id_is_used`
@@ -4871,6 +4865,9 @@
 - `tests/handlers/test_show_tariffs_list_single_skip.py` — Python-модуль
   Классы: нет
   Функции: `test_show_tariffs_list_single_tariff_skips_list_and_proceeds` — Один тариф из get_tariffs_for_user → не рисуем список, сразу _proceed с skip_selection., `test_show_tariffs_list_multiple_tariffs_shows_list` — Два и больше тарифов → список как раньше, без авто-перехода., `test_select_tariff_wrapper_parses_id_and_delegates` — select_tariff остаётся тонкой обёрткой: парсит id и зовёт _proceed без skip_selection., `test_proceed_skip_selection_uses_back_to_menu` — Схлопнутый выбор: клавиатура периодов с back_callback=back_to_menu., `test_proceed_normal_selection_uses_menu_buy_back` — Обычный выбор из списка: клавиатура периодов с back_callback=menu_buy., `test_back_target_survives_a_redraw_of_the_custom_screen` — «Назад» не должен деградировать при перерисовке конфигуратора., `test_single_owned_tariff_shows_the_list_instead_of_a_dead_button` — Если покупать нечего, пропуск превращает «Купить» в мёртвую кнопку.
+- `tests/handlers/test_start_has_no_registration_steps.py` — Python-модуль
+  Классы: нет
+  Функции: `test_step_handler_is_gone`, `test_step_callback_is_not_referenced`, `test_start_goes_straight_to_completion` — Единственный путь из /start — завершение регистрации., `test_registration_states_are_gone` — Состояний «в процессе регистрации» нет: процесс стал одним шагом., `test_new_account_language_comes_from_config`
 - `tests/handlers/test_start_invite_only.py` — Python-модуль
   Классы: нет
   Функции: `test_registration_invite_payload_preserves_original_start_parameter`, `test_telegram_access_evaluation_forwards_identity_and_lock`, `test_create_user_with_registration_invite_commits_gift_atomically`, `test_invite_denial_includes_support_button_when_contact_is_configured`, `test_invite_denial_renders_without_button_when_contact_is_empty`, `test_pending_gift_drain_delegates_to_the_shared_claim_service` — Активация из FSM идёт через общий claim-сервис, а не через собственный запрос., `test_already_claimed_gift_is_reported_instead_of_ignored` — Ссылка, которую уже забрал другой человек, обязана отвечать, а не молчать.

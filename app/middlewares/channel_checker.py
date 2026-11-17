@@ -22,7 +22,6 @@ from app.services.admin_notification_service import AdminNotificationService
 from app.services.channel_subscription_service import channel_subscription_service
 from app.services.subscription_service import SubscriptionService
 from app.utils.cache import cache
-from app.utils.check_reg_process import is_registration_process
 from app.utils.telegram_delivery import is_user_unreachable
 
 
@@ -132,9 +131,6 @@ class ChannelCheckerMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         state: FSMContext = data.get('state')
-        current_state = await state.get_state() if state else None
-        if is_registration_process(event, current_state):
-            return await handler(event, data)
 
         # Ensure service has bot reference for API fallback
         bot: Bot = data['bot']

@@ -198,30 +198,6 @@ _LANGUAGE_DISPLAY_NAMES = {
 }
 
 
-def get_rules_keyboard(language: str = DEFAULT_LANGUAGE) -> InlineKeyboardMarkup:
-    texts = get_texts(language)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=texts.RULES_ACCEPT, callback_data='rules_accept'),
-                InlineKeyboardButton(text=texts.RULES_DECLINE, callback_data='rules_decline'),
-            ]
-        ]
-    )
-
-
-def get_privacy_policy_keyboard(language: str = DEFAULT_LANGUAGE) -> InlineKeyboardMarkup:
-    texts = get_texts(language)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=texts.PRIVACY_POLICY_ACCEPT, callback_data='privacy_policy_accept'),
-                InlineKeyboardButton(text=texts.PRIVACY_POLICY_DECLINE, callback_data='privacy_policy_decline'),
-            ]
-        ]
-    )
-
-
 def get_channel_sub_keyboard(
     channels: list[dict] | str | None = None,
     language: str = DEFAULT_LANGUAGE,

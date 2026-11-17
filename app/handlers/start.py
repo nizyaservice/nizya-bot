@@ -7,8 +7,8 @@ from typing import Any
 import structlog
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from aiogram.filters import Command, StateFilter
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,14 +30,11 @@ from app.database.crud.user_message import get_random_active_message
 from app.database.models import GuestPurchase, PinnedMessage, SubscriptionStatus, UserStatus
 from app.keyboards.inline import (
     get_back_keyboard,
-    get_language_selection_keyboard,
     get_main_menu_keyboard_async,
     get_post_registration_keyboard,
-    get_privacy_policy_keyboard,
-    get_rules_keyboard,
 )
 from app.localization.loader import DEFAULT_LANGUAGE
-from app.localization.texts import get_default_rules, get_privacy_policy, get_rules, get_texts
+from app.localization.texts import get_texts
 from app.middlewares.channel_checker import (
     delete_pending_payload_from_redis,
     get_pending_payload_from_redis,
@@ -64,7 +61,6 @@ from app.services.pinned_message_service import (
     deliver_pinned_message_to_user,
     get_active_pinned_message,
 )
-from app.services.privacy_policy_service import PrivacyPolicyService
 from app.services.referral_service import (
     process_referral_registration,
     save_pending_campaign,
@@ -82,11 +78,8 @@ from app.services.registration_invite_service import RegistrationInviteConflict,
 from app.services.subscription_service import SubscriptionService
 from app.services.support_settings_service import SupportSettingsService
 from app.services.web_auth_service import WEB_AUTH_TOKEN_MIN_LENGTH, link_web_auth_token
-from app.states import RegistrationStates
 from app.utils.gift_links import InvalidGiftTokenError, parse_gift_claim_input
-from app.utils.long_messages import answer_long_text, edit_long_text, send_long_text, sendable_message
 from app.utils.rich_menu import try_answer_rich_main_menu, try_send_rich_main_menu
-from app.utils.telegram_html import html_to_telegram
 from app.utils.user_utils import generate_unique_referral_code
 
 
@@ -1010,216 +1003,14 @@ async def _apply_campaign_bonus_if_needed(
     return None
 
 
-async def handle_potential_referral_code(message: types.Message, state: FSMContext, db: AsyncSession):
-    current_state = await state.get_state()
-    logger.info(
-        '🔍 REFERRAL/PROMO CHECK: Проверка сообщения в состоянии',
-        message_text=message.text,
-        current_state=current_state,
-    )
+def default_registration_language() -> str:
+    """Язык нового аккаунта: при регистрации его не спрашивают.
 
-    if current_state not in [
-        RegistrationStates.waiting_for_rules_accept.state,
-        RegistrationStates.waiting_for_privacy_policy_accept.state,
-        RegistrationStates.waiting_for_referral_code.state,
-        None,
-    ]:
-        return False
-
-    user = await get_user_by_telegram_id(db, message.from_user.id)
-    if user and user.status == UserStatus.ACTIVE.value:
-        return False
-
-    data = await state.get_data() or {}
-    language = data.get('language') or (getattr(user, 'language', None) if user else None) or DEFAULT_LANGUAGE
-    texts = get_texts(language)
-
-    if not message.text:
-        return False
-
-    from app.utils.promo_rate_limiter import promo_limiter, validate_promo_format
-
-    potential_code = message.text.strip()
-    if len(potential_code) < 3 or len(potential_code) > 50:
-        return False
-
-    # Валидация формата (только буквы, цифры, дефис, подчёркивание)
-    if not validate_promo_format(potential_code):
-        return False
-
-    # Rate-limit на перебор промокодов
-    if promo_limiter.is_blocked(message.from_user.id):
-        cooldown = promo_limiter.get_block_cooldown(message.from_user.id)
-        await message.answer(
-            texts.t(
-                'PROMO_RATE_LIMITED',
-                '⏳ Слишком много попыток. Попробуйте через {cooldown} сек.',
-            ).format(cooldown=cooldown)
-        )
-        return True
-
-    # Сначала проверяем реферальный код
-    referrer = await get_user_by_referral_code(db, potential_code)
-    if referrer:
-        data['referral_code'] = potential_code
-        data['referrer_id'] = referrer.id
-        await state.set_data(data)
-
-        await message.answer(texts.t('REFERRAL_CODE_ACCEPTED', '✅ Реферальный код принят!'))
-        logger.info(
-            '✅ Реферальный код применен для пользователя',
-            potential_code=potential_code,
-            from_user_id=message.from_user.id,
-        )
-
-        if current_state != RegistrationStates.waiting_for_referral_code.state:
-            language = data.get('language', DEFAULT_LANGUAGE)
-            texts = get_texts(language)
-
-            rules_text = await _rules_for_telegram(language)
-            await answer_long_text(message, rules_text, reply_markup=get_rules_keyboard(language))
-            await state.set_state(RegistrationStates.waiting_for_rules_accept)
-            logger.info('📋 Правила отправлены после ввода реферального кода')
-        else:
-            await complete_registration(message, state, db)
-
-        return True
-
-    # Если реферальный код не найден, проверяем промокод
-    from app.database.crud.promocode import check_promocode_validity
-
-    promocode_check = await check_promocode_validity(db, potential_code)
-
-    if promocode_check['valid']:
-        # Промокод валиден - сохраняем его в state для активации после создания пользователя
-        data['promocode'] = potential_code
-        await state.set_data(data)
-
-        await message.answer(
-            texts.t(
-                'PROMOCODE_ACCEPTED_WILL_ACTIVATE',
-                '✅ Промокод принят! Он будет активирован после завершения регистрации.',
-            )
-        )
-        logger.info(
-            '✅ Промокод сохранен для активации для пользователя',
-            potential_code=potential_code,
-            from_user_id=message.from_user.id,
-        )
-
-        if current_state != RegistrationStates.waiting_for_referral_code.state:
-            language = data.get('language', DEFAULT_LANGUAGE)
-            texts = get_texts(language)
-
-            rules_text = await _rules_for_telegram(language)
-            await answer_long_text(message, rules_text, reply_markup=get_rules_keyboard(language))
-            await state.set_state(RegistrationStates.waiting_for_rules_accept)
-            logger.info('📋 Правила отправлены после принятия промокода')
-        else:
-            await complete_registration(message, state, db)
-
-        return True
-
-    # Ни реферальный код, ни промокод не найдены — записываем неудачную попытку
-    promo_limiter.record_failed_attempt(message.from_user.id)
-    promo_limiter.cleanup()
-
-    await message.answer(
-        texts.t(
-            'REFERRAL_OR_PROMO_CODE_INVALID_HELP',
-            '❌ Неверный реферальный код или промокод.\n\n'
-            '💡 Если у вас есть реферальный код или промокод, убедитесь что он введен правильно.\n'
-            '⏭️ Для продолжения регистрации без кода используйте команду /start',
-        )
-    )
-    return True
-
-
-def _get_language_prompt_text() -> str:
-    return '🌐 Выберите язык / Choose your language:'
-
-
-async def _prompt_language_selection(message: types.Message, state: FSMContext) -> None:
-    logger.info('🌐 LANGUAGE: Запрос выбора языка для пользователя', from_user_id=message.from_user.id)
-
-    await state.set_state(RegistrationStates.waiting_for_language)
-    await message.answer(
-        _get_language_prompt_text(),
-        reply_markup=get_language_selection_keyboard(),
-    )
-
-
-async def _continue_registration_after_language(
-    *,
-    message: types.Message | None,
-    callback: types.CallbackQuery | None,
-    state: FSMContext,
-    db: AsyncSession,
-) -> None:
-    data = await state.get_data() or {}
-    language = data.get('language', DEFAULT_LANGUAGE)
-    texts = get_texts(language)
-
-    target_message = callback.message if callback else message
-    if not target_message:
-        logger.warning('⚠️ LANGUAGE: Нет доступного сообщения для продолжения регистрации')
-        return
-
-    async def _complete_registration_wrapper():
-        if callback:
-            await complete_registration_from_callback(callback, state, db)
-        else:
-            await complete_registration(message, state, db)
-
-    if settings.SKIP_RULES_ACCEPT:
-        logger.info('⚙️ LANGUAGE: SKIP_RULES_ACCEPT включен - пропускаем правила')
-
-        if data.get('referral_code'):
-            referrer = await get_user_by_referral_code(db, data['referral_code'])
-            if referrer:
-                data['referrer_id'] = referrer.id
-                await state.set_data(data)
-                logger.info('✅ LANGUAGE: Реферер найден', referrer_id=referrer.id)
-
-        if settings.SKIP_REFERRAL_CODE or data.get('referral_code') or data.get('referrer_id'):
-            await _complete_registration_wrapper()
-        else:
-            try:
-                await target_message.answer(
-                    texts.t(
-                        'REFERRAL_CODE_QUESTION',
-                        "У вас есть реферальный код? Введите его или нажмите 'Пропустить'",
-                    ),
-                    reply_markup=get_referral_code_keyboard(language),
-                )
-                await state.set_state(RegistrationStates.waiting_for_referral_code)
-                logger.info('🔍 LANGUAGE: Ожидание ввода реферального кода')
-            except Exception as error:
-                logger.error('Ошибка при показе вопроса о реферальном коде после выбора языка', error=error)
-                await _complete_registration_wrapper()
-        return
-
-    rules_text = await _rules_for_telegram(language)
-    sendable = sendable_message(target_message)
-    try:
-        if sendable is None:
-            # Сообщение с кнопкой боту больше не видно — правила уходят новым.
-            await send_long_text(
-                (callback or message).bot,
-                target_message.chat.id,
-                rules_text,
-                reply_markup=get_rules_keyboard(language),
-            )
-        else:
-            await answer_long_text(sendable, rules_text, reply_markup=get_rules_keyboard(language))
-    except TelegramForbiddenError:
-        logger.warning(
-            '⚠️ Пользователь заблокировал бота, пропускаем отправку правил',
-            from_user_id=callback.from_user.id if callback else message.from_user.id,
-        )
-        return
-    await state.set_state(RegistrationStates.waiting_for_rules_accept)
-    logger.info('📋 LANGUAGE: Правила отправлены после выбора языка')
+    Берём ``DEFAULT_LANGUAGE`` и срезаем региональный суффикс («ru-RU» → «ru»):
+    в локалях лежат короткие коды, а по длинному фолбэк не нашёлся бы.
+    """
+    configured = settings.DEFAULT_LANGUAGE if isinstance(settings.DEFAULT_LANGUAGE, str) else DEFAULT_LANGUAGE
+    return (configured or DEFAULT_LANGUAGE).split('-')[0].lower()
 
 
 async def cmd_start(message: types.Message, state: FSMContext, db: AsyncSession, db_user=None):
@@ -1782,527 +1573,13 @@ async def cmd_start(message: types.Message, state: FSMContext, db: AsyncSession,
 
     data = await state.get_data() or {}
     if not data.get('language'):
-        if settings.is_language_selection_enabled():
-            await _prompt_language_selection(message, state)
-            return
-
-        default_language = (
-            (settings.DEFAULT_LANGUAGE or DEFAULT_LANGUAGE)
-            if isinstance(settings.DEFAULT_LANGUAGE, str)
-            else DEFAULT_LANGUAGE
-        )
-        normalized_default = default_language.split('-')[0].lower()
-        data['language'] = normalized_default
-        await state.set_data(data)
-        logger.info(
-            '🌐 LANGUAGE: выбор языка отключен, устанавливаем язык по умолчанию',
-            normalized_default=normalized_default,
-        )
-
-    await _continue_registration_after_language(
-        message=message,
-        callback=None,
-        state=state,
-        db=db,
-    )
-
-
-async def process_language_selection(
-    callback: types.CallbackQuery,
-    state: FSMContext,
-    db: AsyncSession,
-):
-    logger.info(
-        '🌐 LANGUAGE: Пользователь выбрал язык', from_user_id=callback.from_user.id, callback_data=callback.data
-    )
-
-    if not settings.is_language_selection_enabled():
-        data = await state.get_data() or {}
-        default_language = (
-            (settings.DEFAULT_LANGUAGE or DEFAULT_LANGUAGE)
-            if isinstance(settings.DEFAULT_LANGUAGE, str)
-            else DEFAULT_LANGUAGE
-        )
-        normalized_default = default_language.split('-')[0].lower()
-        data['language'] = normalized_default
+        data['language'] = default_registration_language()
         await state.set_data(data)
 
-        texts = get_texts(normalized_default)
-
-        try:
-            await callback.message.edit_text(
-                texts.t(
-                    'LANGUAGE_SELECTION_DISABLED',
-                    '⚙️ Выбор языка временно недоступен. Используем язык по умолчанию.',
-                )
-            )
-        except Exception:
-            await callback.message.answer(
-                texts.t(
-                    'LANGUAGE_SELECTION_DISABLED',
-                    '⚙️ Выбор языка временно недоступен. Используем язык по умолчанию.',
-                )
-            )
-
-        await callback.answer()
-
-        await _continue_registration_after_language(
-            message=None,
-            callback=callback,
-            state=state,
-            db=db,
-        )
-        return
-
-    selected_raw = (callback.data or '').split(':', 1)[-1]
-    normalized_selected = selected_raw.strip().lower()
-
-    available_map = {
-        lang.strip().lower(): lang.strip()
-        for lang in settings.get_available_languages()
-        if isinstance(lang, str) and lang.strip()
-    }
-
-    if normalized_selected not in available_map:
-        logger.warning(
-            '⚠️ LANGUAGE: Выбран недоступный язык пользователем',
-            normalized_selected=normalized_selected,
-            from_user_id=callback.from_user.id,
-        )
-        await callback.answer('❌ Unsupported language', show_alert=True)
-        return
-
-    resolved_language = available_map[normalized_selected].lower()
-
-    data = await state.get_data() or {}
-    data['language'] = resolved_language
-    await state.set_data(data)
-
-    texts = get_texts(resolved_language)
-
-    try:
-        await callback.message.edit_text(
-            texts.t('LANGUAGE_SELECTED', '🌐 Язык интерфейса обновлен.'),
-        )
-    except Exception as error:
-        logger.warning('⚠️ LANGUAGE: Не удалось обновить сообщение выбора языка', error=error)
-        await callback.message.answer(
-            texts.t('LANGUAGE_SELECTED', '🌐 Язык интерфейса обновлен.'),
-        )
-
-    await callback.answer()
-
-    await _continue_registration_after_language(
-        message=None,
-        callback=callback,
-        state=state,
-        db=db,
-    )
-
-
-async def _rules_for_telegram(language: str) -> str:
-    """Правила для регистрации — в разметке, которую принимает Telegram.
-
-    Текст правил редактируется в кабинете как HTML (заголовки, абзацы, списки),
-    а Telegram понимает восемь тегов: без преобразования регистрация падала на
-    шаге правил с «Unsupported start tag». Если после очистки текста не осталось,
-    показываются правила по умолчанию из локали — пустое сообщение Telegram не примет.
-    """
-    return html_to_telegram(await get_rules(language)) or html_to_telegram(get_default_rules(language))
-
-
-async def _show_privacy_policy_after_rules(
-    callback: types.CallbackQuery,
-    state: FSMContext,
-    db: AsyncSession,
-    language: str,
-) -> bool:
-    """
-    Показывает политику конфиденциальности после принятия правил.
-    Возвращает True, если политика была показана, False если её нет или произошла ошибка.
-    """
-    policy = await PrivacyPolicyService.get_policy(db, language, fallback=True)
-
-    if not policy or not policy.is_enabled:
-        logger.info('⚠️ Политика конфиденциальности не включена, пропускаем её показ')
-        return False
-
-    # Политика редактируется в кабинете как HTML, а Telegram понимает восемь тегов —
-    # без преобразования <h1>/<p> из редактора роняли этот шаг регистрации.
-    privacy_policy_text = html_to_telegram(policy.content)
-    if not privacy_policy_text:
-        privacy_policy_text = html_to_telegram(get_privacy_policy(language))
-        if not privacy_policy_text:
-            logger.info('⚠️ Политика конфиденциальности включена, но дефолтный текст пустой, пропускаем показ')
-            return False
-        logger.info(
-            '🔒 Используется дефолтный текст политики конфиденциальности из локализации для языка', language=language
-        )
-    else:
-        logger.info('🔒 Используется политика конфиденциальности из БД для языка', language=language)
-
-    # Сообщение с кнопкой «принимаю правила» бот может уже не видеть (человек
-    # его удалил) — тогда политику шлём новым сообщением, иначе шаг регистрации
-    # срывался с AttributeError и человек застревал без политики.
-    sendable = sendable_message(callback.message)
-    chat = getattr(callback.message, 'chat', None)
-    chat_id = getattr(chat, 'id', None) or callback.from_user.id
-
-    try:
-        if sendable is None:
-            await send_long_text(
-                callback.bot,
-                chat_id,
-                privacy_policy_text,
-                reply_markup=get_privacy_policy_keyboard(language),
-                parse_mode='HTML',
-            )
-        else:
-            await edit_long_text(
-                sendable,
-                privacy_policy_text,
-                reply_markup=get_privacy_policy_keyboard(language),
-                parse_mode='HTML',
-            )
-        await state.set_state(RegistrationStates.waiting_for_privacy_policy_accept)
-        logger.info('🔒 Политика конфиденциальности отправлена пользователю', from_user_id=callback.from_user.id)
-        return True
-    except Exception as e:
-        logger.error('Ошибка при показе политики конфиденциальности', error=e, exc_info=True)
-        try:
-            # Фолбэк всегда новым сообщением: правка исходного уже не удалась.
-            await send_long_text(
-                callback.bot,
-                chat_id,
-                privacy_policy_text,
-                reply_markup=get_privacy_policy_keyboard(language),
-                parse_mode='HTML',
-            )
-            await state.set_state(RegistrationStates.waiting_for_privacy_policy_accept)
-            logger.info(
-                '🔒 Политика конфиденциальности отправлена новым сообщением пользователю',
-                from_user_id=callback.from_user.id,
-            )
-            return True
-        except Exception as e2:
-            logger.error('Критическая ошибка при отправке политики конфиденциальности', e2=e2, exc_info=True)
-            return False
-
-
-async def _continue_registration_after_rules(
-    callback: types.CallbackQuery,
-    state: FSMContext,
-    db: AsyncSession,
-    language: str,
-) -> None:
-    """
-    Продолжает регистрацию после принятия правил (реферальный код или завершение).
-    """
-    data = await state.get_data() or {}
-    texts = get_texts(language)
-
-    if data.get('referral_code'):
-        logger.info('🎫 Найден реферальный код из deep link', data=data['referral_code'])
-
-        referrer = await get_user_by_referral_code(db, data['referral_code'])
-        if referrer:
-            data['referrer_id'] = referrer.id
-            await state.set_data(data)
-            logger.info('✅ Реферер найден', referrer_id=referrer.id)
-
-        await complete_registration_from_callback(callback, state, db)
-    elif settings.SKIP_REFERRAL_CODE or data.get('referrer_id'):
-        logger.info('⚙️ Пропускаем запрос реферального кода')
-        await complete_registration_from_callback(callback, state, db)
-    else:
-        try:
-            await callback.message.edit_text(
-                texts.t(
-                    'REFERRAL_CODE_QUESTION',
-                    "У вас есть реферальный код? Введите его или нажмите 'Пропустить'",
-                ),
-                reply_markup=get_referral_code_keyboard(language),
-            )
-            await state.set_state(RegistrationStates.waiting_for_referral_code)
-            logger.info('🔍 Ожидание ввода реферального кода')
-        except Exception as e:
-            logger.error('Ошибка при показе вопроса о реферальном коде', error=e)
-            await complete_registration_from_callback(callback, state, db)
-
-
-async def process_rules_accept(callback: types.CallbackQuery, state: FSMContext, db: AsyncSession):
-    """
-    Обрабатывает принятие или отклонение правил пользователем.
-    """
-    logger.info('📋 RULES: Начало обработки правил')
-    logger.info('📊 Callback data', callback_data=callback.data)
-    logger.info('👤 User', from_user_id=callback.from_user.id)
-
-    current_state = await state.get_state()
-    logger.info('📊 Текущее состояние', current_state=current_state)
-
-    language = DEFAULT_LANGUAGE
-    texts = get_texts(language)
-
-    try:
-        await callback.answer()
-
-        data = await state.get_data() or {}
-        language = data.get('language', language)
-        texts = get_texts(language)
-
-        if callback.data == 'rules_accept':
-            logger.info('✅ Правила приняты пользователем', from_user_id=callback.from_user.id)
-
-            # Пытаемся показать политику конфиденциальности
-            policy_shown = await _show_privacy_policy_after_rules(callback, state, db, language)
-
-            # Если политика не была показана, продолжаем регистрацию
-            if not policy_shown:
-                await _continue_registration_after_rules(callback, state, db, language)
-
-        else:
-            logger.info('❌ Правила отклонены пользователем', from_user_id=callback.from_user.id)
-
-            rules_required_text = texts.t(
-                'RULES_REQUIRED',
-                'Для использования бота необходимо принять правила сервиса.',
-            )
-
-            try:
-                await callback.message.edit_text(rules_required_text, reply_markup=get_rules_keyboard(language))
-            except TelegramBadRequest as e:
-                if 'message is not modified' in str(e):
-                    pass  # Сообщение уже содержит нужный текст
-                else:
-                    logger.error('Ошибка при показе сообщения об отклонении правил', error=e)
-
-        logger.info('✅ Правила обработаны для пользователя', from_user_id=callback.from_user.id)
-
-    except Exception as e:
-        logger.error('❌ Ошибка обработки правил', error=e, exc_info=True)
-        await callback.answer(
-            texts.t('ERROR_TRY_AGAIN', '❌ Произошла ошибка. Попробуйте еще раз.'),
-            show_alert=True,
-        )
-
-        try:
-            data = await state.get_data() or {}
-            language = data.get('language', language)
-            texts = get_texts(language)
-            await callback.message.answer(
-                texts.t(
-                    'ERROR_RULES_RETRY',
-                    'Произошла ошибка. Попробуйте принять правила еще раз:',
-                ),
-                reply_markup=get_rules_keyboard(language),
-            )
-            await state.set_state(RegistrationStates.waiting_for_rules_accept)
-        except Exception:
-            pass
-
-
-async def process_privacy_policy_accept(callback: types.CallbackQuery, state: FSMContext, db: AsyncSession):
-    logger.info('🔒 PRIVACY POLICY: Начало обработки политики конфиденциальности')
-    logger.info('📊 Callback data', callback_data=callback.data)
-    logger.info('👤 User', from_user_id=callback.from_user.id)
-
-    current_state = await state.get_state()
-    logger.info('📊 Текущее состояние', current_state=current_state)
-
-    language = DEFAULT_LANGUAGE
-    texts = get_texts(language)
-
-    try:
-        await callback.answer()
-
-        data = await state.get_data() or {}
-        language = data.get('language', language)
-        texts = get_texts(language)
-
-        if callback.data == 'privacy_policy_accept':
-            logger.info('✅ Политика конфиденциальности принята пользователем', from_user_id=callback.from_user.id)
-
-            try:
-                await callback.message.delete()
-                logger.info('🗑️ Сообщение с политикой конфиденциальности удалено')
-            except Exception as e:
-                logger.warning('⚠️ Не удалось удалить сообщение с политикой конфиденциальности', error=e)
-                try:
-                    await callback.message.edit_text(
-                        texts.t(
-                            'PRIVACY_POLICY_ACCEPTED_PROCESSING',
-                            '✅ Политика конфиденциальности принята! Продолжаем регистрацию...',
-                        ),
-                        reply_markup=None,
-                    )
-                except Exception:
-                    pass
-
-            if data.get('referral_code'):
-                logger.info('🎫 Найден реферальный код из deep link', data=data['referral_code'])
-
-                referrer = await get_user_by_referral_code(db, data['referral_code'])
-                if referrer:
-                    data['referrer_id'] = referrer.id
-                    await state.set_data(data)
-                    logger.info('✅ Реферер найден', referrer_id=referrer.id)
-
-                await complete_registration_from_callback(callback, state, db)
-            elif settings.SKIP_REFERRAL_CODE or data.get('referrer_id'):
-                logger.info('⚙️ Пропускаем запрос реферального кода')
-                await complete_registration_from_callback(callback, state, db)
-            else:
-                try:
-                    await state.set_data(data)
-                    await state.set_state(RegistrationStates.waiting_for_referral_code)
-
-                    await callback.bot.send_message(
-                        chat_id=callback.from_user.id,
-                        text=texts.t(
-                            'REFERRAL_CODE_QUESTION',
-                            "У вас есть реферальный код? Введите его или нажмите 'Пропустить'",
-                        ),
-                        reply_markup=get_referral_code_keyboard(language),
-                    )
-                    logger.info('🔍 Ожидание ввода реферального кода')
-                except Exception as e:
-                    logger.error('Ошибка при показе вопроса о реферальном коде', error=e)
-                    await complete_registration_from_callback(callback, state, db)
-
-        else:
-            logger.info('❌ Политика конфиденциальности отклонена пользователем', from_user_id=callback.from_user.id)
-
-            privacy_policy_required_text = texts.t(
-                'PRIVACY_POLICY_REQUIRED',
-                'Для использования бота необходимо принять политику конфиденциальности.',
-            )
-
-            try:
-                await callback.message.edit_text(
-                    privacy_policy_required_text, reply_markup=get_privacy_policy_keyboard(language)
-                )
-            except TelegramBadRequest as e:
-                if 'message is not modified' not in str(e):
-                    logger.warning('Ошибка при показе сообщения об отклонении политики', error=e)
-            except Exception as e:
-                logger.warning('Ошибка при показе сообщения об отклонении политики', error=e)
-
-        logger.info('✅ Политика конфиденциальности обработана для пользователя', from_user_id=callback.from_user.id)
-
-    except Exception as e:
-        logger.error('❌ Ошибка обработки политики конфиденциальности', error=e, exc_info=True)
-        await callback.answer(
-            texts.t('ERROR_TRY_AGAIN', '❌ Произошла ошибка. Попробуйте еще раз.'),
-            show_alert=True,
-        )
-
-        try:
-            data = await state.get_data() or {}
-            language = data.get('language', language)
-            texts = get_texts(language)
-            await callback.message.answer(
-                texts.t(
-                    'ERROR_PRIVACY_POLICY_RETRY',
-                    'Произошла ошибка. Попробуйте принять политику конфиденциальности еще раз:',
-                ),
-                reply_markup=get_privacy_policy_keyboard(language),
-            )
-            await state.set_state(RegistrationStates.waiting_for_privacy_policy_accept)
-        except Exception:
-            pass
-
-
-async def process_referral_code_input(message: types.Message, state: FSMContext, db: AsyncSession):
-    logger.info('🎫 REFERRAL/PROMO: Обработка кода', message_text=message.text)
-
-    data = await state.get_data() or {}
-    language = data.get('language', DEFAULT_LANGUAGE)
-    texts = get_texts(language)
-
-    if not message.text:
-        await message.answer(texts.t('REFERRAL_OR_PROMO_CODE_INVALID', '❌ Неверный реферальный код или промокод'))
-        return
-
-    from app.utils.promo_rate_limiter import promo_limiter, validate_promo_format
-
-    code = message.text.strip()
-
-    # Валидация формата
-    if not validate_promo_format(code):
-        await message.answer(texts.t('REFERRAL_OR_PROMO_CODE_INVALID', '❌ Неверный реферальный код или промокод'))
-        return
-
-    # Rate-limit на перебор
-    if promo_limiter.is_blocked(message.from_user.id):
-        cooldown = promo_limiter.get_block_cooldown(message.from_user.id)
-        await message.answer(
-            texts.t(
-                'PROMO_RATE_LIMITED',
-                '⏳ Слишком много попыток. Попробуйте через {cooldown} сек.',
-            ).format(cooldown=cooldown)
-        )
-        return
-
-    # Сначала проверяем, является ли это реферальным кодом
-    referrer = await get_user_by_referral_code(db, code)
-    if referrer:
-        data['referrer_id'] = referrer.id
-        await state.set_data(data)
-        await message.answer(texts.t('REFERRAL_CODE_ACCEPTED', '✅ Реферальный код принят!'))
-        logger.info('✅ Реферальный код применен', code=code)
-        await complete_registration(message, state, db)
-        return
-
-    # Если реферальный код не найден, проверяем промокод
-    from app.database.crud.promocode import check_promocode_validity
-
-    promocode_check = await check_promocode_validity(db, code)
-
-    if promocode_check['valid']:
-        # Промокод валиден - сохраняем его в state для активации после создания пользователя
-        data['promocode'] = code
-        await state.set_data(data)
-        await message.answer(
-            texts.t(
-                'PROMOCODE_ACCEPTED_WILL_ACTIVATE',
-                '✅ Промокод принят! Он будет активирован после завершения регистрации.',
-            )
-        )
-        logger.info('✅ Промокод сохранен для активации', code=code)
-        await complete_registration(message, state, db)
-        return
-
-    # Ни реферальный код, ни промокод не найдены — записываем неудачу
-    promo_limiter.record_failed_attempt(message.from_user.id)
-    promo_limiter.cleanup()
-
-    await message.answer(texts.t('REFERRAL_OR_PROMO_CODE_INVALID', '❌ Неверный реферальный код или промокод'))
-    logger.info('❌ Неверный код (ни реферальный, ни промокод)', code=code)
-    return
-
-
-async def process_referral_code_skip(callback: types.CallbackQuery, state: FSMContext, db: AsyncSession):
-    logger.info('⭐️ SKIP: Пропуск реферального кода от пользователя', from_user_id=callback.from_user.id)
-    await callback.answer()
-
-    data = await state.get_data() or {}
-    language = data.get('language', DEFAULT_LANGUAGE)
-    texts = get_texts(language)
-
-    try:
-        await callback.message.delete()
-        logger.info('🗑️ Сообщение с вопросом о реферальном коде удалено')
-    except Exception as e:
-        logger.warning('⚠️ Не удалось удалить сообщение с вопросом о реферальном коде', error=e)
-        try:
-            await callback.message.edit_text(
-                texts.t('REGISTRATION_COMPLETING', '✅ Завершаем регистрацию...'), reply_markup=None
-            )
-        except Exception:
-            pass
-
-    await complete_registration_from_callback(callback, state, db)
+    # Шагов в регистрации нет: ни выбора языка, ни правил с политикой, ни
+    # вопроса о реферальном коде. Код из deep link разбирает сама
+    # complete_registration, поэтому /start сразу открывает главное меню.
+    await complete_registration(message, state, db)
 
 
 async def complete_registration_from_callback(callback: types.CallbackQuery, state: FSMContext, db: AsyncSession):
@@ -3076,17 +2353,6 @@ def _insert_random_message(base_text: str, random_message: str, action_prompt: s
     return f'{base_text}\n\n{random_message}'
 
 
-def get_referral_code_keyboard(language: str):
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-    texts = get_texts(language)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=texts.t('REFERRAL_CODE_SKIP', '⭐️ Пропустить'), callback_data='referral_skip')]
-        ]
-    )
-
-
 async def get_main_menu_text(user, texts, db: AsyncSession):
     # Single source of truth: delegate to the menu handler's builder so /start
     # renders the SAME subscription block as "back to menu" — including the
@@ -3119,7 +2385,6 @@ async def get_main_menu_text_simple(user_name, texts, db: AsyncSession):
 async def required_sub_channel_check(
     query: types.CallbackQuery, bot: Bot, state: FSMContext, db: AsyncSession, db_user=None
 ):
-    from app.utils.message_patch import _cache_logo_file_id, caption_exceeds_telegram_limit, get_logo_media
 
     language = DEFAULT_LANGUAGE
     texts = get_texts(language)
@@ -3325,45 +2590,13 @@ async def required_sub_channel_check(
             if pinned_message and not pinned_message.send_before_menu:
                 await _send_pinned_message(bot, db, user, pinned_message)
         else:
-            from app.keyboards.inline import get_rules_keyboard
-
             state_data['language'] = language
             await state.set_data(state_data)
 
-            if settings.SKIP_RULES_ACCEPT:
-                if settings.SKIP_REFERRAL_CODE or state_data.get('referral_code') or state_data.get('referrer_id'):
-                    # Delegate to the canonical completion path. It rechecks the
-                    # invitation immediately before any create/revive/phantom mutation.
-                    await complete_registration_from_callback(query, state, db)
-                    return None
-                await bot.send_message(
-                    chat_id=query.from_user.id,
-                    text=texts.t(
-                        'REFERRAL_CODE_QUESTION',
-                        "У вас есть реферальный код? Введите его или нажмите 'Пропустить'",
-                    ),
-                    reply_markup=get_referral_code_keyboard(language),
-                )
-                await state.set_state(RegistrationStates.waiting_for_referral_code)
-            else:
-                rules_text = await _rules_for_telegram(language)
-
-                if settings.ENABLE_LOGO_MODE and not caption_exceeds_telegram_limit(rules_text):
-                    _result = await bot.send_photo(
-                        chat_id=query.from_user.id,
-                        photo=get_logo_media(),
-                        caption=rules_text,
-                        reply_markup=get_rules_keyboard(language),
-                    )
-                    _cache_logo_file_id(_result)
-                else:
-                    await send_long_text(
-                        bot,
-                        query.from_user.id,
-                        rules_text,
-                        reply_markup=get_rules_keyboard(language),
-                    )
-                await state.set_state(RegistrationStates.waiting_for_rules_accept)
+            # Человек подписался на канал — заводим аккаунт и открываем меню.
+            # Единственный путь завершения: он же перепроверяет приглашение
+            # перед созданием, восстановлением и склейкой фантома.
+            await complete_registration_from_callback(query, state, db)
 
     except TelegramBadRequest as e:
         error_msg = str(e).lower()
@@ -3426,41 +2659,8 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(cmd_start, Command('start'))
     logger.debug('Зарегистрирован cmd_start')
 
-    dp.callback_query.register(
-        process_rules_accept,
-        F.data.in_(['rules_accept', 'rules_decline']),
-        StateFilter(RegistrationStates.waiting_for_rules_accept),
-    )
-    logger.debug('Зарегистрирован process_rules_accept')
-
-    dp.callback_query.register(
-        process_privacy_policy_accept,
-        F.data.in_(['privacy_policy_accept', 'privacy_policy_decline']),
-        StateFilter(RegistrationStates.waiting_for_privacy_policy_accept),
-    )
-    logger.debug('Зарегистрирован process_privacy_policy_accept')
-
-    dp.callback_query.register(
-        process_language_selection,
-        F.data.startswith('language_select:'),
-        StateFilter(RegistrationStates.waiting_for_language),
-    )
-    logger.debug('Зарегистрирован process_language_selection')
-
-    dp.callback_query.register(
-        process_referral_code_skip, F.data == 'referral_skip', StateFilter(RegistrationStates.waiting_for_referral_code)
-    )
-    logger.debug('Зарегистрирован process_referral_code_skip')
-
-    dp.message.register(process_referral_code_input, StateFilter(RegistrationStates.waiting_for_referral_code))
-    logger.debug('Зарегистрирован process_referral_code_input')
-
-    dp.message.register(
-        handle_potential_referral_code,
-        StateFilter(RegistrationStates.waiting_for_rules_accept, RegistrationStates.waiting_for_referral_code),
-    )
-    logger.debug('Зарегистрирован handle_potential_referral_code')
-
+    # Шагов регистрации больше нет, поэтому нет и их обработчиков: ни правил
+    # с политикой, ни выбора языка, ни вопроса о реферальном коде.
     dp.callback_query.register(required_sub_channel_check, F.data.in_(['sub_channel_check']))
     logger.debug('Зарегистрирован required_sub_channel_check')
 

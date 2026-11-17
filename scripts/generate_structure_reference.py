@@ -56,6 +56,10 @@ def tracked_paths() -> list[Path]:
     --exclude-standard` добавляет ещё не добавленные в индекс файлы, не считая
     игнорируемых, — состояние индекса перестаёт влиять на результат, а мусор из
     рабочей копии по-прежнему отсекается через .gitignore.
+
+    Удалённый, но ещё не добавленный в индекс файл `--cached` всё равно
+    показывает — такой путь пропускаем, иначе генератор падает на чтении до
+    первого `git add`.
     """
     git = shutil.which('git')
     if git is None:
@@ -70,7 +74,8 @@ def tracked_paths() -> list[Path]:
         check=True,
         text=True,
     )
-    return sorted({Path(name) for name in result.stdout.split('\0') if name}, key=_sort_key)
+    names = {Path(name) for name in result.stdout.split('\0') if name}
+    return sorted({name for name in names if (ROOT / name).is_file()}, key=_sort_key)
 
 
 def _first_docstring_line(node: ast.AST) -> str:
