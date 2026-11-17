@@ -3625,6 +3625,9 @@
 - `migrations/alembic/versions/0134_user_bonus_points.py` — Python-модуль
   Классы: нет
   Функции: `upgrade`, `downgrade`
+- `migrations/alembic/versions/0135_subscription_panel_cleanup_at.py` — Python-модуль
+  Классы: нет
+  Функции: `upgrade`, `downgrade`
 
 ## portal
 
@@ -5167,7 +5170,7 @@
   Функции: `test_price_falls_back_to_tariff_when_pricing_engine_fails` — Расчёт сорвался — в сообщении цена тарифа, а не PRICE_30_DAYS из .env., `test_price_retried_without_discounts_before_tariff_fallback` — Первый расчёт (со скидками) упал — считаем без скидок, а не по .env., `test_classic_subscription_keeps_env_price_fallback` — Подписке без тарифа классический прайс и адресован — фолбэк сохраняем., `test_followups_query_eager_loads_promo_groups` — Запрос грузит промогруппы — иначе pricing_engine падает на ленивой загрузке., `test_tariff_fallback_matches_requested_period` — Фолбэк берёт цену запрошенного периода, а не первого попавшегося.
 - `tests/services/test_expired_panel_cleanup.py` — Python-модуль
   Классы: нет
-  Функции: `api`, `test_deletes_panel_user_after_the_grace_days`, `test_panel_identity_is_forgotten` — Иначе повторная покупка полезет обновлять несуществующий аккаунт., `test_disable_mode_keeps_the_link` — В режиме disable аккаунт жив — связь рвать нельзя., `test_keeps_recently_expired` — Сутки ещё не прошли — у человека есть время оплатить., `test_keeps_active_subscription`, `test_keeps_subscription_under_grace` — Грейс-доступ продлил человеку панель — снос обрубил бы живой доступ., `test_keeps_user_with_another_live_subscription` — Аккаунт панели общий — снос убил бы доступ по второй, живой подписке., `test_disabled_by_zero_days` — 0 — выключатель: ни одного обращения к панели., `test_panel_error_does_not_break_the_batch` — Сбой по одному аккаунту не должен останавливать проход и чистить связь., `test_monitoring_cycle_runs_the_cleanup` — Сервис должен быть подключён к циклу, иначе он мёртвый код.
+  Функции: `api`, `test_deletes_panel_user_after_the_grace_days`, `test_panel_identity_is_forgotten` — Иначе повторная покупка полезет обновлять несуществующий аккаунт., `test_disable_mode_keeps_the_link` — В режиме disable аккаунт жив — связь рвать нельзя., `test_keeps_recently_expired` — Сутки ещё не прошли — у человека есть время оплатить., `test_keeps_active_subscription`, `test_keeps_subscription_under_grace` — Грейс-доступ продлил человеку панель — снос обрубил бы живой доступ., `test_keeps_user_with_another_live_subscription` — Аккаунт панели общий — снос убил бы доступ по второй, живой подписке., `test_disabled_by_zero_days` — 0 — выключатель: ни одного обращения к панели., `test_panel_error_does_not_break_the_batch` — Сбой по одному аккаунту не должен останавливать проход и чистить связь., `test_processed_subscriptions_do_not_block_the_queue` — Главная причина, по которой чистка переставала работать., `test_second_pass_does_not_touch_the_panel_again` — Повторный проход по той же подписке — ни одного запроса в панель., `test_renewed_and_expired_again_is_cleaned_once_more` — Отметка привязана к сроку, а не к подписке., `test_account_already_gone_from_the_panel_counts_as_done` — 404 — не ошибка: аккаунт снесли до нас, подписку нужно убрать из очереди., `test_panel_outage_leaves_the_subscription_in_the_queue` — Панель лежит — отметку не ставим, иначе аккаунт остался бы в панели навсегда., `test_candidates_are_filtered_in_sql` — Условия отбора обязаны быть в запросе, а не проверками после LIMIT., `test_monitoring_cycle_runs_the_cleanup` — Сервис должен быть подключён к циклу, иначе он мёртвый код.
 - `tests/services/test_expiring_notification_days_placeholder.py` — Python-модуль
   Классы: нет
   Функции: `test_expiring_paid_supports_days_placeholder`

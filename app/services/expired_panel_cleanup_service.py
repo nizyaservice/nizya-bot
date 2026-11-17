@@ -15,14 +15,31 @@
 этого после сноса стирается панельная идентичность — иначе бот попытался бы
 обновить несуществующего пользователя. Следствие, о котором нужно помнить:
 вернувшийся клиент получит НОВУЮ ссылку подписки, старая работать не будет.
+
+Главное правило выборки: **окно берётся только из подписок, с которыми
+действительно есть что делать**. Отбор идёт в SQL, а не проверками в Python
+после ``LIMIT``. Иначе обработанная подписка остаётся EXPIRED с той же старой
+датой и не покидает окно: после первого прохода оно целиком состоит из
+обработанных, и до свежих истечений дело не доходит никогда. Так и было —
+аккаунты истёкших подписок (в основном пробных) копились в панели.
+
+Условия делятся на два вида:
+
+* **изменяемые** (грейс открыт, у человека есть другая живая подписка,
+  панельного id нет) — отсекаются в SQL; отметку о чистке по ним не ставим,
+  иначе подписка выпала бы из очереди навсегда, хотя условие пройдёт;
+* **сделанное** — пишется в ``subscriptions.panel_cleanup_at``. Условие
+  ``panel_cleanup_at IS NULL OR panel_cleanup_at < end_date`` само вернёт
+  подписку в очередь, если её продлили и она истекла снова.
 """
 
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import and_, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.config import settings
 from app.database.models import Subscription, SubscriptionStatus, User
@@ -61,7 +78,50 @@ async def _has_other_live_subscription(db: AsyncSession, subscription: Subscript
     return result.scalar() is not None
 
 
+def _panel_account_exists() -> ColumnElement[bool]:
+    """Условие «панельный аккаунт записан»: в мультитарифе у подписки, иначе у человека."""
+    if settings.is_multi_tariff_enabled():
+        return Subscription.remnawave_id.is_not(None)
+    return exists().where(User.id == Subscription.user_id, User.remnawave_id.is_not(None))
+
+
+def _grace_is_closed(now: datetime) -> ColumnElement[bool]:
+    """Условие «грейс не держит доступ» — зеркало ``_grace_is_open``."""
+    return and_(
+        Subscription.grace_session_open.is_(False),
+        or_(Subscription.grace_tail_expire_at.is_(None), Subscription.grace_tail_expire_at <= now),
+        or_(Subscription.grace_overlay_expire_at.is_(None), Subscription.grace_overlay_expire_at <= now),
+    )
+
+
+def _not_cleaned_yet() -> ColumnElement[bool]:
+    """Чистка для текущего срока подписки ещё не делалась.
+
+    Сравниваем с ``end_date``, а не с ``updated_at``: чистка происходит заведомо
+    позже срока (минимум через N дней), поэтому у обработанной подписки отметка
+    всегда больше. А если подписку продлили или завели заново, ``end_date``
+    уезжает в будущее — и после нового истечения подписка снова попадёт в
+    очередь. ``updated_at`` для этого не годится: его двигает любая запись,
+    вплоть до самой отметки.
+    """
+    return or_(
+        Subscription.panel_cleanup_at.is_(None),
+        Subscription.panel_cleanup_at < Subscription.end_date,
+    )
+
+
 async def _select_candidates(db: AsyncSession, cutoff: datetime) -> list[Subscription]:
+    """Окно обработки: только подписки, с которыми есть что делать.
+
+    Любое условие, оставленное на Python после ``LIMIT``, превращает
+    непроходимые подписки в пробку: они самые старые, поэтому занимают окно
+    целиком и навсегда.
+    """
+    now = datetime.now(UTC)
+    # Вторая ссылка на таблицу подписок — для условия «у человека есть другая
+    # живая». Делается внутри функции: alias на уровне модуля настраивает мапперы
+    # уже при импорте, а он случается раньше, чем объявлены все модели.
+    other = aliased(Subscription)
     result = await db.execute(
         select(Subscription)
         .options(selectinload(Subscription.user))
@@ -69,6 +129,14 @@ async def _select_candidates(db: AsyncSession, cutoff: datetime) -> list[Subscri
             Subscription.status == SubscriptionStatus.EXPIRED.value,
             Subscription.end_date.is_not(None),
             Subscription.end_date <= cutoff,
+            _not_cleaned_yet(),
+            _panel_account_exists(),
+            _grace_is_closed(now),
+            ~exists().where(
+                other.user_id == Subscription.user_id,
+                other.id != Subscription.id,
+                other.status.in_((SubscriptionStatus.ACTIVE.value, SubscriptionStatus.TRIAL.value)),
+            ),
         )
         .order_by(Subscription.end_date)
         .limit(_BATCH_LIMIT)
@@ -112,6 +180,22 @@ async def _forget_panel_identity(db: AsyncSession, subscription: Subscription, p
         )
 
 
+def _mark_cleaned(subscription: Subscription) -> None:
+    """Отметить, что для текущего срока подписки чистка сделана.
+
+    Без отметки подписка остаётся в очереди: статус EXPIRED и дата истечения не
+    меняются, а значит она снова попадёт в то же окно — и будет занимать его
+    место вместо подписок, которые ещё ждут чистки.
+    """
+    subscription.panel_cleanup_at = datetime.now(UTC)
+
+
+def _panel_forgot_user(error: Exception) -> bool:
+    """Панель отвечает «такого пользователя нет» — сносить больше нечего."""
+    text = str(error).lower()
+    return '404' in text or 'not found' in text or 'notfound' in text
+
+
 async def cleanup_expired_panel_users(db: AsyncSession) -> int:
     """Снести из панели аккаунты подписок, истёкших больше N дней назад."""
     days = int(getattr(settings, 'REMNAWAVE_DELETE_EXPIRED_AFTER_DAYS', 0) or 0)
@@ -148,6 +232,21 @@ async def cleanup_expired_panel_users(db: AsyncSession) -> int:
                 else:
                     await api.disable_user(panel_user_id)
             except Exception as error:
+                if _panel_forgot_user(error):
+                    # Аккаунт снесли до нас (руками в панели, прошлым проходом).
+                    # Это сделанная работа, а не ошибка: иначе подписка осталась
+                    # бы в очереди навсегда и держала бы место в окне.
+                    logger.info(
+                        'Аккаунта истёкшей подписки в панели уже нет — отмечаем сделанным',
+                        subscription_id=subscription.id,
+                        panel_user_id=panel_user_id,
+                    )
+                    if delete_mode:
+                        await _forget_panel_identity(db, subscription, panel_user_id)
+                    _mark_cleaned(subscription)
+                    processed += 1
+                    continue
+
                 logger.error(
                     'Не удалось убрать истёкшего пользователя из панели',
                     subscription_id=subscription.id,
@@ -159,6 +258,7 @@ async def cleanup_expired_panel_users(db: AsyncSession) -> int:
 
             if delete_mode:
                 await _forget_panel_identity(db, subscription, panel_user_id)
+            _mark_cleaned(subscription)
             processed += 1
             logger.info(
                 'Истёкшая подписка убрана из панели',

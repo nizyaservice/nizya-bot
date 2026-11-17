@@ -52,8 +52,16 @@ def _configured_panel(monkeypatch, api):
     monkeypatch.setattr(type(settings), 'get_remnawave_user_delete_mode', lambda self: 'delete')
 
 
-async def _user_with_expired(db, *, days_ago: float = 3, status: str | None = None, **sub_fields) -> Subscription:
-    user = User(telegram_id=1, first_name='Тест', language='ru', remnawave_id=PANEL_ID)
+async def _user_with_expired(
+    db,
+    *,
+    days_ago: float = 3,
+    status: str | None = None,
+    telegram_id: int = 1,
+    panel_id: int | None = PANEL_ID,
+    **sub_fields,
+) -> Subscription:
+    user = User(telegram_id=telegram_id, first_name='Тест', language='ru', remnawave_id=panel_id)
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -67,9 +75,10 @@ async def _user_with_expired(db, *, days_ago: float = 3, status: str | None = No
         end_date=now - timedelta(days=days_ago),
         traffic_limit_gb=100,
         device_limit=1,
-        remnawave_id=PANEL_ID,
+        remnawave_id=panel_id,
         remnawave_short_uuid='short-uuid',
         subscription_url='https://sub.example/x',
+        remnawave_short_id=f'short-{telegram_id}',
         **sub_fields,
     )
     db.add(subscription)
@@ -198,6 +207,105 @@ async def test_panel_error_does_not_break_the_batch(monkeypatch, api) -> None:
         assert await svc.cleanup_expired_panel_users(db) == 0
         await db.refresh(subscription)
         assert subscription.remnawave_id == PANEL_ID, 'связь стёрта, хотя аккаунт в панели остался'
+
+
+# ---- очередь не забивается ----
+
+
+async def test_processed_subscriptions_do_not_block_the_queue(monkeypatch, api) -> None:
+    """Главная причина, по которой чистка переставала работать.
+
+    Окно — самые старые истёкшие подписки. Обработанная подписка остаётся
+    EXPIRED с той же датой, поэтому без отметки она попадает в окно снова и
+    занимает место: после первого прохода окно состояло целиком из
+    обработанных, и аккаунты свежих истечений оставались в панели навсегда.
+    """
+    async with memory_session(monkeypatch, TABLES) as db:
+        # Окно целиком забито подписками, которые сносить нечего — панельного
+        # аккаунта у них нет, и это не изменится.
+        for i in range(svc._BATCH_LIMIT):
+            await _user_with_expired(db, telegram_id=1000 + i, days_ago=100 - i * 0.1, panel_id=None)
+        target = await _user_with_expired(db, telegram_id=1, days_ago=2)
+
+        processed = await svc.cleanup_expired_panel_users(db)
+
+        assert processed == 1, 'аккаунт свежеистёкшей подписки обязан сноситься'
+        api.delete_user.assert_awaited_once_with(PANEL_ID)
+        await db.refresh(target)
+        assert target.panel_cleanup_at is not None
+
+
+async def test_second_pass_does_not_touch_the_panel_again(monkeypatch, api) -> None:
+    """Повторный проход по той же подписке — ни одного запроса в панель."""
+    monkeypatch.setattr(type(settings), 'get_remnawave_user_delete_mode', lambda self: 'disable')
+    async with memory_session(monkeypatch, TABLES) as db:
+        await _user_with_expired(db, days_ago=3)
+
+        assert await svc.cleanup_expired_panel_users(db) == 1
+        api.disable_user.reset_mock()
+
+        assert await svc.cleanup_expired_panel_users(db) == 0
+        api.disable_user.assert_not_awaited()
+
+
+async def test_renewed_and_expired_again_is_cleaned_once_more(monkeypatch, api) -> None:
+    """Отметка привязана к сроку, а не к подписке.
+
+    Состояние вернувшегося клиента: чистку делали давно, потом он продлил
+    подписку (срок уехал в будущее, то есть позже отметки), и продление тоже
+    истекло. Такую подписку нужно чистить заново — иначе её новый панельный
+    аккаунт останется в панели навсегда.
+    """
+    monkeypatch.setattr(type(settings), 'get_remnawave_user_delete_mode', lambda self: 'disable')
+    async with memory_session(monkeypatch, TABLES) as db:
+        subscription = await _user_with_expired(db, days_ago=2)
+        subscription.panel_cleanup_at = datetime.now(UTC) - timedelta(days=10)
+        await db.commit()
+
+        assert await svc.cleanup_expired_panel_users(db) == 1
+        api.disable_user.assert_awaited_once_with(PANEL_ID)
+
+
+async def test_account_already_gone_from_the_panel_counts_as_done(monkeypatch, api) -> None:
+    """404 — не ошибка: аккаунт снесли до нас, подписку нужно убрать из очереди."""
+    api.delete_user = AsyncMock(side_effect=RuntimeError('404 User not found'))
+    async with memory_session(monkeypatch, TABLES) as db:
+        subscription = await _user_with_expired(db, days_ago=3)
+
+        assert await svc.cleanup_expired_panel_users(db) == 1
+        await db.refresh(subscription)
+        assert subscription.remnawave_id is None
+        assert subscription.panel_cleanup_at is not None
+
+
+async def test_panel_outage_leaves_the_subscription_in_the_queue(monkeypatch, api) -> None:
+    """Панель лежит — отметку не ставим, иначе аккаунт остался бы в панели навсегда."""
+    api.delete_user = AsyncMock(side_effect=RuntimeError('panel down'))
+    async with memory_session(monkeypatch, TABLES) as db:
+        subscription = await _user_with_expired(db, days_ago=3)
+
+        assert await svc.cleanup_expired_panel_users(db) == 0
+        await db.refresh(subscription)
+        assert subscription.panel_cleanup_at is None
+
+
+def test_candidates_are_filtered_in_sql() -> None:
+    """Условия отбора обязаны быть в запросе, а не проверками после LIMIT.
+
+    Проверка после ``LIMIT`` — это и есть пробка: непроходимые подписки самые
+    старые, поэтому занимают окно целиком и навсегда.
+    """
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[2] / 'app' / 'services' / 'expired_panel_cleanup_service.py').read_text(
+        encoding='utf-8'
+    )
+    query = source[source.index('async def _select_candidates') : source.index('def _panel_user_id')]
+
+    assert '_not_cleaned_yet()' in query
+    assert '_panel_account_exists()' in query
+    assert '_grace_is_closed(' in query
+    assert 'ACTIVE.value, SubscriptionStatus.TRIAL.value' in query, 'другая живая подписка — тоже в SQL'
 
 
 def test_monitoring_cycle_runs_the_cleanup() -> None:
