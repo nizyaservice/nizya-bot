@@ -237,6 +237,51 @@ class PricingEngine:
             return 0, 1
         return price, best_period
 
+    @classmethod
+    def convert_remaining_days(
+        cls,
+        source_tariff: Tariff | None,
+        target_tariff: Tariff | None,
+        remaining_days: int,
+    ) -> int:
+        """Сколько дней целевого тарифа стоит остаток исходного.
+
+        Нужно при слиянии аккаунтов: у человека две живых подписки, он выбирает,
+        какой тариф оставить, и остаток второго не должен пропадать. Деньги —
+        честная мера: берём остаток в деньгах (дни × дневная ставка исходного) и
+        смотрим, на сколько дней их хватит по ставке выбранного.
+
+        Дневная ставка — та же, что при смене тарифа
+        (``get_tariff_daily_rate_fraction``, кратчайший период): иначе слияние и
+        смена тарифа оценивали бы один и тот же остаток по-разному.
+
+        Одинаковые тарифы дают ставку к ставке, то есть сроки просто
+        складываются. Деление вниз: неполный день в пользу сервиса, зато без
+        дробных дней в подписке.
+
+        Целевой тариф бесплатный или без периодов — дни переносим как есть:
+        делить на нулевую ставку нечем, а отнимать у человека остаток не за что.
+        """
+        if remaining_days <= 0:
+            return 0
+        if source_tariff is None or target_tariff is None:
+            return remaining_days
+
+        source_price, source_period = cls.get_tariff_daily_rate_fraction(source_tariff)
+        target_price, target_period = cls.get_tariff_daily_rate_fraction(target_tariff)
+
+        if target_price <= 0:
+            return remaining_days
+        if source_price <= 0:
+            # Остаток бесплатного тарифа деньгами не стоит ничего.
+            return 0
+
+        # days = (source_price / source_period * remaining) / (target_price / target_period)
+        #      = remaining * source_price * target_period / (source_period * target_price)
+        numerator = remaining_days * source_price * target_period
+        denominator = source_period * target_price
+        return max(0, numerator // denominator)
+
     def calculate_tariff_switch_cost(
         self,
         current_tariff: Tariff,

@@ -53,6 +53,7 @@ from app.database.models import (
     SubscriptionEvent,
     SubscriptionServer,
     SupportAuditLog,
+    Tariff,
     Ticket,
     TicketMessage,
     TicketNotification,
@@ -474,6 +475,96 @@ async def _distance_to_referrer(db: AsyncSession, referral_id: int, referrer_id:
     return None
 
 
+async def _load_tariff(db: AsyncSession, tariff_id: int | None) -> Tariff | None:
+    """Тариф подписки. ``None`` — подписка из классического режима, без тарифа."""
+    return await db.get(Tariff, tariff_id) if tariff_id else None
+
+
+async def _absorb_remaining_days(
+    db: AsyncSession,
+    *,
+    keep: Subscription,
+    drop: Subscription,
+) -> int:
+    """Перенести остаток срока удаляемой подписки на остающуюся.
+
+    Правило владельца: сроки складываются, а при разных тарифах остаток
+    пересчитывается по стоимости — сколько времени эти деньги купили бы на
+    выбранном тарифе (``PricingEngine.convert_remaining_days``). Одинаковые
+    тарифы дают ровно сумму сроков.
+
+    Берём именно остаток, а не весь срок: прошедшие дни человек уже
+    использовал. Остаток считаем той же функцией, что смена тарифа
+    (``remaining_days_for_switch``), иначе два флоу разошлись бы в границе дня.
+
+    Дни добавляет общий CRUD ``extend_subscription``, а не присваивание даты: он
+    же возвращает затёртый оверлей грейса и применяет правило трафика тарифа.
+    Руками сдвинутая дата оба инварианта обходит — за это ловят сторожа
+    ``tests/contracts/test_renewal_*``. Израсходованный трафик при этом НЕ
+    обнуляем: слияние добавляет оплаченное время, а не начинает новый период, и
+    обнуление разошлось бы со счётчиком в панели.
+
+    Срок уезжает и в панель: без этого бот считал бы подписку живой дольше,
+    чем Remnawave, и доступ отключился бы по старой дате.
+    """
+    from app.services.pricing_engine import PricingEngine
+    from app.services.tariff_switch_policy import remaining_days_for_switch
+
+    now = datetime.now(UTC)
+    remaining = remaining_days_for_switch(drop.end_date, now)
+    if remaining <= 0:
+        return 0
+
+    # Тарифы читаем по id, а не через `subscription.tariff`: связь тут не
+    # загружена, и ленивая подгрузка в асинхронном коде падает MissingGreenlet.
+    bonus_days = PricingEngine.convert_remaining_days(
+        await _load_tariff(db, drop.tariff_id),
+        await _load_tariff(db, keep.tariff_id),
+        remaining,
+    )
+    if bonus_days <= 0:
+        logger.info(
+            'Мерж подписок: остаток удаляемой подписки не дал ни дня на выбранном тарифе',
+            keep_subscription_id=keep.id,
+            drop_subscription_id=drop.id,
+            remaining_days=remaining,
+        )
+        return 0
+
+    # Истёкшую подписку CRUD сам считает от «сейчас» — дни не лягут в прошлое.
+    from app.database.crud.subscription import extend_subscription
+
+    await extend_subscription(db, keep, bonus_days, reset_used_traffic=False, commit=False)
+
+    logger.info(
+        'Мерж подписок: остаток перенесён на выбранный тариф',
+        keep_subscription_id=keep.id,
+        drop_subscription_id=drop.id,
+        remaining_days=remaining,
+        bonus_days=bonus_days,
+        new_end_date=keep.end_date.isoformat(),
+    )
+    return bonus_days
+
+
+async def _push_end_date_to_panel(db: AsyncSession, subscription: Subscription) -> None:
+    """Отправить новый срок в Remnawave.
+
+    Сбой панели не отменяет слияние: расхождение лечится ресинком, а откат
+    оставил бы человека с двумя аккаунтами.
+    """
+    try:
+        from app.services.subscription_service import SubscriptionService
+
+        await SubscriptionService().update_remnawave_user(db, subscription, sync_squads=False)
+    except Exception as error:
+        logger.error(
+            'Мерж подписок: новый срок не уехал в панель, нужен ресинк',
+            subscription_id=subscription.id,
+            error=str(error)[:200],
+        )
+
+
 async def _handle_subscription_merge(
     db: AsyncSession,
     primary: User,
@@ -503,6 +594,8 @@ async def _handle_subscription_merge(
                 primary_active_tariff_ids.add(ps.tariff_id)
 
         transferred: list[Subscription] = []
+        # Подписки, которым слияние продлило срок: его нужно отправить в панель.
+        absorbed_into: list[Subscription] = []
         if secondary_subs:
             for sub in secondary_subs:
                 sub_tariff_id = getattr(sub, 'tariff_id', None)
@@ -540,11 +633,16 @@ async def _handle_subscription_merge(
                                 secondary_sub_id=sub.id,
                                 secondary_end=str(secondary_end),
                             )
+                            # Тариф тот же, поэтому остаток складывается день в
+                            # день: погасить его молча значило бы забрать у
+                            # человека оплаченное время.
+                            await _absorb_remaining_days(db, keep=sub, drop=primary_conflict)
                             primary_conflict.status = 'expired'
                             primary_conflict.autopay_enabled = False
                             await db.flush()
                             sub.user_id = primary.id
                             transferred.append(sub)
+                            absorbed_into.append(sub)
                         else:
                             # Primary sub is equal or better — expire secondary's, then transfer it as expired
                             logger.info(
@@ -553,10 +651,12 @@ async def _handle_subscription_merge(
                                 primary_sub_id=primary_conflict.id,
                                 secondary_sub_id=sub.id,
                             )
+                            await _absorb_remaining_days(db, keep=primary_conflict, drop=sub)
                             sub.status = 'expired'
                             sub.autopay_enabled = False
                             sub.user_id = primary.id
                             transferred.append(sub)
+                            absorbed_into.append(primary_conflict)
                         continue
 
                 sub.user_id = primary.id
@@ -587,6 +687,8 @@ async def _handle_subscription_merge(
             # Sync transferred subscriptions in RemnaWave panel so description
             # reflects the primary user (telegramId, username, email).
             await _sync_transferred_subscriptions_to_panel(primary, transferred)
+        for subscription in absorbed_into:
+            await _push_end_date_to_panel(db, subscription)
         # Clean up legacy panel identity on secondary
         if secondary.remnawave_id:
             secondary.remnawave_id = None
@@ -654,6 +756,10 @@ async def _handle_subscription_merge(
         from app.services.payment.lava import cancel_lava_recurring_for_subscription_safe
         from app.services.payment.platega import cancel_platega_recurring_for_subscription_safe
 
+        # Остаток удаляемой подписки переносим на выбранную ДО удаления: после
+        # delete читать её срок и тариф уже нечем.
+        absorbed_days = await _absorb_remaining_days(db, keep=secondary_sub, drop=primary_sub)
+
         await cancel_platega_recurring_for_subscription_safe(db, primary_sub.id, commit=False)
         await cancel_lava_recurring_for_subscription_safe(db, primary_sub.id, commit=False)
         await cancel_cashera_recurring_for_subscription_safe(db, primary_sub.id, commit=False)
@@ -672,10 +778,13 @@ async def _handle_subscription_merge(
             primary.remnawave_id = panel_id_to_transfer
         # Flush сразу — гарантируем, что DELETE предшествует UPDATE (unique constraint на subscription.user_id)
         await db.flush()
+        if absorbed_days:
+            await _push_end_date_to_panel(db, secondary_sub)
         logger.info(
             'Мерж подписок: оставлена подписка secondary, подписка primary удалена',
             primary_id=primary.id,
             secondary_id=secondary.id,
+            absorbed_days=absorbed_days,
         )
     else:
         # keep_subscription_from == 'primary' (по умолчанию)
@@ -688,6 +797,8 @@ async def _handle_subscription_merge(
         from app.services.payment.lava import cancel_lava_recurring_for_subscription_safe
         from app.services.payment.platega import cancel_platega_recurring_for_subscription_safe
 
+        absorbed_days = await _absorb_remaining_days(db, keep=primary_sub, drop=secondary_sub)
+
         await cancel_platega_recurring_for_subscription_safe(db, secondary_sub.id, commit=False)
         await cancel_lava_recurring_for_subscription_safe(db, secondary_sub.id, commit=False)
         await cancel_cashera_recurring_for_subscription_safe(db, secondary_sub.id, commit=False)
@@ -696,10 +807,13 @@ async def _handle_subscription_merge(
         # Удаляем запись подписки secondary
         await db.delete(secondary_sub)
         await db.flush()
+        if absorbed_days:
+            await _push_end_date_to_panel(db, primary_sub)
         logger.info(
             'Мерж подписок: оставлена подписка primary, подписка secondary удалена',
             primary_id=primary.id,
             secondary_id=secondary.id,
+            absorbed_days=absorbed_days,
         )
 
 

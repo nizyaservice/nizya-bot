@@ -1735,7 +1735,7 @@
   Классы: нет
   Функции: `build_start_keyboard`, `send_poll_to_users`, `reward_user_for_poll`, `get_next_question`, `get_question_option`
 - `app/services/pricing_engine.py` — Python-модуль
-  Классы: `TariffBreakdown`, `ClassicBreakdown`, `RenewalPricing` (1 методов), `TariffSwitchResult` (2 методов), `PricingEngine` (20 методов)
+  Классы: `TariffBreakdown`, `ClassicBreakdown`, `RenewalPricing` (1 методов), `TariffSwitchResult` (2 методов), `PricingEngine` (21 методов)
   Функции: нет
 - `app/services/privacy_policy_service.py` — Python-модуль
   Классы: `PrivacyPolicyService` (9 методов)
@@ -5311,6 +5311,9 @@
 - `tests/services/test_menu_layout_service.py` — Python-модуль
   Классы: нет
   Функции: `test_build_button_connect_direct_mode_with_url` — Тест: кнопка connect с open_mode=direct и валидным URL должна создавать WebAppInfo., `test_build_button_connect_direct_mode_with_subscription_url` — Тест: кнопка connect с open_mode=direct должна получать URL из подписки., `test_build_button_connect_callback_mode` — Тест: кнопка connect с open_mode=callback должна создавать callback кнопку., `test_build_button_connect_direct_mode_fallback_to_callback` — Тест: кнопка connect с open_mode=direct без URL должна fallback на callback.
+- `tests/services/test_merge_prorate_days.py` — Python-модуль
+  Классы: нет
+  Функции: `test_same_price_means_terms_add_up`, `test_cheaper_tariff_gives_more_days` — Остаток дорогого тарифа на дешёвом живёт дольше — деньги те же., `test_pricier_tariff_gives_fewer_days`, `test_different_period_lengths_are_compared_by_daily_rate` — Тарифы с разными наборами периодов сравниваются по дневной ставке., `test_fractional_day_is_rounded_down` — Неполный день не выдаём: в подписке дробных дней нет., `test_nothing_to_convert`, `test_free_target_keeps_the_days` — На бесплатный тариф делить нечем — переносим остаток как есть., `test_remainder_of_a_free_tariff_is_worth_nothing`, `test_subscription_without_a_tariff_keeps_its_days` — Классический режим продаж: тарифа у подписки нет, пересчитывать не по чему., `extend` — Продление подменяем: дата, грейс и трафик — забота CRUD, у него свои тесты., `test_days_are_handed_to_the_common_extender` — Дни добавляет общий CRUD: он же вернёт оверлей грейса и правило трафика., `test_expired_dropped_subscription_adds_nothing`, `test_days_that_do_not_buy_a_single_day_change_nothing` — Остаток дешёвого тарифа может не дать ни дня дорогого — это не ошибка., `test_panel_failure_does_not_break_the_merge` — Расхождение с панелью лечится ресинком, откат оставил бы два аккаунта., `test_every_branch_that_drops_a_subscription_absorbs_its_days` — Три места, где подписка перестаёт быть живой: все обязаны забрать остаток., `test_new_end_date_is_pushed_to_the_panel` — Без этого бот считал бы подписку живой дольше, чем Remnawave., `test_absorb_happens_before_the_subscription_is_deleted` — После delete у подписки не прочитать ни срок, ни тариф.
 - `tests/services/test_miniapp_action_log.py` — Python-модуль
   Классы: нет
   Функции: `test_every_miniapp_route_is_classified` — Каждый маршрут Mini App отнесён либо к действиям, либо к чтениям., `test_classification_has_no_stale_paths` — В списках нет путей, которых у роутера больше нет., `test_actions_are_logged_and_reads_are_not` — Покупка — действие, просмотр подписки — нет., `test_path_normalization_keeps_prefix`, `test_authorize_writes_action_for_mutating_request` — Авторизация запроса Mini App пишет действие в тот же журнал., `test_authorize_writes_screen_for_reads` — Просмотр экрана — тоже след: пишется как экран, а не как действие., `test_timeline_shows_miniapp_actions` — Записанное действие Mini App видно в «Активности» и не смешано с ботом.
