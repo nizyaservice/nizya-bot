@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 import structlog
@@ -32,20 +33,32 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
+#: Код приглашения из реферальной ссылки: формат задан схемой бота.
+REFERRAL_CODE_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,32}$')
+
+
+def _clean_referral_code(raw: str | None) -> str | None:
+    """Код из адреса — чужой ввод; что не подходит под формат, выбрасываем."""
+    candidate = (raw or '').strip()
+    return candidate if REFERRAL_CODE_PATTERN.match(candidate) else None
+
+
 @router.get('/login', response_class=HTMLResponse)
 async def login_form(
     request: Request,
+    ref: str | None = None,
     session: Session | None = Depends(get_session),
 ) -> HTMLResponse:
     if session is not None:
         return RedirectResponse('/', status_code=303)
-    return render(request, 'login.html', {})
+    return render(request, 'login.html', {'referral_code': _clean_referral_code(ref)})
 
 
 @router.post('/login', response_class=HTMLResponse)
 async def request_code(
     request: Request,
     email: Annotated[str, Form()],
+    ref: Annotated[str | None, Form()] = None,
     api: CabinetApi = Depends(get_api),
 ) -> HTMLResponse:
     """Отправить код и сразу показать экран ввода.
@@ -55,8 +68,14 @@ async def request_code(
     аккаунт.
     """
     email = (email or '').strip()
+    referral_code = _clean_referral_code(ref)
     if not email:
-        return render(request, 'login.html', {'error': 'Введите адрес почты'}, status_code=400)
+        return render(
+            request,
+            'login.html',
+            {'error': 'Введите адрес почты', 'referral_code': referral_code},
+            status_code=400,
+        )
 
     try:
         await api.request_login_code(email)
@@ -64,9 +83,14 @@ async def request_code(
         # 400/403 — отказ по существу (одноразовый ящик, запрещённый адрес):
         # его показываем, иначе человек не поймёт, почему письма нет.
         logger.info('Код входа не отправлен', status_code=error.status_code)
-        return render(request, 'login.html', {'error': error.detail, 'email': email}, status_code=400)
+        return render(
+            request,
+            'login.html',
+            {'error': error.detail, 'email': email, 'referral_code': referral_code},
+            status_code=400,
+        )
 
-    return render(request, 'login_code.html', {'email': email})
+    return render(request, 'login_code.html', {'email': email, 'referral_code': referral_code})
 
 
 @router.post('/login/code', response_class=HTMLResponse)
@@ -75,12 +99,14 @@ async def submit_code(
     email: Annotated[str, Form()],
     code: Annotated[str, Form()],
     accepted: Annotated[list[str] | None, Form()] = None,
+    ref: Annotated[str | None, Form()] = None,
     api: CabinetApi = Depends(get_api),
     store: SessionStore = Depends(get_store),
     settings: PortalSettings = Depends(get_portal_settings),
 ) -> HTMLResponse:
     email = (email or '').strip()
     code = (code or '').strip()
+    referral_code = _clean_referral_code(ref)
 
     try:
         tokens = await api.verify_login_code(
@@ -88,6 +114,7 @@ async def submit_code(
             code,
             language=settings.default_language,
             accepted_legal_documents=accepted,
+            referral_code=referral_code,
         )
     except CabinetApiError as error:
         if error.status_code == 428:
@@ -96,13 +123,18 @@ async def submit_code(
             return render(
                 request,
                 'login_code.html',
-                {'email': email, 'documents': documents, 'error': error.detail},
+                {
+                    'email': email,
+                    'documents': documents,
+                    'error': error.detail,
+                    'referral_code': referral_code,
+                },
                 status_code=428,
             )
         return render(
             request,
             'login_code.html',
-            {'email': email, 'error': error.detail},
+            {'email': email, 'error': error.detail, 'referral_code': referral_code},
             status_code=400,
         )
 

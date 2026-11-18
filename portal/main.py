@@ -19,7 +19,16 @@ from redis.asyncio import from_url
 from .api import CabinetUnavailableError, build_client
 from .config import get_settings
 from .deps import CsrfError, LoginRequiredError
-from .routes import auth as auth_routes, pages as page_routes, tariffs as tariff_routes
+from .routes import (
+    auth as auth_routes,
+    balance as balance_routes,
+    cabinet as cabinet_routes,
+    devices as device_routes,
+    pages as page_routes,
+    promocode as promocode_routes,
+    support as support_routes,
+    tariffs as tariff_routes,
+)
 from .sessions import SessionStore
 from .templating import render
 
@@ -61,6 +70,11 @@ def create_app() -> FastAPI:
     app.include_router(auth_routes.router)
     app.include_router(page_routes.router)
     app.include_router(tariff_routes.router)
+    app.include_router(device_routes.router)
+    app.include_router(promocode_routes.router)
+    app.include_router(cabinet_routes.router)
+    app.include_router(balance_routes.router)
+    app.include_router(support_routes.router)
 
     @app.exception_handler(LoginRequiredError)
     async def _login_required(_request: Request, _exc: LoginRequiredError) -> RedirectResponse:

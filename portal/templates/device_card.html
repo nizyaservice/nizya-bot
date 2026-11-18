@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ device.title }} — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{{ device.title }}</h1>
+
+  <ul class="specs">
+    {% if device.platform %}<li>Платформа: {{ device.platform }}</li>{% endif %}
+    {% if device.device_model %}<li>Модель: {{ device.device_model }}</li>{% endif %}
+  </ul>
+
+  <form method="post" action="/devices/{{ device.hwid | urlencode }}/rename" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="name">Своё название</label>
+    <input id="name" name="name" type="text" maxlength="64" value="{{ device.local_name }}"
+           placeholder="{{ device.default_title }}">
+    {# Пустое поле снимает своё название: бот вернётся к «платформа — модель». #}
+    <button type="submit">✏️ Сохранить название</button>
+  </form>
+
+  <p class="note"><a href="/devices/{{ device.hwid | urlencode }}/remove">❌ Отключить устройство</a></p>
+  <p><a href="/devices">Все устройства</a></p>
+</section>
+{% endblock %}

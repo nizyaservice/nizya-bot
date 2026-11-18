@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Отключить все устройства — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Отключить все устройства?</h1>
+  <p>Будут отключены все подключённые устройства{% if total %} ({{ total }}){% endif %}.</p>
+  <p class="muted">Доступ прекратится на каждом из них — подключать придётся заново.</p>
+
+  <form method="post" action="/devices-reset" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">Отключить все</button>
+  </form>
+
+  <p><a href="/devices">Отмена</a></p>
+</section>
+{% endblock %}

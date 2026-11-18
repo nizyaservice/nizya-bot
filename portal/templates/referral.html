@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Реферальная программа — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Реферальная программа</h1>
+
+  {% if info.commission_percent %}
+    <p class="muted">Вы получаете {{ info.commission_percent }}% с платежей приглашённых.</p>
+  {% endif %}
+
+  {% if info.referral_code %}
+    <label for="code">Ваш код</label>
+    <input id="code" type="text" readonly value="{{ info.referral_code }}">
+  {% endif %}
+
+  {% if portal_link %}
+    <label for="portal-link">Ссылка для приглашения на сайт</label>
+    <input id="portal-link" type="text" readonly value="{{ portal_link }}">
+  {% endif %}
+
+  {% if info.bot_referral_link or info.referral_link %}
+    <label for="bot-link">Ссылка на бота</label>
+    <input id="bot-link" type="text" readonly value="{{ info.bot_referral_link or info.referral_link }}">
+  {% endif %}
+
+  <h2>Итоги</h2>
+  <p class="row"><span class="muted">Приглашено</span> <b>{{ info.total_referrals or 0 }}</b></p>
+  <p class="row"><span class="muted">С активной подпиской</span> <b>{{ info.active_referrals or 0 }}</b></p>
+  <p class="row"><span class="muted">Заработано</span>
+    <b>{{ '%.2f'|format(info.total_earnings_rubles or 0) }} ₽</b></p>
+  {% if info.total_earnings_days %}
+    <p class="row"><span class="muted">Начислено днями</span> <b>{{ info.total_earnings_days }}</b></p>
+  {% endif %}
+
+  {% if invited %}
+    <h2>Приглашённые</h2>
+    <ul class="specs">
+      {% for person in invited %}
+        <li>{{ person.name or person.username or 'Без имени' }}
+          {%- if person.created_at %} — с {{ person.created_at | moment }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

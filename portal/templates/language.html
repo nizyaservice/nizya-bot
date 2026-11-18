@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Язык — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Язык интерфейса</h1>
+
+  <form method="post" action="/language" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="periods">
+      {% for item in languages %}
+        <label class="period">
+          <span>{{ item.flag }} {{ item.name }}</span>
+          <input type="radio" name="language" value="{{ item.code }}"
+                 {% if item.code == current %}checked{% endif %} required>
+        </label>
+      {% endfor %}
+    </div>
+    <button type="submit">Сохранить</button>
+  </form>
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

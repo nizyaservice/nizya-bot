@@ -43,10 +43,25 @@ async def home(
     # чтобы шаблон не знал про форму ответа API.
     subscription = status.get('subscription') if isinstance(status, dict) else None
 
+    # Ссылка на канал живёт в настройках бота (MENU_CHANNEL_URL) — один адрес на
+    # бота и портал. Её отсутствие просто убирает ссылку из списка разделов.
+    channel_url = None
+    try:
+        service = await api.service_info()
+        if isinstance(service, dict):
+            channel_url = service.get('channel_url')
+    except CabinetApiError as error:
+        logger.info('Не удалось получить данные сервиса', status_code=error.status_code)
+
     return render(
         request,
         'home.html',
-        {'profile': profile, 'subscription': subscription, 'balance': balance},
+        {
+            'profile': profile,
+            'subscription': subscription,
+            'balance': balance,
+            'channel_url': channel_url,
+        },
         session=session,
     )
 

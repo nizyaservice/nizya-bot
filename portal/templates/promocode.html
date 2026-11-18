@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Промокод — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Промокод</h1>
+  <p class="muted">Введите код — бонус начислится сразу.</p>
+
+  <form method="post" action="/promocode" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="code">Код</label>
+    <input id="code" name="code" type="text" maxlength="50" autocomplete="off"
+           autocapitalize="characters" value="{{ code or '' }}" required autofocus>
+    <button type="submit">Применить</button>
+  </form>
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

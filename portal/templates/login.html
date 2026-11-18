@@ -7,6 +7,8 @@
   <p class="muted">Пришлём код на почту — пароль не нужен.</p>
 
   <form method="post" action="/login" class="form">
+    {# Код приглашения из реферальной ссылки едет скрытым полем до конца входа. #}
+    {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
     <label for="email">Почта</label>
     <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
            required autofocus value="{{ email or '' }}">

@@ -89,7 +89,10 @@ def test_a_failing_block_does_not_break_the_page(client):
 
     assert response.status_code == 200
     assert 'Базовый' in response.text
-    assert 'Баланс' not in response.text, 'строки баланса нет, а страница есть'
+    # Строки с суммой нет, а страница есть. Проверяем именно строку: слово
+    # «Баланс» осталось бы в списке разделов и при отказе.
+    assert '<span class="muted">Баланс</span>' not in response.text
+    assert '500.00 ₽' not in response.text
 
 
 # ─── фильтры шаблонов ───

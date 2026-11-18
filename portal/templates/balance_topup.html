@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Пополнение — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Пополнение баланса</h1>
+
+  {% if methods %}
+    <form method="post" action="/balance/topup" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <label for="amount">Сумма, ₽</label>
+      <input id="amount" name="amount" type="text" inputmode="decimal" required autofocus>
+
+      <label>Способ оплаты</label>
+      <div class="periods">
+        {% for item in methods %}
+          <label class="period">
+            <span>{{ item.name }}
+              {% if item.description %}<br><span class="muted">{{ item.description }}</span>{% endif %}
+              {% if item.min_amount_kopeks %}
+                <br><span class="muted">от {{ item.min_amount_kopeks // 100 }} ₽</span>
+              {% endif %}
+            </span>
+            <input type="radio" name="method" value="{{ item.id }}"
+                   {% if item.id == method %}checked{% endif %} required>
+          </label>
+        {% endfor %}
+      </div>
+
+      <button type="submit">Перейти к оплате</button>
+    </form>
+  {% else %}
+    <p class="muted">Сейчас нет доступных способов оплаты. Попробуйте позже или
+      напишите в поддержку.</p>
+  {% endif %}
+
+  <p><a href="/balance">К балансу</a></p>
+</section>
+{% endblock %}

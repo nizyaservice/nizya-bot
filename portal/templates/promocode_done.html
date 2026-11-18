@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Промокод применён — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Промокод применён</h1>
+  {% if result.bonus_description %}
+    <p>{{ result.bonus_description }}</p>
+  {% else %}
+    <p>Код <b>{{ code }}</b> принят.</p>
+  {% endif %}
+
+  {% if result.balance_after is not none and result.balance_after != result.balance_before %}
+    <p class="row"><span class="muted">Баланс</span>
+      <b>{{ '%.2f'|format(result.balance_after) }} ₽</b></p>
+  {% endif %}
+
+  <p><a href="/tariffs">К тарифам</a> · <a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Отключить устройство — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Отключить устройство?</h1>
+  <p>Точно отключить <b>{{ device.title }}</b>?</p>
+  <p class="muted">Доступ с него прекратится. Чтобы вернуть, устройство нужно будет
+    подключить заново — и оно снова займёт место в лимите.</p>
+
+  <form method="post" action="/devices/{{ device.hwid | urlencode }}/remove" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">Отключить</button>
+  </form>
+
+  <p><a href="/devices/{{ device.hwid | urlencode }}">Отмена</a></p>
+</section>
+{% endblock %}

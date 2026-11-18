@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Баланс — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Баланс</h1>
+  <p class="row"><span class="muted">На счету</span>
+    <b>{{ '%.2f'|format(balance.balance_rubles or 0) }} ₽</b></p>
+  <p><a href="/balance/topup">Пополнить</a></p>
+
+  {% if pending %}
+    <h2>Незавершённые платежи</h2>
+    {% for payment in pending %}
+      <p class="row">
+        <span>{{ payment.method_display or payment.method }} — {{ '%.2f'|format(payment.amount_rubles or 0) }} ₽</span>
+        <span class="muted">{{ payment.status_text or payment.status }}</span>
+      </p>
+      {% if payment.is_checkable %}
+        <p class="note"><a href="/balance/payment/{{ payment.method }}/{{ payment.identifier }}">Проверить платёж</a></p>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {% if transactions %}
+    <h2>Последние операции</h2>
+    {% for item in transactions %}
+      <p class="row">
+        <span>{{ item.description or item.type }}<br>
+          <span class="muted">{{ item.created_at | moment }}</span></span>
+        <b>{{ '%+.2f'|format(item.amount_rubles or 0) }} ₽</b>
+      </p>
+    {% endfor %}
+  {% else %}
+    <p class="muted">Операций пока нет.</p>
+  {% endif %}
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

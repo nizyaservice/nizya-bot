@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ ticket.title }} — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{{ ticket.title }}</h1>
+  <p class="row"><span class="muted">Состояние</span> <b>{{ ticket.status }}</b></p>
+
+  {% for message in messages %}
+    <p class="row">
+      <span>{% if message.is_from_admin %}<b>Поддержка:</b>{% else %}<b>Вы:</b>{% endif %}
+        {{ message.message_text }}
+        {% if message.has_media %}<br><span class="muted">вложение доступно в боте</span>{% endif %}
+        <br><span class="muted">{{ message.created_at | moment }}</span></span>
+    </p>
+  {% endfor %}
+
+  {% if ticket.is_reply_blocked %}
+    <p class="muted">Отвечать в этом обращении нельзя — дождитесь ответа поддержки.</p>
+  {% elif ticket.closed_at %}
+    <p class="muted">Обращение закрыто.</p>
+  {% else %}
+    <form method="post" action="/support/{{ ticket.id }}" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="message">Ответ</label>
+      <input id="message" name="message" type="text" maxlength="4000" required>
+      <button type="submit">Отправить</button>
+    </form>
+  {% endif %}
+
+  <p><a href="/support">Все обращения</a></p>
+</section>
+{% endblock %}

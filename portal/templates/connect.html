@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Подключение — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Подключение</h1>
+
+  {% if subscription_url or display_link %}
+    <p class="muted">Скопируйте ссылку и добавьте её в приложение как подписку.</p>
+    {# Ссылка в поле, а не текстом: её нужно копировать, а не открывать. #}
+    <label for="link">Ссылка подписки</label>
+    <input id="link" type="text" readonly value="{{ subscription_url or display_link }}">
+
+    {% if happ_link %}
+      <p class="note"><a href="{{ happ_link }}">Открыть в приложении Happ</a></p>
+    {% endif %}
+
+    <h2>Как подключить</h2>
+    <ol class="specs">
+      <li>Скопируйте ссылку выше</li>
+      <li>Откройте приложение для VPN</li>
+      <li>Выберите «Добавить подписку» или «Импорт»</li>
+      <li>Вставьте ссылку</li>
+    </ol>
+  {% elif hide_link %}
+    <p class="muted">Оператор скрыл прямую ссылку. Подключение доступно через кнопки
+      в боте.</p>
+  {% else %}
+    <p class="muted">{{ reason or 'Ссылка появится, когда у вас будет активная подписка.' }}</p>
+    <p><a href="/tariffs">Выбрать тариф</a></p>
+  {% endif %}
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

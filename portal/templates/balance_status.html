@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Статус платежа — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Статус платежа</h1>
+
+  {% if payment %}
+    <p class="row"><span class="muted">Способ</span>
+      <b>{{ payment.method_display or payment.method }}</b></p>
+    <p class="row"><span class="muted">Сумма</span>
+      <b>{{ '%.2f'|format(payment.amount_rubles or 0) }} ₽</b></p>
+    <p class="row"><span class="muted">Состояние</span>
+      <b>{{ payment.status_emoji }} {{ payment.status_text or payment.status }}</b></p>
+  {% endif %}
+
+  {% if message %}<p>{{ message }}</p>{% endif %}
+
+  {% if payment and payment.is_paid %}
+    <p><a href="/tariffs">Купить подписку</a></p>
+  {% elif payment and payment.payment_url %}
+    <p><a href="{{ payment.payment_url }}" rel="noopener">Вернуться к оплате</a></p>
+  {% endif %}
+
+  <p class="muted">Деньги зачисляет сервис после подтверждения от платёжной
+    системы. Если ещё не зачислены — обновите эту страницу через минуту.</p>
+  <p><a href="/balance">К балансу</a></p>
+</section>
+{% endblock %}

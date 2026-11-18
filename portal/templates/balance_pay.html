@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Оплата — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Оплата</h1>
+  <p class="row"><span class="muted">Способ</span> <b>{{ method_name }}</b></p>
+  <p class="row"><span class="muted">Сумма</span>
+    <b>{{ '%.2f'|format(payment.amount_rubles or 0) }} ₽</b></p>
+
+  {% if payment.payment_url %}
+    {# Платёж принимает провайдер; портал денег не касается. #}
+    <p><a class="button-link" href="{{ payment.payment_url }}" rel="noopener">Оплатить</a></p>
+    <p class="muted">После оплаты вернитесь сюда и проверьте платёж — зачисление
+      приходит от платёжной системы и может занять минуту.</p>
+  {% else %}
+    <p class="muted">Платёж создан, но ссылка на оплату не пришла. Проверьте статус
+      ниже или напишите в поддержку.</p>
+  {% endif %}
+
+  <p><a href="/balance/payment/{{ method }}/{{ payment.payment_id }}">Я оплатил, проверить</a></p>
+  <p><a href="/balance">К балансу</a></p>
+</section>
+{% endblock %}

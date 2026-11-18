@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{{ title }}</h1>
+  {% if content %}
+    {# Документ пишет оператор в админке, это разметка, а не текст. Скрипты в ней
+       не исполнятся: CSP портала разрешает только собственные файлы. #}
+    <div class="document">{{ content | safe }}</div>
+    {% if updated_at %}<p class="muted note">Обновлено: {{ updated_at | moment }}</p>{% endif %}
+  {% else %}
+    <p class="muted">Документ пока не опубликован.</p>
+  {% endif %}
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

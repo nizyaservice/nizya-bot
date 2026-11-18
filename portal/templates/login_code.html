@@ -10,6 +10,7 @@
     {# Почта — скрытым полем, а не в адресе страницы: иначе она осядет
        в истории браузера, логах прокси и реферерах. #}
     <input type="hidden" name="email" value="{{ email }}">
+    {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
 
     <label for="code">Код</label>
     <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
@@ -36,6 +37,7 @@
 
   <form method="post" action="/login" class="form-inline">
     <input type="hidden" name="email" value="{{ email }}">
+    {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
     <button class="link" type="submit">Отправить код заново</button>
   </form>
 </section>

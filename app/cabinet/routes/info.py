@@ -109,6 +109,9 @@ class ServiceInfoResponse(BaseModel):
     support_email: str | None = None
     support_telegram: str | None = None
     website: str | None = None
+    # Ссылка на телеграм-канал: тот же MENU_CHANNEL_URL, что у кнопки «Канал» в
+    # боте. Один источник на бота и портал, чтобы адрес не расходился.
+    channel_url: str | None = None
 
 
 class SupportConfigResponse(BaseModel):
@@ -347,6 +350,7 @@ async def get_service_info(
         support_email=(settings.SUPPORT_EMAIL or '').strip() or None,
         support_telegram=(settings.SUPPORT_USERNAME or '').strip() or None,
         website=(settings.SERVICE_WEBSITE_URL or '').strip() or None,
+        channel_url=(settings.MENU_CHANNEL_URL or '').strip() or None,
     )
 
 

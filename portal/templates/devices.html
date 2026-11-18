@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Устройства — {{ brand_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Устройства</h1>
+  {% if device_limit %}
+    <p class="row"><span class="muted">Подключено</span> <b>{{ total }} из {{ device_limit }}</b></p>
+  {% endif %}
+
+  {% if devices %}
+    <div class="periods">
+      {# Кнопка во всю ширину: длинные имена устройств помещаются целиком. #}
+      {% for device in devices %}
+        <a class="period" href="/devices/{{ device.hwid | urlencode }}">
+          <span>{{ device.title }}</span>
+          <span class="muted">→</span>
+        </a>
+      {% endfor %}
+    </div>
+    <p class="note"><a href="/devices-reset">Отключить все устройства</a></p>
+  {% else %}
+    <p class="muted">Подключённых устройств нет. Они появятся здесь после первого подключения.</p>
+  {% endif %}
+
+  <p><a href="/">В личный кабинет</a></p>
+</section>
+{% endblock %}

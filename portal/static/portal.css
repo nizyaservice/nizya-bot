@@ -177,3 +177,33 @@ button.link {
 .period-price s { margin-left: 6px; font-weight: 400; font-size: 13px; }
 
 .note { margin-top: 12px; font-size: 14px; }
+
+/* ─── разделы кабинета ─── */
+
+.sections { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 4px; }
+
+input[type='text'][readonly] {
+  width: 100%;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+/* Документы приходят готовой разметкой: ограничиваем только то, что ломает вид. */
+.document { margin: 8px 0; overflow-wrap: anywhere; }
+.document img { max-width: 100%; height: auto; }
+.document table { width: 100%; border-collapse: collapse; }
+.document h1, .document h2, .document h3 { font-size: 17px; margin: 16px 0 6px; }
+
+.period input[type='radio'] { accent-color: var(--brand); }
+
+.button-link {
+  display: inline-block;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.button-link:hover { filter: brightness(1.08); }

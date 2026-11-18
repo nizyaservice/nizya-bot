@@ -30,7 +30,21 @@
     <p><a href="/tariffs">Выбрать тариф</a></p>
   {% endif %}
 
-  {# Разделы добавляются следующими шагами: устройства, пополнение баланса,
-     рефералка, промокод, язык, правила. #}
+  <h2>Разделы</h2>
+  <nav class="sections">
+    <a href="/connect">Подключение</a>
+    <a href="/balance">Баланс и пополнение</a>
+    <a href="/devices">Устройства</a>
+    <a href="/promocode">Промокод</a>
+    <a href="/referral">Реферальная программа</a>
+    <a href="/support">Помощь</a>
+    <a href="/language">Язык</a>
+    <a href="/documents/rules">Правила</a>
+    <a href="/documents/privacy">Политика</a>
+    <a href="/documents/offer">Оферта</a>
+    {% if channel_url %}<a href="{{ channel_url }}">Наш канал</a>{% endif %}
+  </nav>
+
+  {# Остальное — следующими шагами: пополнение баланса и помощь. #}
 </section>
 {% endblock %}
