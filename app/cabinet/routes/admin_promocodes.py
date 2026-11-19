@@ -280,6 +280,11 @@ def _validate_create_payload(payload: PromoCodeCreateRequest) -> None:
     if payload.type == PromoCodeType.BALANCE and payload.balance_bonus_kopeks <= 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, 'Balance bonus must be positive for balance promo codes')
 
+    # Баллы лежат в той же колонке (балл = рубль в копейках), поэтому и
+    # требование то же: промокод без начисления бессмысленен.
+    if payload.type == PromoCodeType.BONUS_POINTS and payload.balance_bonus_kopeks <= 0:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, 'Bonus points amount must be positive')
+
     # Набор бонусов собирается галочками, поэтому жёстко требовать все
     # составляющие нельзя — достаточно, чтобы хоть что-то начислялось.
     if payload.type == PromoCodeType.BALANCE_AND_DAYS and not (

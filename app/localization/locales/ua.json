@@ -2235,6 +2235,7 @@
   "PERIOD": "Період",
   "ADMIN_CONTESTS_LIST": "📋 Поточні конкурси",
   "ADMIN_PROMOCODE_TYPE_BALANCE_DAYS": "💰📅 Баланс + дні",
+  "ADMIN_PROMOCODE_TYPE_BONUS_POINTS": "🎁 Бонусні бали",
   "SBP_RECURRING_MENU_BUTTON": "⚡ Автопродовження через СБП",
   "SBP_RECURRING_STATUS_NONE": "не підключено",
   "SBP_RECURRING_STATUS_PENDING": "очікує підтвердження в банку",

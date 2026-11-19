@@ -147,6 +147,10 @@ class PromoCodeType(Enum):
     PROMO_GROUP = 'promo_group'
     DISCOUNT = 'discount'  # Одноразовая процентная скидка (balance_bonus_kopeks = процент, subscription_days = часы)
     BALANCE_AND_DAYS = 'balance_and_days'  # Комбинированный: и бонус на баланс, и дни подписки одним кодом
+    # Бонусные баллы. Сумма лежит в том же balance_bonus_kopeks: балл = рубль в
+    # копейках, так что единица та же, а отдельная колонка ради неё только
+    # размножила бы формы ввода. Отличает их именно тип.
+    BONUS_POINTS = 'bonus_points'
 
 
 class PaymentMethod(Enum):

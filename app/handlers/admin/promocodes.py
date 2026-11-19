@@ -26,7 +26,7 @@ from app.keyboards.admin import (
 )
 from app.states import AdminStates
 from app.utils.decorators import admin_required, error_handler
-from app.utils.formatters import format_datetime
+from app.utils.formatters import format_bonus_points, format_datetime
 
 
 logger = structlog.get_logger(__name__)
@@ -85,6 +85,7 @@ async def show_promocodes_list(callback: types.CallbackQuery, db_user: User, db:
             'promo_group': '🏷️',
             'discount': '💸',
             'balance_and_days': '💰📅',
+            'bonus_points': '🎁',
         }.get(promo.type, '🎫')
 
         text += f'{status_emoji} {type_emoji} <code>{promo.code}</code>\n'
@@ -92,6 +93,8 @@ async def show_promocodes_list(callback: types.CallbackQuery, db_user: User, db:
 
         if promo.type == PromoCodeType.BALANCE.value:
             text += f'💰 Бонус: {settings.format_price(promo.balance_bonus_kopeks)}\n'
+        elif promo.type == PromoCodeType.BONUS_POINTS.value:
+            text += f'🎁 Баллы: {format_bonus_points(promo.balance_bonus_kopeks)}\n'
         elif promo.type == PromoCodeType.SUBSCRIPTION_DAYS.value:
             text += f'📅 Дней: {promo.subscription_days}\n'
         elif promo.type == PromoCodeType.BALANCE_AND_DAYS.value:
@@ -169,6 +172,7 @@ async def show_promocode_management(callback: types.CallbackQuery, db_user: User
         'promo_group': '🏷️',
         'discount': '💸',
         'balance_and_days': '💰📅',
+        'bonus_points': '🎁',
     }.get(promo.type, '🎫')
 
     text = f"""
@@ -257,6 +261,8 @@ async def show_promocode_edit_menu(callback: types.CallbackQuery, db_user: User,
 
     if promo.type == PromoCodeType.BALANCE.value:
         text += f'• Бонус: {settings.format_price(promo.balance_bonus_kopeks)}\n'
+    elif promo.type == PromoCodeType.BONUS_POINTS.value:
+        text += f'• Баллы: {format_bonus_points(promo.balance_bonus_kopeks)}\n'
     elif promo.type in [PromoCodeType.SUBSCRIPTION_DAYS.value, PromoCodeType.TRIAL_SUBSCRIPTION.value]:
         text += f'• Дней: {promo.subscription_days}\n'
     elif promo.type == PromoCodeType.BALANCE_AND_DAYS.value:
@@ -284,6 +290,10 @@ async def show_promocode_edit_menu(callback: types.CallbackQuery, db_user: User,
     if promo.type == PromoCodeType.BALANCE.value:
         keyboard.insert(
             1, [types.InlineKeyboardButton(text='💰 Сумма бонуса', callback_data=f'promo_edit_amount_{promo.id}')]
+        )
+    elif promo.type == PromoCodeType.BONUS_POINTS.value:
+        keyboard.insert(
+            1, [types.InlineKeyboardButton(text='🎁 Количество баллов', callback_data=f'promo_edit_amount_{promo.id}')]
         )
     elif promo.type in [PromoCodeType.SUBSCRIPTION_DAYS.value, PromoCodeType.TRIAL_SUBSCRIPTION.value]:
         keyboard.insert(
@@ -448,6 +458,7 @@ async def select_promocode_type(callback: types.CallbackQuery, db_user: User, st
         'group': '🏷️ Промогруппа',
         'discount': '💸 Одноразовая скидка',
         'combo': '💰📅 Баланс + дни подписки',
+        'points': '🎁 Бонусные баллы',
     }
 
     await state.update_data(promocode_type=promo_type)
@@ -486,6 +497,10 @@ async def process_promocode_code(message: types.Message, db_user: User, state: F
 
     if promo_type == 'balance':
         await message.answer(f'💰 <b>Промокод:</b> <code>{code}</code>\n\nВведите сумму пополнения баланса (в рублях):')
+        await state.set_state(AdminStates.setting_promocode_value)
+    elif promo_type == 'points':
+        # Балл = рубль: спрашиваем в баллах, храним в копейках той же колонкой.
+        await message.answer(f'🎁 <b>Промокод:</b> <code>{code}</code>\n\nВведите количество бонусных баллов:')
         await state.set_state(AdminStates.setting_promocode_value)
     elif promo_type == 'combo':
         await message.answer(
@@ -806,13 +821,14 @@ async def process_promocode_expiry(message: types.Message, db_user: User, state:
             'trial': PromoCodeType.TRIAL_SUBSCRIPTION,
             'group': PromoCodeType.PROMO_GROUP,
             'combo': PromoCodeType.BALANCE_AND_DAYS,
+            'points': PromoCodeType.BONUS_POINTS,
         }
 
         if promo_type == 'combo':
             balance_bonus_kopeks = value * 100
             subscription_days = data.get('promocode_combo_days', 0)
         else:
-            balance_bonus_kopeks = value * 100 if promo_type == 'balance' else 0
+            balance_bonus_kopeks = value * 100 if promo_type in ('balance', 'points') else 0
             subscription_days = value if promo_type in ['days', 'trial'] else 0
 
         promocode = await create_promocode(
@@ -833,6 +849,7 @@ async def process_promocode_expiry(message: types.Message, db_user: User, state:
             'trial': 'Тестовая подписка',
             'group': 'Промогруппа',
             'combo': 'Баланс + дни подписки',
+            'points': 'Бонусные баллы',
         }
 
         summary_text = f"""
@@ -844,6 +861,8 @@ async def process_promocode_expiry(message: types.Message, db_user: User, state:
 
         if promo_type == 'balance':
             summary_text += f'💰 <b>Сумма:</b> {settings.format_price(promocode.balance_bonus_kopeks)}\n'
+        elif promo_type == 'points':
+            summary_text += f'🎁 <b>Баллы:</b> {format_bonus_points(promocode.balance_bonus_kopeks)}\n'
         elif promo_type in ['days', 'trial']:
             summary_text += f'📅 <b>Дней:</b> {promocode.subscription_days}\n'
         elif promo_type == 'combo':

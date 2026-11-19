@@ -18,6 +18,7 @@ from app.database.crud.user_promo_group import add_user_to_promo_group, has_user
 from app.database.models import PromoCode, PromoCodeType, Subscription, SubscriptionStatus, User
 from app.services.remnawave_service import RemnaWaveService
 from app.services.subscription_service import SubscriptionService
+from app.utils.formatters import format_bonus_points
 
 
 logger = structlog.get_logger(__name__)
@@ -493,6 +494,20 @@ class PromoCodeService:
 
             balance_bonus_rubles = promocode.balance_bonus_kopeks / 100
             effects.append(f'💰 Баланс пополнен на {balance_bonus_rubles}₽')
+
+        if promocode.type == PromoCodeType.BONUS_POINTS.value and promocode.balance_bonus_kopeks > 0:
+            from app.database.crud.user import change_user_bonus_points
+
+            # Той же ручкой, что начисляет оператор: баллы не деньги, в историю
+            # платежей они не попадают и выводу наружу не подлежат.
+            await change_user_bonus_points(db, user, promocode.balance_bonus_kopeks, commit=False)
+
+            effects.append(f'🎁 Начислено баллов: {format_bonus_points(promocode.balance_bonus_kopeks)}')
+            logger.info(
+                '✅ Пользователю начислены бонусные баллы по промокоду',
+                _format_user_log=self._format_user_log(user),
+                amount_kopeks=promocode.balance_bonus_kopeks,
+            )
 
         if promocode.type == PromoCodeType.TRIAL_SUBSCRIPTION.value:
             from app.database.crud.subscription import create_trial_subscription

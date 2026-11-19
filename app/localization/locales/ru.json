@@ -2235,6 +2235,7 @@
   "AUTOPAY_NOT_AVAILABLE_TRIAL": "Автоплатеж недоступен для пробных подписок.",
   "AUTOPAY_NOT_AVAILABLE_CLASSIC": "Автоплатеж недоступен. Для продления необходимо выбрать тариф.",
   "ADMIN_PROMOCODE_TYPE_BALANCE_DAYS": "💰📅 Баланс + дни",
+  "ADMIN_PROMOCODE_TYPE_BONUS_POINTS": "🎁 Бонусные баллы",
   "SBP_RECURRING_MENU_BUTTON": "⚡ Автопродление через СБП",
   "SBP_RECURRING_STATUS_NONE": "не подключено",
   "SBP_RECURRING_STATUS_PENDING": "ожидает подтверждения в банке",

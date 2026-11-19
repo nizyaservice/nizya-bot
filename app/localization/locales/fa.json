@@ -2235,6 +2235,7 @@
   "AUTOPAY_NOT_AVAILABLE_TRIAL": "پرداخت خودکار برای اشتراک‌های آزمایشی در دسترس نیست.",
   "AUTOPAY_NOT_AVAILABLE_CLASSIC": "پرداخت خودکار در دسترس نیست. برای تمدید باید یک طرح انتخاب کنید.",
   "ADMIN_PROMOCODE_TYPE_BALANCE_DAYS": "💰📅 موجودی + روزها",
+  "ADMIN_PROMOCODE_TYPE_BONUS_POINTS": "🎁 امتیاز پاداش",
   "SBP_RECURRING_MENU_BUTTON": "⚡ تمدید خودکار از طریق SBP",
   "SBP_RECURRING_STATUS_NONE": "متصل نیست",
   "SBP_RECURRING_STATUS_PENDING": "در انتظار تأیید در بانک",

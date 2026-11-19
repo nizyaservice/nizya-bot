@@ -2235,6 +2235,7 @@
   "LEGACY_ADDONS_UNAVAILABLE": "⚠️ Switch to a plan first — add-ons are not available for this subscription",
   "TARIFF_SWITCH_LEGACY_CURRENT": "subscription without a plan",
   "ADMIN_PROMOCODE_TYPE_BALANCE_DAYS": "💰📅 Balance + Days",
+  "ADMIN_PROMOCODE_TYPE_BONUS_POINTS": "🎁 Bonus points",
   "SBP_RECURRING_MENU_BUTTON": "⚡ Auto-renewal via SBP",
   "SBP_RECURRING_STATUS_NONE": "not connected",
   "SBP_RECURRING_STATUS_PENDING": "awaiting confirmation in the bank",
