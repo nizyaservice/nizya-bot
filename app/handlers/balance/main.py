@@ -272,11 +272,10 @@ async def show_balance_menu(callback: types.CallbackQuery, db_user: User, db: As
     # Баллы — отдельной строкой: они тратятся раньше денег, и человек, у которого
     # на экране «0 ₽», иначе не понимает, чем оплатилась подписка.
     points_kopeks = getattr(db_user, 'bonus_points_kopeks', 0) or 0
-    if points_kopeks > 0:
-        points_line = texts.t('BALANCE_BONUS_POINTS_LINE', '🎁 Бонусные баллы: {points}').replace(
-            '{points}', format_bonus_points(points_kopeks)
-        )
-        balance_text = f'{balance_text}\n{points_line}'
+    points_line = texts.t('BALANCE_BONUS_POINTS_LINE', '🎁 Бонусные баллы: {points}').replace(
+        '{points}', format_bonus_points(points_kopeks)
+    )
+    balance_text = f'{balance_text}\n{points_line}'
 
     reply_markup = get_balance_keyboard(db_user.language)
 

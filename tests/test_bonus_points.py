@@ -255,6 +255,25 @@ def test_rich_menu_shows_points_above_the_balance():
     assert points_at < balance_at, 'баллы должны уходить в полотно раньше баланса'
 
 
+def test_points_line_is_shown_even_at_zero():
+    """Решение владельца: строка видна всегда, иначе кошелька будто и нет.
+
+    Проверяются все три места, где она живёт: оба главных меню и «Баланс».
+    """
+    rich_menu = (REPO / 'app' / 'utils' / 'rich_menu.py').read_text(encoding='utf-8')
+    classic_menu = (REPO / 'app' / 'handlers' / 'menu.py').read_text(encoding='utf-8')
+    balance_screen = (REPO / 'app' / 'handlers' / 'balance' / 'main.py').read_text(encoding='utf-8')
+
+    for source, key in (
+        (rich_menu, 'MAIN_MENU_RICH_BONUS_POINTS'),
+        (classic_menu, 'MAIN_MENU_BONUS_POINTS'),
+        (balance_screen, 'BALANCE_BONUS_POINTS_LINE'),
+    ):
+        line_at = source.index(key)
+        preceding = source[max(0, line_at - 400) : line_at]
+        assert 'points_kopeks > 0' not in preceding, f'{key}: строка снова спрятана при нуле'
+
+
 def test_live_menu_fingerprint_includes_points():
     """Иначе живое меню не перерисуется после начисления баллов."""
     source = (REPO / 'app' / 'utils' / 'rich_menu.py').read_text(encoding='utf-8')

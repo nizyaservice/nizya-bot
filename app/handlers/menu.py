@@ -1538,14 +1538,13 @@ async def get_main_menu_text(user, texts, db: AsyncSession):
     # Баллы — над балансом: в классическом меню баланс живёт кнопкой под
     # текстом, поэтому строка в тексте и оказывается выше него.
     points_kopeks = getattr(user, 'bonus_points_kopeks', 0) or 0
-    if points_kopeks > 0:
-        points_line = texts.t('MAIN_MENU_BONUS_POINTS', '🎁 Бонусные баллы: {points}').replace(
-            '{points}', format_bonus_points(points_kopeks)
-        )
-        if action_prompt in base_text:
-            base_text = base_text.replace(action_prompt, f'{points_line}\n\n{action_prompt}')
-        else:
-            base_text = f'{base_text}\n\n{points_line}'
+    points_line = texts.t('MAIN_MENU_BONUS_POINTS', '🎁 Бонусные баллы: {points}').replace(
+        '{points}', format_bonus_points(points_kopeks)
+    )
+    if action_prompt in base_text:
+        base_text = base_text.replace(action_prompt, f'{points_line}\n\n{action_prompt}')
+    else:
+        base_text = f'{base_text}\n\n{points_line}'
 
     info_sections: list[str] = []
 

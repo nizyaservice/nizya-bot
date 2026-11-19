@@ -593,12 +593,12 @@ async def build_main_menu_rich_html(user: User, texts, db: AsyncSession) -> str:
         blocks.append(f'<p>{trial_link}</p>')
 
     # Баллы — строкой НАД балансом: это второй кошелёк, и он тратится первым.
-    # Нулевые не показываем, чтобы не плодить строку у всех, кому баллов не давали.
+    # Показываем всегда, в том числе ноль (решение владельца): человек должен
+    # видеть, что кошелёк существует, а не гадать, куда делась строка.
     points_kopeks = getattr(user, 'bonus_points_kopeks', 0) or 0
-    if points_kopeks > 0:
-        points_template = texts.t('MAIN_MENU_RICH_BONUS_POINTS', '🎁 Бонусные баллы: {points}')
-        points_value = f'<b>{html.escape(format_bonus_points(points_kopeks))}</b>'
-        blocks.append(f'<p>{_rich_text(points_template).replace("{points}", points_value)}</p>')
+    points_template = texts.t('MAIN_MENU_RICH_BONUS_POINTS', '🎁 Бонусные баллы: {points}')
+    points_value = f'<b>{html.escape(format_bonus_points(points_kopeks))}</b>'
+    blocks.append(f'<p>{_rich_text(points_template).replace("{points}", points_value)}</p>')
 
     balance_template = texts.t('MAIN_MENU_RICH_BALANCE', '💰 Баланс: {balance}')
     balance_value = f'<b>{html.escape(settings.format_price(user.balance_kopeks))}</b>'
