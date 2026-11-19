@@ -187,7 +187,7 @@ async def purchase_devices_legacy(
         )
 
     # Check balance (skip for 100% discount)
-    if total_price > 0 and user.balance_kopeks < total_price:
+    if total_price > 0 and user.available_balance_kopeks < total_price:
         missing = total_price - user.balance_kopeks
 
         # Сохраняем корзину для автопокупки после пополнения
@@ -463,7 +463,7 @@ async def purchase_devices(
             price_kopeks = max(100, price_kopeks)
 
         # Check balance (skip for 100% discount)
-        if price_kopeks > 0 and user.balance_kopeks < price_kopeks:
+        if price_kopeks > 0 and user.available_balance_kopeks < price_kopeks:
             missing = price_kopeks - user.balance_kopeks
 
             # Сохраняем корзину для автопокупки после пополнения

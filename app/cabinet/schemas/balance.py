@@ -7,10 +7,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class BalanceResponse(BaseModel):
-    """User balance data."""
+    """User balance data.
+
+    Баллы отдаём отдельными полями, а деньги оставляем прежними: клиент, который
+    о баллах не знает, продолжает показывать ровно то, что показывал. А тот, кто
+    считает «хватит ли на покупку», обязан смотреть на ``available_*`` — баллы
+    тратятся раньше денег, и оплата проходит по сумме кошельков.
+    """
 
     balance_kopeks: int
     balance_rubles: float
+    bonus_points_kopeks: int = 0
+    bonus_points_rubles: float = 0
+    available_kopeks: int = 0
+    available_rubles: float = 0
 
 
 class TransactionResponse(BaseModel):

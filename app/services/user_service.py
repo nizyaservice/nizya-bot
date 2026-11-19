@@ -559,6 +559,9 @@ class UserService:
                     description,
                     create_transaction=True,
                     payment_method=PaymentMethod.MANUAL,
+                    # Деньги, а не баллы: у баллов своя ручка (update_user_bonus_points),
+                    # и «снять 100 ₽» не должно молча съесть бонусы.
+                    use_bonus_points=False,
                 )
                 if success:
                     logger.info(
@@ -612,6 +615,28 @@ class UserService:
                 user_id=user_id,
                 amount_kopeks=amount_kopeks,
             )
+
+            # Денежные правки оператора оставляют транзакцию, баллы — нет: они не
+            # деньги, и строка в истории платежей исказила бы отчёты. Поэтому след
+            # пишем в журнал админских действий — там его видно и через год.
+            try:
+                from app.database.crud.rbac import AuditLogCRUD
+
+                await AuditLogCRUD.create(
+                    db,
+                    user_id=admin_id,
+                    action='bonus_points_changed',
+                    resource_type='user',
+                    resource_id=str(user_id),
+                    details={
+                        'amount_kopeks': amount_kopeks,
+                        'balance_after_kopeks': user.bonus_points_kopeks,
+                        'admin_name': admin_name,
+                    },
+                )
+            except Exception as audit_error:
+                # Журнал — не причина отменять начисление: баллы уже у человека.
+                logger.warning('Не удалось записать изменение баллов в журнал', error=str(audit_error)[:200])
 
             if bot:
                 await db.refresh(user)

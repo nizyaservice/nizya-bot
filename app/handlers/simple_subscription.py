@@ -114,7 +114,7 @@ async def start_simple_subscription_purchase(
     )
 
     period_days = subscription_params['period_days']
-    user_balance_kopeks = getattr(db_user, 'balance_kopeks', 0)
+    user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0)
 
     logger.warning(
         'SIMPLE_SUBSCRIPTION_DEBUG_START | user=%s | period=%s | base=%s | traffic=%s | devices=%s | servers=%s | discount=%s | total=%s | squads=%s',
@@ -131,11 +131,11 @@ async def start_simple_subscription_purchase(
         else 'none',
     )
 
-    can_pay_from_balance = user_balance_kopeks >= price_kopeks
+    can_pay_from_balance = user_available_kopeks >= price_kopeks
     logger.warning(
         'SIMPLE_SUBSCRIPTION_DEBUG_START_BALANCE',
         db_user_id=db_user.id,
-        user_balance_kopeks=user_balance_kopeks,
+        user_available_kopeks=user_available_kopeks,
         price_kopeks=price_kopeks,
         can_pay_from_balance=can_pay_from_balance,
     )
@@ -188,7 +188,7 @@ async def start_simple_subscription_purchase(
             f'🌍 Сервер: {server_label}',
             '',
             f'💰 Стоимость: {settings.format_price(price_kopeks)}',
-            f'💳 Ваш баланс: {settings.format_price(user_balance_kopeks)}',
+            f'💳 Ваш баланс: {settings.format_price(user_available_kopeks)}',
             '',
         ]
     )
@@ -446,9 +446,9 @@ async def handle_simple_subscription_pay_with_balance(
     )
 
     # Проверяем баланс пользователя
-    user_balance_kopeks = getattr(db_user, 'balance_kopeks', 0)
+    user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0)
 
-    if total_required > 0 and user_balance_kopeks < total_required:
+    if total_required > 0 and user_available_kopeks < total_required:
         await callback.answer('❌ Недостаточно средств на балансе для оплаты подписки', show_alert=True)
         return
 
@@ -759,12 +759,12 @@ async def handle_simple_subscription_other_payment_methods(
         resolved_squad_uuid=resolved_squad_uuid,
     )
 
-    user_balance_kopeks = getattr(db_user, 'balance_kopeks', 0)
-    can_pay_from_balance = user_balance_kopeks >= price_kopeks
+    user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0)
+    can_pay_from_balance = user_available_kopeks >= price_kopeks
     logger.warning(
         'SIMPLE_SUBSCRIPTION_DEBUG_METHODS',
         db_user_id=db_user.id,
-        user_balance_kopeks=user_balance_kopeks,
+        user_available_kopeks=user_available_kopeks,
         price_breakdown=price_breakdown.get('base_price', 0),
         price_breakdown_2=price_breakdown.get('traffic_price', 0),
         price_breakdown_3=price_breakdown.get('devices_price', 0),
@@ -2208,9 +2208,9 @@ async def confirm_simple_subscription_purchase(
     )
 
     # Проверяем баланс пользователя
-    user_balance_kopeks = getattr(db_user, 'balance_kopeks', 0)
+    user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0)
 
-    if total_required > 0 and user_balance_kopeks < total_required:
+    if total_required > 0 and user_available_kopeks < total_required:
         await callback.answer('❌ Недостаточно средств на балансе для оплаты подписки', show_alert=True)
         return
 

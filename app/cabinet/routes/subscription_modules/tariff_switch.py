@@ -361,7 +361,7 @@ async def switch_tariff(
     # Charge if upgrade
     switch_transaction = None
     if upgrade_cost > 0:
-        if user.balance_kopeks < upgrade_cost:
+        if user.available_balance_kopeks < upgrade_cost:
             missing = upgrade_cost - user.balance_kopeks
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,

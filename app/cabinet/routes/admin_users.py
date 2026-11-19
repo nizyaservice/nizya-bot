@@ -1210,6 +1210,9 @@ async def update_user_balance(
     else:
         # Subtract balance
         amount_to_subtract = abs(request.amount_kopeks)
+        # Денежный кошелёк: баллами оператор распоряжается отдельной ручкой, и
+        # «снять 100 ₽» не должно молча съесть баллы — отсюда и проверка по
+        # деньгам, и use_bonus_points=False ниже.
         if user.balance_kopeks < amount_to_subtract:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1222,6 +1225,7 @@ async def update_user_balance(
             description=request.description,
             create_transaction=request.create_transaction,
             payment_method=PaymentMethod.MANUAL,
+            use_bonus_points=False,
         )
 
     if not success:

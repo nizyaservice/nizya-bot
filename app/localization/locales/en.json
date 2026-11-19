@@ -1168,6 +1168,7 @@
   "MAIN_MENU_ACTION_PROMPT": "Choose an option:",
   "CABINET_LOGIN_CODE_SUBJECT": "Your login code",
   "CABINET_LOGIN_CODE_BODY": "<p>Your login code: <b style=\"font-size:20px;letter-spacing:2px\">{code}</b></p><p>The code is valid for {minutes} minutes and works for one login.</p><p>If you did not request this, just ignore the code — no action is needed.</p>",
+  "BALANCE_BONUS_POINTS_LINE": "🎁 Bonus points: {points}",
   "MAIN_MENU_BONUS_POINTS": "🎁 Bonus points: {points}",
   "MAIN_MENU_RICH_BONUS_POINTS": "🎁 Bonus points: {points}",
   "BONUS_POINTS_NOTIFY_TOTAL": "🎁 <b>Points in total:</b> {points}",

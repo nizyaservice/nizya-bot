@@ -802,8 +802,8 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
 
     if trial_price_kopeks > 0:
         # Платный триал - показываем экран с выбором метода оплаты
-        user_balance_kopeks = getattr(db_user, 'available_balance_kopeks', 0) or 0
-        can_pay_from_balance = user_balance_kopeks >= trial_price_kopeks
+        user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0) or 0
+        can_pay_from_balance = user_available_kopeks >= trial_price_kopeks
 
         # Берём параметры из триального тарифа если доступен
         paid_trial_days = settings.TRIAL_DURATION_DAYS
@@ -837,7 +837,7 @@ async def activate_trial(callback: types.CallbackQuery, db_user: User, db: Async
             f'📱 {texts.t("DEVICES", "Устройства")}: {paid_trial_devices}',
             '',
             f'💰 {texts.t("PRICE", "Стоимость")}: {settings.format_price(trial_price_kopeks)}',
-            f'💳 {texts.t("YOUR_BALANCE", "Ваш баланс")}: {settings.format_price(user_balance_kopeks)}',
+            f'💳 {texts.t("YOUR_BALANCE", "Ваш баланс")}: {settings.format_price(user_available_kopeks)}',
             '',
         ]
 
@@ -3331,9 +3331,9 @@ async def handle_trial_pay_with_balance(callback: types.CallbackQuery, db_user: 
         await callback.answer('❌ Ошибка: триал бесплатный', show_alert=True)
         return
 
-    user_balance_kopeks = getattr(db_user, 'available_balance_kopeks', 0) or 0
-    if user_balance_kopeks < trial_price_kopeks:
-        topup_needed_kopeks = trial_price_kopeks - user_balance_kopeks
+    user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0) or 0
+    if user_available_kopeks < trial_price_kopeks:
+        topup_needed_kopeks = trial_price_kopeks - user_available_kopeks
         await callback.answer(
             texts.t(
                 'INSUFFICIENT_BALANCE',
@@ -4473,7 +4473,7 @@ async def handle_simple_subscription_purchase(
     await state.update_data(subscription_params=subscription_params)
 
     # Проверяем баланс пользователя
-    user_balance_kopeks = getattr(db_user, 'available_balance_kopeks', 0)
+    user_available_kopeks = getattr(db_user, 'available_balance_kopeks', 0)
     # Рассчитываем цену подписки
     price_kopeks, price_breakdown = await _calculate_simple_subscription_price(
         db,
@@ -4495,7 +4495,7 @@ async def handle_simple_subscription_purchase(
         'Безлимит' if subscription_params['traffic_limit_gb'] == 0 else f'{subscription_params["traffic_limit_gb"]} ГБ'
     )
 
-    if user_balance_kopeks >= price_kopeks:
+    if user_available_kopeks >= price_kopeks:
         # Если баланс достаточный, предлагаем оплатить с баланса
         simple_lines = [
             '⚡ <b>Простая покупка подписки</b>',
@@ -4512,7 +4512,7 @@ async def handle_simple_subscription_purchase(
                 f'🌍 Сервер: {"Любой доступный" if not subscription_params["squad_uuid"] else "Выбранный"}',
                 '',
                 f'💰 Стоимость: {settings.format_price(price_kopeks)}',
-                f'💳 Ваш баланс: {settings.format_price(user_balance_kopeks)}',
+                f'💳 Ваш баланс: {settings.format_price(user_available_kopeks)}',
                 '',
                 'Вы можете оплатить подписку с баланса или выбрать другой способ оплаты.',
             ]
@@ -4552,7 +4552,7 @@ async def handle_simple_subscription_purchase(
                 f'🌍 Сервер: {"Любой доступный" if not subscription_params["squad_uuid"] else "Выбранный"}',
                 '',
                 f'💰 Стоимость: {settings.format_price(price_kopeks)}',
-                f'💳 Ваш баланс: {settings.format_price(user_balance_kopeks)}',
+                f'💳 Ваш баланс: {settings.format_price(user_available_kopeks)}',
                 '',
                 'Выберите способ оплаты:',
             ]

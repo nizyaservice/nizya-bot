@@ -1295,6 +1295,7 @@
   "MAIN_MENU_ACTION_PROMPT": "Выберите действие:",
   "CABINET_LOGIN_CODE_SUBJECT": "Код для входа в личный кабинет",
   "CABINET_LOGIN_CODE_BODY": "<p>Ваш код для входа: <b style=\"font-size:20px;letter-spacing:2px\">{code}</b></p><p>Код действует {minutes} минут и подходит для одного входа.</p><p>Если вход запрашивали не вы — просто не вводите код, ничего делать не нужно.</p>",
+  "BALANCE_BONUS_POINTS_LINE": "🎁 Бонусные баллы: {points}",
   "MAIN_MENU_BONUS_POINTS": "🎁 Бонусные баллы: {points}",
   "MAIN_MENU_RICH_BONUS_POINTS": "🎁 Бонусные баллы: {points}",
   "BONUS_POINTS_NOTIFY_TOTAL": "🎁 <b>Всего баллов:</b> {points}",

@@ -5073,13 +5073,16 @@ async def admin_buy_subscription_confirm(callback: types.CallbackQuery, db_user:
             price_kopeks=price_kopeks,
         )
 
-    if target_user.balance_kopeks < price_kopeks:
-        missing_kopeks = price_kopeks - target_user.balance_kopeks
+    # Списание идёт через subtract_user_balance, а он тратит баллы раньше денег:
+    # считаем по обоим кошелькам, иначе админ увидит отказ там, где покупка прошла бы.
+    if target_user.available_balance_kopeks < price_kopeks:
+        missing_kopeks = price_kopeks - target_user.available_balance_kopeks
         # Без округления — иначе при не хватке <50 копеек все три суммы покажутся
         # одинаковыми и админ увидит «не хватает 0 ₽».
         await callback.message.edit_text(
             f'❌ Недостаточно средств на балансе пользователя\n\n'
-            f'💰 Баланс пользователя: {settings.format_price(target_user.balance_kopeks, round_kopeks=False)}\n'
+            f'💰 Доступно у пользователя: '
+            f'{settings.format_price(target_user.available_balance_kopeks, round_kopeks=False)}\n'
             f'💳 Стоимость подписки: {settings.format_price(price_kopeks, round_kopeks=False)}\n'
             f'📉 Не хватает: {settings.format_price(missing_kopeks, round_kopeks=False)}\n\n'
             f'Пополните баланс пользователя перед покупкой.',
@@ -5180,7 +5183,7 @@ async def admin_buy_subscription_execute(callback: types.CallbackQuery, db_user:
             price_kopeks=price_kopeks,
         )
 
-    if target_user.balance_kopeks < price_kopeks:
+    if target_user.available_balance_kopeks < price_kopeks:
         await callback.answer('❌ Недостаточно средств на балансе пользователя', show_alert=True)
         return
 
@@ -5500,12 +5503,12 @@ async def admin_buy_tariff_confirm(callback: types.CallbackQuery, db_user: User,
         await callback.answer('❌ Тариф недоступен', show_alert=True)
         return
 
-    # Проверяем баланс
-    if target_user.balance_kopeks < price_kopeks:
-        missing = price_kopeks - target_user.balance_kopeks
+    # Проверяем баланс: баллы тратятся раньше денег, поэтому считаем по сумме.
+    if target_user.available_balance_kopeks < price_kopeks:
+        missing = price_kopeks - target_user.available_balance_kopeks
         await callback.message.edit_text(
             f'❌ <b>Недостаточно средств</b>\n\n'
-            f'💰 Баланс: {settings.format_price(target_user.balance_kopeks, round_kopeks=False)}\n'
+            f'💰 Доступно: {settings.format_price(target_user.available_balance_kopeks, round_kopeks=False)}\n'
             f'💳 Стоимость: {settings.format_price(price_kopeks, round_kopeks=False)}\n'
             f'📉 Не хватает: {settings.format_price(missing, round_kopeks=False)}\n\n'
             f'Пополните баланс пользователя перед покупкой.',
@@ -5620,7 +5623,7 @@ async def admin_buy_tariff_execute(callback: types.CallbackQuery, db_user: User,
             price_kopeks=price_kopeks,
         )
 
-    if target_user.balance_kopeks < price_kopeks:
+    if target_user.available_balance_kopeks < price_kopeks:
         await callback.answer('❌ Недостаточно средств на балансе', show_alert=True)
         return
 

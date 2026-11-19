@@ -25,6 +25,7 @@ from app.services.section_image_service import (
 )
 from app.states import BalanceStates
 from app.utils.decorators import error_handler
+from app.utils.formatters import format_bonus_points
 from app.utils.photo_message import edit_or_answer_photo
 from app.utils.timezone import format_local_datetime
 
@@ -268,6 +269,15 @@ async def show_balance_menu(callback: types.CallbackQuery, db_user: User, db: As
 
     balance_text = texts.BALANCE_INFO.format(balance=texts.format_price(db_user.balance_kopeks))
 
+    # Баллы — отдельной строкой: они тратятся раньше денег, и человек, у которого
+    # на экране «0 ₽», иначе не понимает, чем оплатилась подписка.
+    points_kopeks = getattr(db_user, 'bonus_points_kopeks', 0) or 0
+    if points_kopeks > 0:
+        points_line = texts.t('BALANCE_BONUS_POINTS_LINE', '🎁 Бонусные баллы: {points}').replace(
+            '{points}', format_bonus_points(points_kopeks)
+        )
+        balance_text = f'{balance_text}\n{points_line}'
+
     reply_markup = get_balance_keyboard(db_user.language)
 
     await edit_or_answer_photo(
@@ -475,7 +485,9 @@ async def handle_successful_topup_with_cart(user_id: int, amount_kopeks: int, bo
             if 0 < total_price <= user.available_balance_kopeks:
                 balance_hint = 'Средств на балансе достаточно для оформления.'
             else:
-                missing = max(total_price - user.balance_kopeks, 0)
+                # По сумме кошельков: проверка выше считает так же, иначе человеку
+                # с баллами назвали бы завышенную доплату.
+                missing = max(total_price - user.available_balance_kopeks, 0)
                 # Без округления, иначе при не хватке <50 копеек покажется «0 ₽».
                 balance_hint = f'Не хватает: {texts.format_price(missing, round_kopeks=False)}'
 

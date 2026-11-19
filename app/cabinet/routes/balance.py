@@ -64,9 +64,16 @@ async def get_balance(
     if not fresh_user:
         raise HTTPException(status_code=404, detail='User not found')
 
+    points_kopeks = fresh_user.bonus_points_kopeks or 0
+    available_kopeks = fresh_user.available_balance_kopeks
+
     return BalanceResponse(
         balance_kopeks=fresh_user.balance_kopeks,
         balance_rubles=fresh_user.balance_kopeks / 100,
+        bonus_points_kopeks=points_kopeks,
+        bonus_points_rubles=points_kopeks / 100,
+        available_kopeks=available_kopeks,
+        available_rubles=available_kopeks / 100,
     )
 
 

@@ -101,7 +101,7 @@ async def toggle_subscription_pause(
 
     # If resuming, check balance and charge
     if not new_paused_state:
-        if daily_price > 0 and user.balance_kopeks < daily_price:
+        if daily_price > 0 and user.available_balance_kopeks < daily_price:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail={

@@ -195,7 +195,7 @@ async def update_countries(
             removed_names.append(server.display_name)
 
     # Check balance
-    if total_cost > 0 and user.balance_kopeks < total_cost:
+    if total_cost > 0 and user.available_balance_kopeks < total_cost:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail=f'Insufficient balance. Need {total_cost / 100:.2f} RUB, have {user.balance_kopeks / 100:.2f} RUB',

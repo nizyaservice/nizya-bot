@@ -292,7 +292,7 @@ async def purchase_traffic(
         final_price = max(100, final_price)
 
     # Проверяем баланс
-    if final_price > 0 and user.balance_kopeks < final_price:
+    if final_price > 0 and user.available_balance_kopeks < final_price:
         missing = final_price - user.balance_kopeks
 
         # Save cart for auto-purchase after balance top-up
@@ -635,7 +635,7 @@ async def switch_traffic_package(
         # Prorated calculation
         final_price, days_charged = calculate_prorated_price(price_diff, subscription.end_date)
 
-        if final_price > 0 and user.balance_kopeks < final_price:
+        if final_price > 0 and user.available_balance_kopeks < final_price:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail=f'Insufficient balance. Need {final_price / 100:.2f} RUB',

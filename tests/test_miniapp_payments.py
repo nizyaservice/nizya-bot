@@ -116,7 +116,9 @@ async def test_submit_subscription_renewal_uses_balance_when_sufficient(monkeypa
     monkeypatch.setattr(settings, 'SALES_MODE', 'classic', raising=False)
     monkeypatch.setattr(type(settings), 'get_available_renewal_periods', lambda self: [30], raising=False)
 
-    user = types.SimpleNamespace(id=10, telegram_id=10, balance_kopeks=10000, language='ru', tariff_id=None)
+    user = types.SimpleNamespace(
+        id=10, telegram_id=10, balance_kopeks=10000, available_balance_kopeks=10000, language='ru', tariff_id=None
+    )
     subscription = types.SimpleNamespace(
         id=77,
         connected_squads=[],
@@ -201,7 +203,9 @@ async def test_submit_subscription_renewal_returns_cryptobot_invoice(monkeypatch
     monkeypatch.setattr(settings, 'SALES_MODE', 'classic', raising=False)
     monkeypatch.setattr(type(settings), 'get_available_renewal_periods', lambda self: [30], raising=False)
 
-    user = types.SimpleNamespace(id=15, telegram_id=15, balance_kopeks=5000, language='ru', tariff_id=None)
+    user = types.SimpleNamespace(
+        id=15, telegram_id=15, balance_kopeks=5000, available_balance_kopeks=5000, language='ru', tariff_id=None
+    )
     subscription = types.SimpleNamespace(
         id=88,
         connected_squads=[],
@@ -297,7 +301,9 @@ async def test_submit_subscription_renewal_rounds_up_cryptobot_amount(monkeypatc
     monkeypatch.setattr(settings, 'SALES_MODE', 'classic', raising=False)
     monkeypatch.setattr(type(settings), 'get_available_renewal_periods', lambda self: [30], raising=False)
 
-    user = types.SimpleNamespace(id=42, telegram_id=42, balance_kopeks=0, language='ru', tariff_id=None)
+    user = types.SimpleNamespace(
+        id=42, telegram_id=42, balance_kopeks=0, available_balance_kopeks=0, language='ru', tariff_id=None
+    )
     subscription = types.SimpleNamespace(
         id=99,
         connected_squads=[],
@@ -382,7 +388,7 @@ async def test_cryptobot_renewal_uses_pricing_snapshot(monkeypatch):
     subscription = types.SimpleNamespace(
         id=77, connected_squads=[], traffic_limit_gb=100, device_limit=5, tariff=None, tariff_id=None
     )
-    user = types.SimpleNamespace(id=5, balance_kopeks=7000, subscription=subscription)
+    user = types.SimpleNamespace(id=5, balance_kopeks=7000, available_balance_kopeks=7000, subscription=subscription)
 
     pricing_model = SubscriptionRenewalPricing(
         period_days=30,
@@ -475,7 +481,7 @@ async def test_cryptobot_renewal_accepts_changed_pricing_without_snapshot(monkey
     subscription = types.SimpleNamespace(
         id=55, connected_squads=[], traffic_limit_gb=50, device_limit=3, tariff=None, tariff_id=None
     )
-    user = types.SimpleNamespace(id=8, balance_kopeks=4000, subscription=subscription)
+    user = types.SimpleNamespace(id=8, balance_kopeks=4000, available_balance_kopeks=4000, subscription=subscription)
 
     descriptor = build_payment_descriptor(
         user_id=8,
@@ -565,7 +571,7 @@ async def test_cryptobot_webhook_uses_inline_payload_when_db_missing(monkeypatch
     subscription = types.SimpleNamespace(
         id=91, connected_squads=[], traffic_limit_gb=80, device_limit=4, tariff=None, tariff_id=None
     )
-    user = types.SimpleNamespace(id=21, balance_kopeks=6000, subscription=subscription)
+    user = types.SimpleNamespace(id=21, balance_kopeks=6000, available_balance_kopeks=6000, subscription=subscription)
 
     pricing_model = SubscriptionRenewalPricing(
         period_days=30,

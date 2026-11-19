@@ -6,7 +6,11 @@
   <h1>Личный кабинет</h1>
 
   {% if balance %}
-    <p class="row"><span class="muted">Баланс</span> <b>{{ '%.2f'|format(balance.balance_rubles) }} ₽</b></p>
+    {# Доступно к оплате = деньги плюс начисленные баллы: бот списывает по этой
+       сумме, и показать меньше значило бы соврать. Отдельного раздела бонусов
+       на портале нет — им управляют в боте. #}
+    <p class="row"><span class="muted">Баланс</span>
+      <b>{{ '%.2f'|format(balance.available_rubles or balance.balance_rubles or 0) }} ₽</b></p>
   {% endif %}
 
   {% if subscription %}

@@ -752,8 +752,15 @@ async def subtract_user_balance(
     transaction_type: TransactionType = TransactionType.WITHDRAWAL,
     consume_promo_offer: bool = False,
     mark_as_paid_subscription: bool = False,
+    use_bonus_points: bool = True,
     commit: bool = True,
 ) -> bool:
+    """Списать с баланса. Бонусные баллы тратятся раньше денег.
+
+    ``use_bonus_points=False`` — списание строго деньгами: так снимает оператор,
+    когда правит денежный кошелёк. Баллами он распоряжается отдельной ручкой, и
+    «снять 100 ₽» не должно молча съесть баллы.
+    """
     if amount_kopeks < 0:
         logger.error('subtract_user_balance called with negative amount', amount_kopeks=amount_kopeks, user_id=user.id)
         return False
@@ -816,7 +823,9 @@ async def subtract_user_balance(
                 if not log_context['percent'] and offer.discount_percent:
                     log_context['percent'] = offer.discount_percent
 
-    if user.available_balance_kopeks < amount_kopeks:
+    # Чем можно покрыть списание: оба кошелька или только деньги.
+    coverage = user.available_balance_kopeks if use_bonus_points else (user.balance_kopeks or 0)
+    if coverage < amount_kopeks:
         logger.error('   ❌ НЕДОСТАТОЧНО СРЕДСТВ!')
         return False
 
@@ -826,7 +835,7 @@ async def subtract_user_balance(
         # баланса, поэтому отдельным флоу (тарифы, докупки, подарки, автоплатёж)
         # об очерёдности знать не нужно.
         points_before = user.bonus_points_kopeks or 0
-        paid_from_points = min(points_before, amount_kopeks)
+        paid_from_points = min(points_before, amount_kopeks) if use_bonus_points else 0
         user.bonus_points_kopeks = points_before - paid_from_points
         user.balance_kopeks -= amount_kopeks - paid_from_points
 

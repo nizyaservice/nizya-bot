@@ -1295,6 +1295,7 @@
   "MAIN_MENU_ACTION_PROMPT": "عملیات را انتخاب کنید:",
   "CABINET_LOGIN_CODE_SUBJECT": "کد ورود به حساب شما",
   "CABINET_LOGIN_CODE_BODY": "<p>کد ورود شما: <b style=\"font-size:20px;letter-spacing:2px\">{code}</b></p><p>این کد {minutes} دقیقه اعتبار دارد و برای یک بار ورود کار می‌کند.</p><p>اگر شما درخواست ورود نداده‌اید، کد را وارد نکنید؛ کار دیگری لازم نیست.</p>",
+  "BALANCE_BONUS_POINTS_LINE": "🎁 امتیاز پاداش: {points}",
   "MAIN_MENU_BONUS_POINTS": "🎁 امتیاز پاداش: {points}",
   "MAIN_MENU_RICH_BONUS_POINTS": "🎁 امتیاز پاداش: {points}",
   "BONUS_POINTS_NOTIFY_TOTAL": "🎁 <b>مجموع امتیازها:</b> {points}",

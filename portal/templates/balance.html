@@ -5,7 +5,7 @@
 <section class="card">
   <h1>Баланс</h1>
   <p class="row"><span class="muted">На счету</span>
-    <b>{{ '%.2f'|format(balance.balance_rubles or 0) }} ₽</b></p>
+    <b>{{ '%.2f'|format(balance.available_rubles or balance.balance_rubles or 0) }} ₽</b></p>
   <p><a href="/balance/topup">Пополнить</a></p>
 
   {% if pending %}

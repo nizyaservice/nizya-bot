@@ -5239,7 +5239,11 @@ async def get_subscription_renewal_options_endpoint(
         subscription,
     )
 
+    # Поле ответа balance_kopeks остаётся деньгами — его читают как деньги.
     balance_kopeks = getattr(user, 'balance_kopeks', 0)
+    # Доступно к оплате: баллы тратятся раньше денег, поэтому «хватает ли» и
+    # «сколько не хватает» считаются по сумме кошельков.
+    available_kopeks = getattr(user, 'available_balance_kopeks', 0)
     currency = (getattr(user, 'balance_currency', None) or 'RUB').upper()
 
     promo_group = getattr(user, 'promo_group', None)
@@ -5259,8 +5263,8 @@ async def get_subscription_renewal_options_endpoint(
     if default_period_id and default_period_id in pricing_map:
         selected_pricing = pricing_map[default_period_id]
         final_total = selected_pricing.get('final_total')
-        if isinstance(final_total, int) and balance_kopeks < final_total:
-            missing_amount = final_total - balance_kopeks
+        if isinstance(final_total, int) and available_kopeks < final_total:
+            missing_amount = final_total - available_kopeks
 
     renewal_autopay_payload = _build_autopay_payload(subscription)
     renewal_autopay_days_before = (
@@ -5404,8 +5408,10 @@ async def submit_subscription_renewal_endpoint(
 
     method = (payload.method or '').strip().lower()
 
-    balance_kopeks = getattr(user, 'balance_kopeks', 0)
-    missing_amount = calculate_missing_amount(balance_kopeks, final_total)
+    # Доступно к оплате: баллы тратятся раньше денег, поэтому и «хватает ли»,
+    # и «сколько не хватает» считаются по сумме кошельков.
+    available_kopeks = getattr(user, 'available_balance_kopeks', 0)
+    missing_amount = calculate_missing_amount(available_kopeks, final_total)
     description = f'Продление подписки на {period_days} дней'
 
     if missing_amount <= 0:
@@ -5446,8 +5452,8 @@ async def submit_subscription_renewal_endpoint(
         )
 
     if not method:
-        if final_total > 0 and balance_kopeks < final_total:
-            missing = final_total - balance_kopeks
+        if final_total > 0 and available_kopeks < final_total:
+            missing = final_total - available_kopeks
             raise HTTPException(
                 status.HTTP_402_PAYMENT_REQUIRED,
                 detail={
@@ -5876,7 +5882,7 @@ async def update_subscription_servers_endpoint(
         if catalog[uuid].get('server_id') is not None
     ]
 
-    if total_cost > 0 and getattr(user, 'balance_kopeks', 0) < total_cost:
+    if total_cost > 0 and getattr(user, 'available_balance_kopeks', 0) < total_cost:
         missing = total_cost - getattr(user, 'balance_kopeks', 0)
         raise HTTPException(
             status.HTTP_402_PAYMENT_REQUIRED,
@@ -6067,7 +6073,7 @@ async def update_subscription_traffic_endpoint(
 
     if price_difference_per_month > 0:
         total_price_difference = max(100, int(price_difference_per_month * days_remaining / 30))
-        if getattr(user, 'balance_kopeks', 0) < total_price_difference:
+        if getattr(user, 'available_balance_kopeks', 0) < total_price_difference:
             missing = total_price_difference - getattr(user, 'balance_kopeks', 0)
             raise HTTPException(
                 status.HTTP_402_PAYMENT_REQUIRED,
@@ -6257,7 +6263,7 @@ async def update_subscription_devices_endpoint(
             subscription.end_date,
         )
 
-    if price_to_charge > 0 and getattr(user, 'balance_kopeks', 0) < price_to_charge:
+    if price_to_charge > 0 and getattr(user, 'available_balance_kopeks', 0) < price_to_charge:
         missing = price_to_charge - getattr(user, 'balance_kopeks', 0)
         raise HTTPException(
             status.HTTP_402_PAYMENT_REQUIRED,
@@ -6703,7 +6709,7 @@ async def purchase_tariff_endpoint(
     discount_percent = group_pcts.get('period', 0)
 
     # Проверяем баланс (при 100% скидке — пропускаем)
-    if price_kopeks > 0 and user.balance_kopeks < price_kopeks:
+    if price_kopeks > 0 and user.available_balance_kopeks < price_kopeks:
         missing = price_kopeks - user.balance_kopeks
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -7110,7 +7116,7 @@ async def switch_tariff_endpoint(
 
     # Списываем доплату если апгрейд
     if upgrade_cost > 0:
-        if user.balance_kopeks < upgrade_cost:
+        if user.available_balance_kopeks < upgrade_cost:
             missing = upgrade_cost - user.balance_kopeks
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -7418,7 +7424,7 @@ async def purchase_traffic_topup_endpoint(
     )
 
     # Проверяем баланс (при 100% скидке — пропускаем)
-    if final_price > 0 and user.balance_kopeks < final_price:
+    if final_price > 0 and user.available_balance_kopeks < final_price:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail={
@@ -7580,7 +7586,7 @@ async def toggle_daily_subscription_pause_endpoint(
 
     # Если снимаем с паузы, проверяем баланс и списываем оплату
     if not new_paused_state:
-        if daily_price > 0 and user.balance_kopeks < daily_price:
+        if daily_price > 0 and user.available_balance_kopeks < daily_price:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail={
