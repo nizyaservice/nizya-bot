@@ -349,10 +349,12 @@ async def main():
             bot, dp = await setup_bot()
             stage.log('Кеш и FSM подготовлены')
 
-        bot_user = await bot.get_me()
-        if bot_user.username and not settings.BOT_USERNAME:
-            settings.BOT_USERNAME = bot_user.username
-            logger.info('BOT_USERNAME auto-detected', bot_username=bot_user.username)
+        # Username бота здесь не спрашиваем: его уже взял sync_bot_username()
+        # внутри setup_bot() — он же источник правды по токену и терпит сбой сети.
+        # Второй вызов get_me() был незащищённым, и одна сетевая заминка (таймаут
+        # 60 с к api.telegram.org) роняла весь старт: TelegramNetworkError летел
+        # из main() наружу, контейнер падал и перезапускался по кругу, пока сеть
+        # не вернётся.
 
         from app.utils.chat_menu_button import configure_chat_menu_button
 
