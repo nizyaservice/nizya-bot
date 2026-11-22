@@ -310,6 +310,12 @@ def create_unified_app(
             'path': settings.REMNAWAVE_WEBHOOK_PATH if remnawave_webhook_enabled else None,
         }
 
+        # Показатели доступности: по ним внешний наблюдатель отличает «бот
+        # молчит» от «бот отвечает медленно». Статуса страницы они не меняют —
+        # решение о тревоге принимает наблюдатель, а healthcheck контейнера
+        # должен падать только когда процесс действительно не отвечает.
+        from app.services.availability_monitor import availability_monitor
+
         return JSONResponse(
             {
                 'status': 'ok',
@@ -319,6 +325,7 @@ def create_unified_app(
                 'telegram_webhook': telegram_state,
                 'remnawave_webhook': remnawave_webhook_state,
                 'miniapp_static': miniapp_state,
+                'availability': availability_monitor.snapshot(),
             }
         )
 

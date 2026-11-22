@@ -146,6 +146,12 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
 
     dp = Dispatcher(storage=storage)
 
+    # Время обработки апдейта — первым в цепочке: человек ждёт всё целиком,
+    # включая остальные мидлвары. Числа читает внешний наблюдатель из /health.
+    from app.middlewares.update_timing import UpdateTimingMiddleware
+
+    dp.update.outer_middleware(UpdateTimingMiddleware())
+
     # Снимает метку `bc:` с кнопок рассылки и включает «экран новым
     # сообщением». Обязательно outer: правит callback_data до фильтров, иначе
     # помеченное нажатие не попало бы ни в один маршрут.

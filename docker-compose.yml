@@ -103,8 +103,34 @@ services:
       retries: 3
       start_period: 30s
 
+  # Наблюдатель доступности: отдельный процесс, поэтому падение, перезапуск и
+  # зависание бота его не касаются. Образ без сборки и без зависимостей —
+  # чистая стандартная библиотека, чинить и обновлять нечего.
+  # Чего он НЕ увидит: смерть самой ВПС или её сети — тогда молчат оба.
+  # Чем это закрыть, написано в watchdog/README.md.
+  watchdog:
+    image: python:3.14-alpine
+    container_name: remnawave_bot_watchdog
+    restart: unless-stopped
+    command: ['python', '-u', '/app/checker.py']
+    env_file:
+      - .env
+    environment:
+      TZ: 'Europe/Moscow'
+      WATCHDOG_HEALTH_URL: '${WATCHDOG_HEALTH_URL:-http://bot:8080/health}'
+      WATCHDOG_STATE_PATH: '/state/watchdog.json'
+    volumes:
+      - ./watchdog:/app:ro
+      - watchdog_state:/state:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - bot_network
+
 volumes:
   postgres18_data:
+    driver: local
+  watchdog_state:
     driver: local
   postgres_data:
     driver: local

@@ -46,6 +46,7 @@
 - `tests/`
 - `uv.lock` — файл
 - `vpn_logo.png` — файл
+- `watchdog/`
 
 ## .github
 
@@ -1480,6 +1481,9 @@
 - `app/middlewares/throttling.py` — Python-модуль
   Классы: `ThrottlingMiddleware` (3 методов)
   Функции: нет
+- `app/middlewares/update_timing.py` — Python-модуль
+  Классы: `UpdateTimingMiddleware` (1 методов)
+  Функции: нет
 
 ### app/services
 
@@ -1510,6 +1514,9 @@
 - `app/services/autopay_period.py` — Python-модуль
   Классы: нет
   Функции: `resolve_autopay_period_candidate` — Return ``candidate`` only if it is a valid renewal period for ``tariff``.
+- `app/services/availability_monitor.py` — Python-модуль
+  Классы: `AvailabilityMonitor` (6 методов)
+  Функции: нет
 - `app/services/backup_service.py` — Python-модуль
   Классы: `BackupMetadata`, `BackupSettings`, `BackupService` (54 методов)
   Функции: нет
@@ -3899,6 +3906,7 @@
   Классы: нет
   Функции: `test_group_gets_only_actions_and_all_of_them_pass_the_chat_filter`, `test_pending_offers_approve_and_reject_and_approved_offers_complete`, `test_admin_in_private_gets_profile_by_db_id_not_telegram_id`, `test_navigation_only_where_asked`, `test_moderator_and_outsider_get_nothing` — Одобрение — только для админа (@admin_required); модератору кнопки бы отвечали «нет доступа»., `admin_chat`, `test_cabinet_withdrawal_notification_carries_the_same_buttons`, `test_notification_without_request_id_stays_plain`
 - `tests/utils/`
+- `tests/watchdog_service/`
 - `tests/web_portal/`
 - `tests/webapi/`
 - `tests/webserver/`
@@ -6015,6 +6023,18 @@
   Классы: нет
   Функции: `test_validate_email_handles_expected_patterns` — Проверяем типичные корректные и некорректные адреса., `test_validate_phone_strips_formatting_and_checks_pattern` — Телефон должен соответствовать стандарту E.164 после очистки., `test_validate_telegram_username_enforces_length` — Telegram-логин должен быть 5-32 символов и содержать допустимые символы., `test_validate_amount_returns_float_within_bounds` — Числа должны конвертироваться с уважением к диапазону., `test_validate_positive_integer_enforces_upper_bound` — Положительное целое число выходит за пределы — возвращаем None., `test_validate_traffic_amount_supports_units` — Валидатор трафика распознаёт разные единицы измерения и особые значения., `test_validate_subscription_period_accepts_reasonable_range` — Диапазон допустимой длительности от 1 до 3650 дней., `test_validate_uuid_detects_standard_format` — UUID должен соответствовать HEX шаблону версии 4/5., `test_validate_url_recognises_https_links` — Валидатор URL допускает http/https ссылки и отклоняет произвольные строки., `test_validate_html_tags_rejects_unknown_tags` — Неизвестные HTML теги должны приводить к отказу., `test_validate_html_structure_detects_wrong_nesting` — Неправильная вложенность тегов должна сообщаться пользователю., `test_fix_html_tags_repairs_missing_quotes` — Автоисправление должно добавлять кавычки у ссылок., `test_validate_rules_content_detects_structure_error` — При нарушении структуры должны вернуться сообщение и отсутствие подсказки., `test_validate_rules_content_accepts_supported_markup` — Корректный HTML должен проходить проверку без сообщений.
 
+### tests/watchdog_service
+
+- `tests/watchdog_service/__init__.py` — Python-модуль
+  Классы: нет
+  Функции: нет
+- `tests/watchdog_service/test_availability_monitor.py` — Python-модуль
+  Классы: нет
+  Функции: `test_fresh_monitor_reports_no_contact_yet` — До первого успеха наблюдатель обязан видеть «контакта не было»., `test_successful_contact_resets_the_failure_streak`, `test_rejection_is_marked_apart_from_a_network_blip` — Неверный токен лечится не повторами, а руками — наблюдатель скажет иначе., `test_long_error_text_is_trimmed` — Текст ошибки уходит в JSON и в тревогу — простыня там не нужна., `test_p95_grows_with_slow_updates`, `test_old_measurements_leave_the_window` — Окно живёт минутами: вчерашние тормоза не должны держать тревогу., `test_canary_records_network_failure`, `test_canary_records_success_with_latency`, `test_canary_marks_rejection_without_retrying_it`, `test_metrics_are_wired_into_the_bot` — Без мидлвары и канарейки показатели всегда были бы пустыми.
+- `tests/watchdog_service/test_checker_decisions.py` — Python-модуль
+  Классы: нет
+  Функции: `test_healthy_bot_raises_nothing`, `test_single_slow_update_is_not_an_alarm` — Одно медленное нажатие — не повод тревожить: p95 считаем по выборке., `test_dead_health_endpoint_is_an_incident`, `test_stalled_path_to_telegram_is_caught_despite_healthy_endpoint` — Тот самый случай: процесс отвечает, а до Telegram не доходит., `test_contact_never_happened_counts_as_stalled` — После старта бот ещё не дотянулся до Telegram — это тоже сбой., `test_fresh_contact_just_under_the_threshold_is_fine`, `test_slow_processing_is_an_incident`, `test_telegram_rejection_is_reported_separately` — Неверный токен — не сетевая заминка: повторы его не лечат., `test_alert_names_the_culprit`, `test_unreachable_telegram_is_named_in_the_reason`, `test_recovery_reports_the_downtime`, `test_short_downtime_is_reported_in_seconds`
+
 ### tests/web_portal
 
 - `tests/web_portal/__init__.py` — Python-модуль
@@ -6134,3 +6154,13 @@
 - `tests/webserver/test_webhook_bg_tasks_drain.py` — Python-модуль
   Классы: нет
   Функции: `test_spawned_task_is_held_until_it_finishes` — Ссылка на задачу живёт, пока та работает, и снимается после., `test_drain_waits_for_unfinished_processing` — Дренаж не отпускает остановку, пока платёж дорабатывается., `test_drain_returns_immediately_without_tasks` — Пустой набор — выкат не задерживается., `test_drain_gives_up_by_timeout_and_shouts` — Застрявшая задача не держит выкат вечно, но и не уходит молча., `test_drain_is_registered_before_the_other_shutdowns` — Дренаж обязан идти раньше остановки telegram-процессора и БД., `test_webhook_acks_before_processing_finishes` — Ответ 200 уходит НЕ дожидаясь обработки платежа.
+
+## watchdog
+
+- `watchdog/README.md` — файл
+- `watchdog/__init__.py` — Python-модуль
+  Классы: нет
+  Функции: нет
+- `watchdog/checker.py` — Python-модуль
+  Классы: `Verdict`
+  Функции: `check` — Решение по одной проверке. Чистая функция — её и проверяют тесты., `describe_alert` — Текст тревоги: что случилось и чей это сбой., `describe_recovery`, `fetch_health` — Прочитать ``/health`` бота. ``None`` — не ответил или ответил мусором., `telegram_reachable` — Виден ли Telegram самому наблюдателю., `send_alert` — Отправить сообщение вторым ботом. ``False`` — не доставлено., `load_state`, `save_state`, `main`

@@ -195,6 +195,7 @@ async def main():
 
     web_app = None
     monitoring_task = None
+    canary_task = None
     maintenance_task = None
     version_check_task = None
     traffic_monitoring_task = None
@@ -695,6 +696,14 @@ async def main():
             monitoring_task = asyncio.create_task(monitoring_service.start_monitoring())
             stage.log(f'Интервал опроса: {settings.MONITORING_INTERVAL}с')
 
+            # Канарейка: раз в полминуты проверяет путь до Telegram той же
+            # сессией бота. Её показатели читает внешний наблюдатель — без них
+            # оборванный polling выглядит как полностью здоровый процесс.
+            from app.services.availability_monitor import CANARY_INTERVAL_SECONDS, availability_monitor
+
+            canary_task = asyncio.create_task(availability_monitor.run_canary(bot))
+            stage.log(f'Канарейка Telegram: раз в {CANARY_INTERVAL_SECONDS}с')
+
         async with timeline.stage(
             'Доступность из РФ (bschekbot)',
             '📶',
@@ -979,6 +988,10 @@ async def main():
             monitoring_service.stop_monitoring()
             monitoring_task.cancel()
             await asyncio.wait([monitoring_task])
+
+        if canary_task and not canary_task.done():
+            canary_task.cancel()
+            await asyncio.wait([canary_task])
 
         logger.info('ℹ️ Остановка обходчика мониторов DPI//CHECKER...')
         try:
