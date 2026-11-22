@@ -134,11 +134,30 @@ def describe_alert(verdict: Verdict, failures: int) -> str:
         if not verdict.telegram_reachable
         else 'Telegram с этой машины доступен — значит дело в боте или его хосте.'
     )
+    return f'🔴 <b>Бот недоступен</b>\n\nПричина: {verdict.reason}\nПлохих проверок подряд: {failures}\n\n{blame}'
+
+
+def describe_startup(verdict: Verdict, *, timestamp: str) -> str:
+    """Сообщение о запуске наблюдателя — в духе стартового сообщения бота.
+
+    Отправляется после первой проверки, а не до неё: так в одном сообщении и
+    параметры слежки, и реальное состояние бота на этот момент.
+    """
+    status = '✅ отвечает' if verdict.healthy else f'🔴 не отвечает — {verdict.reason}'
     return (
-        f'🔴 <b>Бот недоступен</b>\n\n'
-        f'Причина: {verdict.reason}\n'
-        f'Плохих проверок подряд: {failures}\n\n'
-        f'{blame}'
+        '🐤 <b>Наблюдатель доступности</b>\n'
+        '<i>Запущен и следит за ботом</i>\n'
+        '\n'
+        '<b>⚙️ Параметры</b>\n'
+        f'├ Проверка: раз в {INTERVAL_SECONDS} с\n'
+        f'├ Обрыв Telegram: дольше {TELEGRAM_STALE_SECONDS} с\n'
+        f'├ Медленно: p95 больше {SLOW_P95_MS} мс\n'
+        f'└ Тревога после: {FAILURES_BEFORE_ALERT} промахов подряд\n'
+        '\n'
+        '<b>🤖 Бот сейчас</b>\n'
+        f'└ {status}\n'
+        '\n'
+        f'<i>{timestamp}</i>'
     )
 
 
@@ -231,6 +250,12 @@ def main() -> int:
     incident_started_at = state.get('incident_started_at')
     last_reason = state.get('last_reason')
 
+    # Признак в памяти, а НЕ в файле состояния: каждый запуск наблюдателя должен
+    # о себе сообщить — в том числе после перезапуска контейнера и деплоя.
+    # Пока сообщение не доставлено (Telegram лёг вместе с хостом), пробуем снова
+    # на каждой проверке: иначе о поднявшемся наблюдателе никто не узнает.
+    startup_announced = False
+
     while True:
         health = fetch_health()
         verdict = check(health, telegram_reachable=True)
@@ -239,6 +264,14 @@ def main() -> int:
             # на здоровых проверках он не нужен. Вердикт пересчитываем — от
             # доступности Telegram зависит формулировка «чей это сбой».
             verdict = check(health, telegram_reachable=telegram_reachable())
+
+        if not startup_announced:
+            startup_announced = (
+                send_alert(describe_startup(verdict, timestamp=time.strftime('%d.%m.%Y %H:%M:%S')))
+                or not ALERTS_CONFIGURED
+            )
+            if not ALERTS_CONFIGURED:
+                print('[watchdog] запуск: сообщать некому, тревоги не настроены', flush=True)
 
         if verdict.healthy:
             if alerted:

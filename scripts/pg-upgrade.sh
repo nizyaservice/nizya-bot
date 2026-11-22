@@ -85,8 +85,15 @@ COMPOSE_CONFIG="$(docker compose config 2>/dev/null)" || die 'docker compose con
 PROJECT="$(printf '%s\n' "$COMPOSE_CONFIG" | sed -n 's/^name:[[:space:]]*//p' | head -n1 | tr -d "\"'")"
 [ -n "$PROJECT" ] || die 'Не удалось определить имя проекта docker compose.'
 
-printf '%s\n' "$COMPOSE_CONFIG" | grep -q "image: ${TARGET_IMAGE}" ||
-	die "В docker-compose.yml база не на ${TARGET_IMAGE}. Сначала обновите бота (git pull), потом запустите скрипт."
+# Сверяем подстроку средствами bash, без конвейера: `printf ... | grep -q` под
+# `pipefail` даёт ЛОЖНЫЙ отказ, когда вывод не влезает в буфер трубы. grep -q
+# выходит на первом совпадении, printf получает EPIPE, и статус конвейера
+# становится ненулевым — хотя образ найден. Вывод `docker compose config`
+# большой: он подставляет в сервисы весь .env целиком (а он у нас ~85 КБ).
+case "$COMPOSE_CONFIG" in
+*"image: ${TARGET_IMAGE}"*) ;;
+*) die "В docker-compose.yml база не на ${TARGET_IMAGE}. Сначала обновите бота (git pull), потом запустите скрипт." ;;
+esac
 
 # Том проекта по метке compose; если меток нет (том создан вручную) — по имени по умолчанию.
 volume_for() {

@@ -113,12 +113,22 @@ services:
     container_name: remnawave_bot_watchdog
     restart: unless-stopped
     command: ['python', '-u', '/app/checker.py']
-    env_file:
-      - .env
+    # Без env_file: наблюдателю нужны только свои переменные, а весь .env дал бы
+    # ему токен бота, пароль базы и доступы к панели — ни к чему. Значения
+    # compose подставляет из того же .env проекта.
     environment:
       TZ: 'Europe/Moscow'
       WATCHDOG_HEALTH_URL: '${WATCHDOG_HEALTH_URL:-http://bot:8080/health}'
       WATCHDOG_STATE_PATH: '/state/watchdog.json'
+      WATCHDOG_ALERT_BOT_TOKEN: '${WATCHDOG_ALERT_BOT_TOKEN:-}'
+      WATCHDOG_ALERT_CHAT_ID: '${WATCHDOG_ALERT_CHAT_ID:-}'
+      WATCHDOG_INTERVAL_SECONDS: '${WATCHDOG_INTERVAL_SECONDS:-60}'
+      WATCHDOG_FAILURES_BEFORE_ALERT: '${WATCHDOG_FAILURES_BEFORE_ALERT:-3}'
+      WATCHDOG_TELEGRAM_STALE_SECONDS: '${WATCHDOG_TELEGRAM_STALE_SECONDS:-180}'
+      WATCHDOG_SLOW_P95_MS: '${WATCHDOG_SLOW_P95_MS:-5000}'
+      WATCHDOG_SLOW_MIN_SAMPLES: '${WATCHDOG_SLOW_MIN_SAMPLES:-5}'
+      WATCHDOG_HEALTH_TIMEOUT_SECONDS: '${WATCHDOG_HEALTH_TIMEOUT_SECONDS:-10}'
+      WATCHDOG_TELEGRAM_TIMEOUT_SECONDS: '${WATCHDOG_TELEGRAM_TIMEOUT_SECONDS:-10}'
     volumes:
       - ./watchdog:/app:ro
       - watchdog_state:/state:rw
