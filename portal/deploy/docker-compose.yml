@@ -3,8 +3,10 @@
 services:
   portal:
     build:
-      context: ../..
-      dockerfile: portal/deploy/Dockerfile
+      # Контекст — каталог portal/, а не корень репозитория: там корневой
+      # .dockerignore исключает portal/ целиком (см. deploy/Dockerfile).
+      context: ..
+      dockerfile: deploy/Dockerfile
     restart: unless-stopped
     env_file: .env
     environment:

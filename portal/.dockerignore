@@ -1,0 +1,16 @@
+# Контекст сборки образа портала — этот каталог (portal/), см. deploy/docker-compose.yml.
+# Корневой .dockerignore репозитория сюда не относится: он описывает контекст
+# образа бота, где portal/ как раз исключён целиком.
+
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Обвязка деплоя в образе не нужна; из deploy/ берётся только requirements.txt
+# отдельным слоем — ради кеша pip. Главное здесь .env: оператор создаёт его
+# рядом с compose, и в образ его секреты попадать не должны.
+deploy/.env*
+deploy/*.md
+deploy/Caddyfile
+deploy/docker-compose.yml

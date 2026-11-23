@@ -3638,6 +3638,7 @@
 
 ## portal
 
+- `portal/.dockerignore` — файл
 - `portal/__init__.py` — Python-модуль
   Классы: нет
   Функции: нет
@@ -6049,6 +6050,9 @@
 - `tests/web_portal/test_balance_flow.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_balance_page_shows_amount_and_history`, `test_topup_form_lists_methods_from_the_bot`, `test_without_methods_the_page_says_so`, `test_amount_in_rubles_becomes_kopeks`, `test_fractional_amount_is_not_lost`, `test_amount_below_the_method_minimum_is_refused_before_the_provider`, `test_nonsense_amount_is_refused`, `test_unknown_method_is_refused`, `test_without_csrf_token_no_payment_is_created`, `test_bot_refusal_is_shown_on_the_form`, `test_return_page_asks_the_bot_instead_of_trusting_the_browser` — Заход на страницу возврата ничего не зачисляет — только спрашивает статус., `test_unconfirmed_payment_keeps_the_way_back_to_the_provider`, `test_provider_return_url_finds_the_payment_by_method` — Бот строит адрес возврата из CABINET_URL и знает только способ оплаты., `test_success_in_the_return_url_alone_proves_nothing` — status=success в адресе — слово из браузера, а не подтверждение оплаты., `test_return_without_a_known_payment_sends_to_the_balance`, `test_check_failure_is_explained`
+- `tests/web_portal/test_build_context.py` — Python-модуль
+  Классы: нет
+  Функции: `test_context_is_not_the_repo_root_while_it_hides_portal`, `test_every_copy_source_exists_inside_the_context`, `test_no_copy_source_is_excluded_by_dockerignore`, `test_operator_env_stays_out_of_the_image` — `.env` портала оператор создаёт рядом с compose, а COPY забирает весь каталог.
 - `tests/web_portal/test_cabinet_sections.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_subscription_link_is_shown`, `test_without_subscription_the_reason_is_explained`, `test_document_is_rendered_as_markup`, `test_unknown_document_is_a_page_not_a_crash`, `test_hidden_document_says_so`, `test_language_list_marks_the_current_one`, `test_language_choice_reaches_the_bot`, `test_language_without_csrf_token_does_nothing`, `test_referral_page_shows_code_and_totals`, `test_referral_page_survives_a_broken_list` — Список приглашённых — необязательная часть экрана., `test_referral_code_from_the_link_reaches_registration`, `test_junk_in_the_referral_parameter_is_dropped` — Код из адреса — чужой ввод: что не похоже на код, не передаём боту.

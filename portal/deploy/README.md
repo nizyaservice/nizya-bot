@@ -86,7 +86,7 @@ docker compose logs -f portal
 
 | Файл | Зачем |
 |---|---|
-| `Dockerfile` | образ портала; контекст сборки — корень репозитория, копируется только `portal/` |
+| `Dockerfile` | образ портала; контекст сборки — каталог `portal/` (в корне репозитория его прячет корневой `.dockerignore`) |
 | `docker-compose.yml` | портал + его Redis + Caddy |
 | `Caddyfile` | TLS, заголовки безопасности, проксирование на портал |
 | `requirements.txt` | версии как у бота |

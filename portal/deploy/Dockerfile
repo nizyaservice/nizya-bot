@@ -1,5 +1,11 @@
-# Образ портала. Контекст сборки — корень репозитория: копируем только пакет
-# portal/, кода бота тут не нужно (портал общается с ним по HTTP через туннель).
+# Образ портала. Контекст сборки — каталог portal/ (см. deploy/docker-compose.yml):
+# кода бота тут не нужно, портал общается с ним по HTTP через туннель.
+#
+# Контекстом был корень репозитория, но в нём действует корневой .dockerignore,
+# а он исключает portal/ целиком — чтобы портал не попадал в образ бота, который
+# делает `COPY . .`. Из-за этого каталог не доезжал до сборщика и `COPY portal/`
+# падал с «not found». Поэтому контекст сужен до самого portal/, а что не нужно
+# в образе, перечислено в portal/.dockerignore.
 FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,10 +13,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 
-COPY portal/deploy/requirements.txt ./requirements.txt
+COPY deploy/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY portal/ ./portal/
+COPY . ./portal/
 
 # Непривилегированный пользователь: портал смотрит в интернет через Caddy,
 # и рутом его гонять незачем.
