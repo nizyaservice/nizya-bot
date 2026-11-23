@@ -6056,6 +6056,9 @@
 - `tests/web_portal/test_cabinet_sections.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_subscription_link_is_shown`, `test_without_subscription_the_reason_is_explained`, `test_document_is_rendered_as_markup`, `test_unknown_document_is_a_page_not_a_crash`, `test_hidden_document_says_so`, `test_language_list_marks_the_current_one`, `test_language_choice_reaches_the_bot`, `test_language_without_csrf_token_does_nothing`, `test_referral_page_shows_code_and_totals`, `test_referral_page_survives_a_broken_list` — Список приглашённых — необязательная часть экрана., `test_referral_code_from_the_link_reaches_registration`, `test_junk_in_the_referral_parameter_is_dropped` — Код из адреса — чужой ввод: что не похоже на код, не передаём боту.
+- `tests/web_portal/test_caddy_config.py` — Python-модуль
+  Классы: нет
+  Функции: `test_caddy_gets_every_variable_its_config_expands`, `test_missing_domain_stops_compose_instead_of_caddy` — `:?` в значении — чтобы про незаполненный .env сказал compose, а не Caddy., `test_the_template_mentions_every_variable`
 - `tests/web_portal/test_devices.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_list_shows_own_name_and_falls_back_to_the_model`, `test_list_requires_login`, `test_list_without_subscription_is_a_page_not_an_error`, `test_empty_list_does_not_offer_the_reset`, `test_card_offers_the_rename_form`, `test_unknown_device_is_reported_as_gone`, `test_rename_sends_the_new_name`, `test_empty_name_clears_the_alias`, `test_rename_without_csrf_token_does_nothing`, `test_remove_asks_before_deleting`, `test_remove_with_csrf_token_deletes_the_device`, `test_remove_without_csrf_token_does_nothing`, `test_reset_all_asks_first`, `test_reset_all_with_csrf_token_deletes_everything`, `test_reset_all_without_csrf_token_does_nothing`

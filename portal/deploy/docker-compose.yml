@@ -31,6 +31,14 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # Домен нужен самому Caddy: Caddyfile разворачивает {$PORTAL_DOMAIN} из его
+    # окружения, а не из окружения портала. Без этой переменной подстановка даёт
+    # пустую строку, первая строка Caddyfile превращается в одинокую `{`, Caddy
+    # читает её как блок глобальных настроек и падает на «unrecognized global
+    # option: encode». `:?` — чтобы про незаполненный .env сказал compose, пока
+    # понятно, в чём дело.
+    environment:
+      PORTAL_DOMAIN: '${PORTAL_DOMAIN:?не задан в portal/deploy/.env}'
     ports:
       - '80:80'
       - '443:443'
