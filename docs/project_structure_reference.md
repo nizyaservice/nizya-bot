@@ -382,6 +382,9 @@
 - `app/cabinet/routes/promocode.py` — Python-модуль
   Классы: `PromocodeActivateRequest`, `PromocodeActivateResponse`, `PromocodeDeactivateResponse`
   Функции: `activate_promocode` — Activate a promo code for the current user., `deactivate_discount_promocode` — Deactivate the currently active discount promo code for the current user.
+- `app/cabinet/routes/public_catalog.py` — Python-модуль
+  Классы: нет
+  Функции: `public_tariffs` — Базовый прайс-лист: тарифы без ограничений по промогруппам., `public_server_status` — Доступность узлов по метрикам Xray.
 - `app/cabinet/routes/referral.py` — Python-модуль
   Классы: нет
   Функции: `get_referral_info` — Get referral program info for current user., `get_referral_list` — Get list of invited users., `get_referral_earnings` — Get referral earnings history., `update_reward_choice` — Сохранить, что получать и куда класть дни., `get_referral_terms` — Get referral program terms.
@@ -3643,15 +3646,15 @@
   Классы: нет
   Функции: нет
 - `portal/api.py` — Python-модуль
-  Классы: `CabinetApiError` (1 методов), `CabinetUnavailableError` (1 методов), `CabinetApi` (35 методов)
+  Классы: `CabinetApiError` (1 методов), `CabinetUnavailableError` (1 методов), `CabinetApi` (30 методов)
   Функции: `build_client` — Клиент к боту: один на процесс, создаётся в lifespan приложения.
 - `portal/config.py` — Python-модуль
   Классы: `PortalSettings`
   Функции: `get_settings` — Настройки одним экземпляром на процесс.
 - `portal/deploy/`
 - `portal/deps.py` — Python-модуль
-  Классы: `LoginRequiredError`, `SessionExpiredError`, `CsrfError`
-  Функции: `get_api`, `get_store`, `get_portal_settings`, `get_session` — Сессия по cookie; ``None`` — не вошёл., `require_session`, `with_fresh_token` — Выполнить запрос с токеном сессии, обновив его при 401 — один раз., `check_csrf` — Сверить токен формы с токеном сессии.
+  Классы: `LoginRequiredError` (2 методов), `SessionExpiredError`, `CsrfError`
+  Функции: `safe_next` — Адрес возврата, если он ведёт на сам портал., `current_path` — Путь текущего запроса вместе со строкой параметров., `get_api`, `get_store`, `get_portal_settings`, `get_session` — Сессия по cookie; ``None`` — не вошёл., `session_of` — Сессия, уже найденная зависимостью этого запроса., `require_session`, `with_fresh_token` — Выполнить запрос с токеном сессии, обновив его при 401 — один раз., `check_csrf` — Сверить токен формы с токеном сессии.
 - `portal/main.py` — Python-модуль
   Классы: нет
   Функции: `lifespan`, `create_app`
@@ -3663,7 +3666,8 @@
 - `portal/templates/`
 - `portal/templating.py` — Python-модуль
   Классы: нет
-  Функции: `format_moment` — Дата из API (ISO-строка) в привычном виде., `status_label`, `render` — Отрендерить страницу с общим контекстом.
+  Функции: `format_moment` — Дата из API (ISO-строка) в привычном виде., `status_label`, `status_tone`, `rubles` — Копейки в рубли с неразрывными пробелами в разрядах., `spendable` — Сколько человек может заплатить, в копейках., `fill_class` — Класс ширины полосы: доля в процентах, округлённая до 5., `period_label` — Короткая подпись срока для переключателя: «30 дн» длиннее, чем «1 мес»., `plural` — Русское склонение после числа: 1 день, 2 дня, 5 дней., `render` — Отрендерить страницу с общим контекстом.
+- `portal/tools/`
 
 ### portal/deploy
 
@@ -3686,57 +3690,90 @@
 - `portal/routes/balance.py` — Python-модуль
   Классы: нет
   Функции: `balance_page`, `topup_form`, `topup_start`, `topup_result` — Возврат от платёжной системы., `payment_status` — Экран возврата с оплаты: спрашиваем провайдера, что с платежом.
-- `portal/routes/cabinet.py` — Python-модуль
-  Классы: нет
-  Функции: `connect` — Ссылка подписки — то, что человек вставляет в приложение., `document`, `language_form`, `language_change`, `referral`
 - `portal/routes/devices.py` — Python-модуль
   Классы: нет
   Функции: `device_list`, `device_card` — Карточка одного устройства: переименование и удаление., `device_rename`, `device_remove_confirm`, `device_remove`, `devices_reset_confirm`, `devices_reset`
+- `portal/routes/documents.py` — Python-модуль
+  Классы: нет
+  Функции: `document`
 - `portal/routes/pages.py` — Python-модуль
   Классы: нет
-  Функции: `home`, `healthz` — Проверка живости для Caddy и docker healthcheck.
+  Функции: `landing` — Витрина. Вошедшему здесь делать нечего — он идёт в кабинет., `dashboard`, `healthz` — Проверка живости для Caddy и docker healthcheck., `available_balance` — Сумма, которой человек может заплатить: деньги плюс бонусные баллы., `remember_available` — Положить в сессию сумму, доступную к оплате, — её показывает шапка.
 - `portal/routes/promocode.py` — Python-модуль
   Классы: нет
   Функции: `promocode_form`, `promocode_activate`
-- `portal/routes/support.py` — Python-модуль
+- `portal/routes/referral.py` — Python-модуль
   Классы: нет
-  Функции: `support_page`, `support_create`, `ticket_page`, `ticket_reply`
+  Функции: `referral`
+- `portal/routes/status.py` — Python-модуль
+  Классы: нет
+  Функции: `server_status`
 - `portal/routes/tariffs.py` — Python-модуль
   Классы: нет
-  Функции: `tariff_catalog`, `tariff_confirm`, `tariff_buy`
+  Функции: `tariff_catalog` — Каталог: вошедшему — с его ценами, остальным — базовые., `tariff_confirm`, `tariff_buy`
 
 ### portal/static
 
+- `portal/static/img/`
 - `portal/static/portal.css` — файл
+- `portal/static/portal.js` — файл
+
+#### portal/static/img
+
+- `portal/static/img/apple-touch-icon.png` — файл
+- `portal/static/img/favicon.svg` — файл
+- `portal/static/img/logo.svg` — файл
+- `portal/static/img/mascot/`
+
+##### portal/static/img/mascot
+
+- `portal/static/img/mascot/balance.webp` — файл
+- `portal/static/img/mascot/devices.webp` — файл
+- `portal/static/img/mascot/hero.webp` — файл
+- `portal/static/img/mascot/login.webp` — файл
+- `portal/static/img/mascot/oops.webp` — файл
+- `portal/static/img/mascot/paid.webp` — файл
+- `portal/static/img/mascot/promocode.webp` — файл
+- `portal/static/img/mascot/purchased.webp` — файл
+- `portal/static/img/mascot/referral.webp` — файл
+- `portal/static/img/mascot/status.webp` — файл
+- `portal/static/img/mascot/subscription.webp` — файл
+- `portal/static/img/mascot/tariffs.webp` — файл
 
 ### portal/templates
 
+- `portal/templates/_icons.html` — файл
+- `portal/templates/_parts.html` — файл
 - `portal/templates/balance.html` — файл
 - `portal/templates/balance_pay.html` — файл
 - `portal/templates/balance_status.html` — файл
 - `portal/templates/balance_topup.html` — файл
 - `portal/templates/base.html` — файл
-- `portal/templates/connect.html` — файл
+- `portal/templates/dashboard.html` — файл
 - `portal/templates/device_card.html` — файл
 - `portal/templates/device_remove.html` — файл
 - `portal/templates/devices.html` — файл
 - `portal/templates/devices_reset.html` — файл
 - `portal/templates/document.html` — файл
 - `portal/templates/error.html` — файл
-- `portal/templates/home.html` — файл
-- `portal/templates/language.html` — файл
+- `portal/templates/landing.html` — файл
 - `portal/templates/login.html` — файл
 - `portal/templates/login_code.html` — файл
 - `portal/templates/promocode.html` — файл
 - `portal/templates/promocode_done.html` — файл
 - `portal/templates/referral.html` — файл
-- `portal/templates/support.html` — файл
+- `portal/templates/status.html` — файл
 - `portal/templates/tariff_confirm.html` — файл
 - `portal/templates/tariff_done.html` — файл
 - `portal/templates/tariff_no_money.html` — файл
 - `portal/templates/tariffs.html` — файл
 - `portal/templates/tariffs_unavailable.html` — файл
-- `portal/templates/ticket.html` — файл
+
+### portal/tools
+
+- `portal/tools/extract_mascots.py` — Python-модуль
+  Классы: нет
+  Функции: `content_box` — Рамка рисунка: всё, что заметно светлее или цветнее фона., `levelled` — Сдвинуть фон кадра ровно в цвет страницы., `feathered` — Прозрачность, линейно гаснущая к краям кадра., `extract`, `main`
 
 ## scripts
 
@@ -6046,40 +6083,40 @@
   Функции: `fake_redis`, `store`, `portal_app` — Приложение портала с подменёнными хранилищем и клиентом API., `api_from_handler` — Клиент к боту, отвечающий переданной функцией (httpx.MockTransport).
 - `tests/web_portal/test_api_client.py` — Python-модуль
   Классы: нет
-  Функции: `test_request_goes_to_the_cabinet_prefix`, `test_token_is_sent_as_bearer`, `test_unauthenticated_calls_send_no_token`, `test_error_detail_reaches_the_page`, `test_validation_error_detail_is_unwrapped` — FastAPI отдаёт 422 списком объектов — человеку нужен msg, а не структура., `test_non_json_error_does_not_crash_the_client`, `test_dead_tunnel_is_not_a_bot_error` — Разница существенная: туннель лёг — заглушка; бот отказал — текст ошибки., `test_empty_body_is_not_parsed_as_json` — Выход из кабинета отвечает пустым телом — это не повод падать., `test_consent_documents_are_passed_only_when_present`
+  Функции: `test_request_goes_to_the_cabinet_prefix`, `test_token_is_sent_as_bearer`, `test_unauthenticated_calls_send_no_token`, `test_error_detail_reaches_the_page`, `test_validation_error_detail_is_unwrapped` — FastAPI отдаёт 422 списком объектов — человеку нужен msg, а не структура., `test_non_json_error_does_not_crash_the_client`, `test_dead_tunnel_is_not_a_bot_error` — Разница существенная: туннель лёг — заглушка; бот отказал — текст ошибки., `test_empty_body_is_not_parsed_as_json` — Выход из кабинета отвечает пустым телом — это не повод падать., `test_consent_documents_are_passed_only_when_present`, `test_the_shop_window_asks_the_public_handles_without_a_token` — Витрина не передаёт токен — иначе цены зависели бы от того, кто смотрит.
 - `tests/web_portal/test_balance_flow.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_balance_page_shows_amount_and_history`, `test_topup_form_lists_methods_from_the_bot`, `test_without_methods_the_page_says_so`, `test_amount_in_rubles_becomes_kopeks`, `test_fractional_amount_is_not_lost`, `test_amount_below_the_method_minimum_is_refused_before_the_provider`, `test_nonsense_amount_is_refused`, `test_unknown_method_is_refused`, `test_without_csrf_token_no_payment_is_created`, `test_bot_refusal_is_shown_on_the_form`, `test_return_page_asks_the_bot_instead_of_trusting_the_browser` — Заход на страницу возврата ничего не зачисляет — только спрашивает статус., `test_unconfirmed_payment_keeps_the_way_back_to_the_provider`, `test_provider_return_url_finds_the_payment_by_method` — Бот строит адрес возврата из CABINET_URL и знает только способ оплаты., `test_success_in_the_return_url_alone_proves_nothing` — status=success в адресе — слово из браузера, а не подтверждение оплаты., `test_return_without_a_known_payment_sends_to_the_balance`, `test_check_failure_is_explained`
 - `tests/web_portal/test_build_context.py` — Python-модуль
   Классы: нет
   Функции: `test_context_is_not_the_repo_root_while_it_hides_portal`, `test_every_copy_source_exists_inside_the_context`, `test_no_copy_source_is_excluded_by_dockerignore`, `test_operator_env_stays_out_of_the_image` — `.env` портала оператор создаёт рядом с compose, а COPY забирает весь каталог.
-- `tests/web_portal/test_cabinet_sections.py` — Python-модуль
-  Классы: `Bot` (3 методов)
-  Функции: `bot`, `logged_in`, `client`, `test_subscription_link_is_shown`, `test_without_subscription_the_reason_is_explained`, `test_document_is_rendered_as_markup`, `test_unknown_document_is_a_page_not_a_crash`, `test_hidden_document_says_so`, `test_language_list_marks_the_current_one`, `test_language_choice_reaches_the_bot`, `test_language_without_csrf_token_does_nothing`, `test_referral_page_shows_code_and_totals`, `test_referral_page_survives_a_broken_list` — Список приглашённых — необязательная часть экрана., `test_referral_code_from_the_link_reaches_registration`, `test_junk_in_the_referral_parameter_is_dropped` — Код из адреса — чужой ввод: что не похоже на код, не передаём боту.
 - `tests/web_portal/test_caddy_config.py` — Python-модуль
   Классы: нет
   Функции: `test_caddy_gets_every_variable_its_config_expands`, `test_missing_domain_stops_compose_instead_of_caddy` — `:?` в значении — чтобы про незаполненный .env сказал compose, а не Caddy., `test_the_template_mentions_every_variable`
+- `tests/web_portal/test_dashboard.py` — Python-модуль
+  Классы: нет
+  Функции: `client`, `test_subscription_fields_reach_the_page`, `test_the_header_shows_what_can_actually_be_spent` — 750 ₽ — деньги плюс баллы; 500 ₽ был бы денежный кошелёк., `test_connection_link_is_offered_when_there_is_a_subscription`, `test_without_a_subscription_the_page_offers_tariffs`, `test_a_failing_block_does_not_break_the_page` — Баланс не пришёл — подписка всё равно на экране., `test_moment_keeps_unparsable_values_visible`, `test_unknown_status_is_shown_as_is`, `test_kopeks_become_readable_rubles`, `test_bar_width_is_a_class_because_inline_styles_are_forbidden`, `test_period_is_shortened_for_the_switcher`
 - `tests/web_portal/test_devices.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_list_shows_own_name_and_falls_back_to_the_model`, `test_list_requires_login`, `test_list_without_subscription_is_a_page_not_an_error`, `test_empty_list_does_not_offer_the_reset`, `test_card_offers_the_rename_form`, `test_unknown_device_is_reported_as_gone`, `test_rename_sends_the_new_name`, `test_empty_name_clears_the_alias`, `test_rename_without_csrf_token_does_nothing`, `test_remove_asks_before_deleting`, `test_remove_with_csrf_token_deletes_the_device`, `test_remove_without_csrf_token_does_nothing`, `test_reset_all_asks_first`, `test_reset_all_with_csrf_token_deletes_everything`, `test_reset_all_without_csrf_token_does_nothing`
-- `tests/web_portal/test_home_page.py` — Python-модуль
-  Классы: нет
-  Функции: `client`, `test_subscription_fields_reach_the_page`, `test_balance_is_shown_in_rubles`, `test_a_failing_block_does_not_break_the_page` — Баланс не пришёл — подписка всё равно на экране., `test_moment_keeps_unparsable_values_visible`, `test_unknown_status_is_shown_as_is`
+- `tests/web_portal/test_documents_and_referral.py` — Python-модуль
+  Классы: `Bot` (3 методов)
+  Функции: `bot`, `logged_in`, `client`, `test_document_is_rendered_as_markup`, `test_unknown_document_is_a_page_not_a_crash`, `test_hidden_document_says_so`, `test_documents_open_without_a_session` — Оферту читают до покупки — и платёжный провайдер, у которого аккаунта нет., `test_referral_page_shows_code_and_totals`, `test_referral_page_survives_a_broken_list` — Список приглашённых — необязательная часть экрана., `test_referral_code_from_the_link_reaches_registration`, `test_junk_in_the_referral_parameter_is_dropped` — Код из адреса — чужой ввод: что не похоже на код, не передаём боту.
 - `tests/web_portal/test_login_flow.py` — Python-модуль
   Классы: нет
-  Функции: `client`, `test_login_page_opens`, `test_requesting_a_code_shows_the_code_screen`, `test_empty_email_is_refused_without_calling_the_bot`, `test_bot_refusal_is_shown_to_the_person`, `test_correct_code_opens_a_session`, `test_wrong_code_keeps_the_person_on_the_code_screen`, `test_consent_is_asked_once_and_then_submitted` — Бот отвечает 428, пока не присланы галочки, — портал их и рисует., `test_home_requires_login`, `test_home_opens_with_a_session`, `test_logout_without_csrf_token_does_nothing`, `test_logout_with_csrf_token_closes_the_session`, `test_logout_with_a_foreign_csrf_token_does_nothing` — Токен с не-ASCII символами — отказ, а не пятисотка: ``compare_digest``, `test_healthz_does_not_need_the_bot` — Проверка живости не должна падать вместе с туннелем до бота., `await_session` — Синхронная обёртка: тесты страниц синхронные, а хранилище асинхронное.
+  Функции: `client`, `test_login_page_opens`, `test_requesting_a_code_shows_the_code_screen`, `test_empty_email_is_refused_without_calling_the_bot`, `test_bot_refusal_is_shown_to_the_person`, `test_correct_code_opens_a_session`, `test_wrong_code_keeps_the_person_on_the_code_screen`, `test_consent_is_asked_once_and_then_submitted` — Бот отвечает 428, пока не присланы галочки, — портал их и рисует., `test_cabinet_requires_login`, `test_the_shop_window_is_open_without_a_session` — Витрина не просит входа: цену смотрят до регистрации., `test_after_login_the_person_lands_where_they_were_going` — Адрес возврата доезжает от гейта до формы и дальше в редирект., `test_a_foreign_address_is_not_a_place_to_return_to` — `//evil.example` браузер читает как чужой сайт — такой возврат отбрасываем., `test_a_logged_in_person_is_sent_to_the_cabinet`, `test_cabinet_opens_with_a_session`, `test_logout_without_csrf_token_does_nothing`, `test_logout_with_csrf_token_closes_the_session`, `test_logout_with_a_foreign_csrf_token_does_nothing` — Токен с не-ASCII символами — отказ, а не пятисотка: ``compare_digest``, `test_healthz_does_not_need_the_bot` — Проверка живости не должна падать вместе с туннелем до бота., `await_session` — Синхронная обёртка: тесты страниц синхронные, а хранилище асинхронное.
 - `tests/web_portal/test_promocode.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `logged_in`, `test_form_opens`, `test_code_reaches_the_bot_and_the_bonus_is_shown`, `test_empty_code_is_refused_without_calling_the_bot`, `test_without_csrf_token_nothing_is_activated`, `test_known_refusal_is_shown_in_russian`, `test_unknown_refusal_code_falls_back_to_a_readable_text`, `test_choice_of_subscription_is_explained` — Бот отвечает 200 с success=false, когда подписок несколько.
+- `tests/web_portal/test_public_pages.py` — Python-модуль
+  Классы: `Bot` (2 методов)
+  Функции: `anonymous`, `test_the_shop_window_shows_prices_without_an_account`, `test_the_shop_window_survives_a_silent_bot` — Каталог и статус не пришли — страница всё равно открывается., `test_a_down_server_is_not_hidden_from_the_shop_window`, `test_status_page_lists_servers_without_a_session`, `test_unreachable_metrics_do_not_look_like_an_outage` — Метрики молчат — это «данных нет», а не «всё легло»., `test_disabled_integration_says_nothing_about_servers`, `test_personal_sections_send_the_person_to_login`, `test_an_error_page_keeps_the_person_logged_in` — Шапка на странице ошибки — как везде: иначе человек решит, что его выкинуло.
 - `tests/web_portal/test_purchase_flow.py` — Python-модуль
   Классы: `Bot` (3 методов)
-  Функции: `bot`, `logged_in` — Фабрика: подставить двойника бота и войти на портал по коду., `client`, `test_catalog_shows_tariffs_with_bot_prices` — Подписи цен берутся у бота: портал не пересчитывает копейки сам., `test_catalog_requires_login`, `test_tariffs_the_portal_cannot_sell_are_hidden_with_a_note` — Суточный тариф и тариф без готовых сроков оформляются только в боте., `test_purchased_tariff_is_not_offered_again`, `test_classic_sales_mode_says_so_instead_of_half_a_funnel`, `test_confirmation_shows_the_price_and_does_not_charge`, `test_confirmation_of_a_vanished_period_is_refused`, `test_confirmation_without_money_offers_no_payment_button`, `test_purchase_passes_the_choice_to_the_bot`, `test_purchase_without_csrf_token_does_not_charge`, `test_purchase_with_a_foreign_csrf_token_does_not_charge`, `test_insufficient_funds_is_shown_as_the_bot_worded_it`, `test_bot_refusal_is_shown_without_a_stacktrace`
+  Функции: `bot`, `logged_in` — Фабрика: подставить двойника бота и войти на портал по коду., `client`, `test_catalog_shows_tariffs_with_bot_prices` — Подписи цен берутся у бота: портал не пересчитывает копейки сам., `test_catalog_opens_without_a_session` — Цену человек смотрит до регистрации — иначе он просто уйдёт., `test_buying_requires_login_and_comes_back_to_the_chosen_tariff`, `test_the_switcher_chooses_which_period_is_priced` — ?days= выбирает срок, и карточка показывает цену именно этого срока., `test_tariffs_the_portal_cannot_sell_are_hidden_with_a_note` — Суточный тариф и тариф без готовых сроков оформляются только в боте., `test_purchased_tariff_is_not_offered_again`, `test_classic_sales_mode_says_so_instead_of_half_a_funnel`, `test_confirmation_shows_the_price_and_does_not_charge`, `test_confirmation_of_a_vanished_period_is_refused`, `test_confirmation_without_money_offers_no_payment_button`, `test_bonus_points_count_towards_the_price` — Денег 10 ₽, баллов 290 ₽ — покупка за 299 ₽ возможна., `test_purchase_passes_the_choice_to_the_bot`, `test_purchase_without_csrf_token_does_not_charge`, `test_purchase_with_a_foreign_csrf_token_does_not_charge`, `test_insufficient_funds_is_shown_as_the_bot_worded_it`, `test_bot_refusal_is_shown_without_a_stacktrace`
 - `tests/web_portal/test_sessions.py` — Python-модуль
   Классы: нет
   Функции: `test_created_session_has_unpredictable_id`, `test_tokens_live_in_storage_not_in_the_identifier`, `test_session_round_trip`, `test_each_session_gets_its_own_csrf_token`, `test_missing_and_empty_identifiers_are_no_session`, `test_deleted_session_is_gone`, `test_broken_record_is_discarded_instead_of_crashing` — Мусор в Redis (чужой ключ, обрезанный JSON) не должен ронять страницу., `test_record_without_tokens_is_discarded`, `test_session_expires_with_the_refresh_token` — Держать сессию дольше refresh-токена нечем: он и есть её срок жизни., `test_saving_updates_tokens_in_place`
-- `tests/web_portal/test_support.py` — Python-модуль
-  Классы: `Bot` (3 методов)
-  Функции: `bot`, `logged_in`, `client`, `test_tickets_are_listed`, `test_disabled_tickets_show_where_to_write`, `test_tickets_switched_off_between_requests_is_not_an_error` — Настройку поменяли между двумя запросами — ведём себя как при выключенных., `test_ticket_is_created_and_opens`, `test_short_title_is_refused_without_calling_the_bot`, `test_empty_message_is_refused`, `test_without_csrf_token_no_ticket_is_created`, `test_conversation_is_shown`, `test_reply_reaches_the_bot`, `test_reply_without_csrf_token_is_not_sent`, `test_closed_ticket_offers_no_reply_form`, `test_unavailable_ticket_is_a_page`
 - `tests/web_portal/test_token_refresh.py` — Python-модуль
   Классы: нет
   Функции: `test_fresh_token_passes_through`, `test_expired_token_is_refreshed_once_and_the_call_repeats`, `test_rotation_is_optional` — Если бот не прислал новый refresh-токен — остаётся прежний, не пустой., `test_dead_refresh_token_closes_the_session`, `test_other_errors_are_not_treated_as_expiry` — 403 или 500 обновлением токена не лечатся — пробрасываем как есть., `test_second_401_does_not_loop` — Свежий токен тоже получил 401 — отдаём ошибку, а не крутим обновления., `test_csrf_token_must_match`

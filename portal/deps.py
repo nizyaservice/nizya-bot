@@ -3,6 +3,12 @@
 Тут же обновление access-токена: он живёт 15 минут, а страницы портала
 открывают неделями. При 401 портал один раз обменивает refresh-токен и
 повторяет запрос; если и это не вышло — сессия мертва, человека ведём на вход.
+
+Сюда же относится правило «смотреть можно, покупать — после входа»: витрина
+(тарифы, статус серверов, документы) открыта всем, а всё остальное требует
+сессии. Страница, которой не хватило сессии, бросает ``LoginRequiredError`` с
+адресом, куда человек шёл, — после входа его возвращают именно туда, а не на
+главную, иначе он заново ищет тариф, который уже выбрал.
 """
 
 from __future__ import annotations
@@ -10,6 +16,7 @@ from __future__ import annotations
 import hmac
 from collections.abc import Awaitable, Callable
 from typing import Any
+from urllib.parse import quote
 
 import structlog
 from fastapi import Depends, Request
@@ -25,9 +32,41 @@ logger = structlog.get_logger(__name__)
 class LoginRequiredError(Exception):
     """Страница требует входа. Обработчик приложения ведёт на /login."""
 
+    def __init__(self, next_path: str | None = None) -> None:
+        super().__init__('login required')
+        #: Куда вернуть человека после входа; None — на главную кабинета.
+        self.next_path = next_path
+
+    def login_url(self) -> str:
+        if not self.next_path:
+            return '/login'
+        return f'/login?next={quote(self.next_path, safe="")}'
+
 
 class SessionExpiredError(LoginRequiredError):
     """Refresh-токен не принят: сессию удалили или ей больше недели."""
+
+
+def safe_next(candidate: str | None) -> str | None:
+    """Адрес возврата, если он ведёт на сам портал.
+
+    Принимаем только путь от корня. ``//`` и ``/\\`` браузер читает как
+    адрес другого сайта — через такой «возврат» чужая страница увела бы
+    человека к себе сразу после успешного входа.
+    """
+    if not candidate or not candidate.startswith('/'):
+        return None
+    if candidate.startswith(('//', '/\\')):
+        return None
+    if any(symbol in candidate for symbol in ('\r', '\n', '\t')):
+        return None
+    return candidate
+
+
+def current_path(request: Request) -> str:
+    """Путь текущего запроса вместе со строкой параметров."""
+    query = request.url.query
+    return f'{request.url.path}?{query}' if query else request.url.path
 
 
 def get_api(request: Request) -> CabinetApi:
@@ -47,13 +86,30 @@ async def get_session(
     store: SessionStore = Depends(get_store),
     settings: PortalSettings = Depends(get_portal_settings),
 ) -> Session | None:
-    """Сессия по cookie; ``None`` — не вошёл."""
-    return await store.get(request.cookies.get(settings.session_cookie))
+    """Сессия по cookie; ``None`` — не вошёл.
+
+    Найденную сессию кладём ещё и на сам запрос: обработчики исключений
+    (страница ошибки, протухшая форма) живут вне зависимостей, а шапку
+    рисовать надо — иначе вошедший человек увидит на странице ошибки кнопку
+    «Войти» и решит, что его выкинуло.
+    """
+    session = await store.get(request.cookies.get(settings.session_cookie))
+    request.state.session = session
+    return session
 
 
-async def require_session(session: Session | None = Depends(get_session)) -> Session:
+def session_of(request: Request) -> Session | None:
+    """Сессия, уже найденная зависимостью этого запроса.
+
+    ``None`` и тогда, когда до зависимостей дело не дошло — например, когда
+    ни один маршрут не совпал и страница сразу стала 404.
+    """
+    return getattr(request.state, 'session', None)
+
+
+async def require_session(request: Request, session: Session | None = Depends(get_session)) -> Session:
     if session is None:
-        raise LoginRequiredError
+        raise LoginRequiredError(next_path=current_path(request))
     return session
 
 

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% block title %}{{ brand_name }} — {{ brand_tagline }}{% endblock %}
+{% block page_class %}page--wide{% endblock %}
+
+{% block content %}
+<div class="stack stack--lg">
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">{{ brand_tagline }}</div>
+      <h1>Интернет <em>без «низя»</em> — на всех ваших устройствах</h1>
+      <p class="hero__lead">
+        Подписка оформляется за минуту прямо в браузере: выбираете тариф, платите
+        с баланса и подключаете устройства. Телеграм для этого не нужен.
+      </p>
+
+      <div class="hero__actions">
+        <a class="btn" href="/tariffs">Выбрать тариф</a>
+        <a class="btn btn--ghost" href="/login">Войти по почте</a>
+      </div>
+
+      <div class="hero__points">
+        <span>{{ i.icon('check') }} Без паролей — код на почту</span>
+        <span>{{ i.icon('check') }} Оплата картой и СБП</span>
+        <span>{{ i.icon('check') }} Отмена в один клик</span>
+      </div>
+    </div>
+
+    <img class="hero__art" src="/static/img/mascot/hero.webp" alt="" width="660" height="419" fetchpriority="high">
+  </section>
+
+  {% if status %}
+    {# Строка о серверах на витрине — не украшение: человек видит, что сервис
+       живой, до того как отдаст деньги. Цифры публичные, те же, что в боте. #}
+    <section class="card card--flat">
+      <div class="status-summary">
+        <span class="badge {{ 'badge--ok' if status.offline == 0 else 'badge--warn' }}">
+          <span class="dot"></span>
+          {% if status.offline == 0 %}Все серверы в сети{% else %}{{ status.offline }} из {{ status.total }} вне сети{% endif %}
+        </span>
+        <span class="muted small">{{ status.online }} {{ status.online|plural('сервер', 'сервера', 'серверов') }} принимают подключения прямо сейчас</span>
+        <a class="small" href="/status">Подробный статус {{ i.icon('chevron') }}</a>
+      </div>
+    </section>
+  {% endif %}
+
+  <section>
+    <div class="section-head">
+      <h2>Что входит в подписку</h2>
+      <p>Один аккаунт, сколько угодно устройств в пределах тарифа и никаких ограничений по скорости.</p>
+    </div>
+
+    <div class="grid grid--3">
+      <article class="feature">
+        <div class="feature__icon">{{ i.icon('bolt') }}</div>
+        <h3>Скорость без потолка</h3>
+        <p>Полоса не режется искусственно: ограничен только объём трафика, и то не во всех тарифах.</p>
+      </article>
+
+      <article class="feature feature--lime">
+        <div class="feature__icon">{{ i.icon('devices') }}</div>
+        <h3>Все устройства сразу</h3>
+        <p>Телефон, ноутбук, планшет, телевизор. Устройства видно в кабинете, лишнее отключается в один тап.</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature__icon">{{ i.icon('globe') }}</div>
+        <h3>Несколько стран</h3>
+        <p>Локации входят в тариф — переключаетесь в приложении, доплачивать за страну не нужно.</p>
+      </article>
+
+      <article class="feature feature--lime">
+        <div class="feature__icon">{{ i.icon('lock') }}</div>
+        <h3>Пароля нет вовсе</h3>
+        <p>Вход по коду из письма. Нечего подобрать, нечего украсть и незачем придумывать ещё один пароль.</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature__icon">{{ i.icon('refresh') }}</div>
+        <h3>Продление когда удобно</h3>
+        <p>Срок продлевается с баланса. Автосписаний без вашего ведома нет — платите, когда решите.</p>
+      </article>
+
+      <article class="feature feature--lime">
+        <div class="feature__icon">{{ i.icon('users') }}</div>
+        <h3>Приводите друзей</h3>
+        <p>За каждого, кто придёт по вашей ссылке, начисляется вознаграждение на баланс.</p>
+      </article>
+    </div>
+  </section>
+
+  {% if tariffs %}
+    <section>
+      <div class="section-head">
+        <h2>Тарифы</h2>
+        <p>
+          {% if cheapest %}Начиная с {{ cheapest|rubles }} в месяц.{% endif %}
+          Цены видны до регистрации — почту спросим только когда дойдёт до оплаты.
+        </p>
+      </div>
+
+      <div class="plans">
+        {% for tariff in tariffs %}
+          <article class="plan {% if tariff.is_highlighted %}plan--top{% endif %}">
+            {% if tariff.is_highlighted %}<span class="badge badge--brand plan__flag">Выгодный</span>{% endif %}
+
+            <div>
+              <div class="plan__name">{{ tariff.name }}</div>
+              <div class="plan__note">{{ tariff.period.label }}</div>
+            </div>
+
+            <div class="plan__price">
+              <span class="plan__amount">{{ tariff.period.price_kopeks|rubles }}</span>
+              {% if tariff.period.price_per_month_kopeks and tariff.period.days > 31 %}
+                <span class="plan__per">{{ tariff.period.price_per_month_kopeks|rubles }} в месяц</span>
+              {% endif %}
+            </div>
+
+            <ul class="plan__specs">
+              <li>{{ i.icon('check') }} {{ tariff.traffic_limit_label }} трафика</li>
+              <li>{{ i.icon('check') }} до {{ tariff.device_limit }} {{ tariff.device_limit|plural('устройства', 'устройств', 'устройств') }}</li>
+              {% if tariff.servers_count %}
+                <li>{{ i.icon('check') }} {{ tariff.servers_count }} {{ tariff.servers_count|plural('локация', 'локации', 'локаций') }}</li>
+              {% endif %}
+            </ul>
+
+            <div class="plan__foot">
+              <a class="btn {% if tariff.is_highlighted %}{% else %}btn--ghost{% endif %} btn--block"
+                 href="/tariffs/{{ tariff.id }}?days={{ tariff.period.days }}">Оформить</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+
+      <div class="btn-row">
+        <a class="btn btn--quiet" href="/tariffs">Все тарифы и сроки {{ i.icon('chevron') }}</a>
+      </div>
+    </section>
+  {% endif %}
+
+  {# card--art, а не card--accent: внутри иллюстрация, а она вырезана вместе
+     со своим фоном — под градиентом вокруг неё виден прямоугольник. #}
+  <section class="card card--lg card--art">
+    <div class="grid grid--2">
+      <div>
+        <h2>Как это работает</h2>
+        <ol class="stack stack--sm small muted">
+          <li>Выбираете тариф — цены открыты, регистрация для этого не нужна.</li>
+          <li>Вводите почту и код из письма. Пароль придумывать не придётся.</li>
+          <li>Пополняете баланс и оформляете подписку.</li>
+          <li>Копируете ссылку подключения в приложение — и готово.</li>
+        </ol>
+        <div class="btn-row">
+          <a class="btn btn--lime" href="/tariffs">Начать</a>
+        </div>
+      </div>
+      <img class="aside-art" src="/static/img/mascot/login.webp" alt="" width="660" height="680" loading="lazy">
+    </div>
+  </section>
+
+</div>
+{% endblock %}

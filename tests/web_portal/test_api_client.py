@@ -134,3 +134,27 @@ async def test_consent_documents_are_passed_only_when_present():
 
     assert 'accepted_legal_documents' not in bodies[0]
     assert bodies[1]['accepted_legal_documents'] == ['rules']
+
+
+@pytest.mark.asyncio
+async def test_the_shop_window_asks_the_public_handles_without_a_token():
+    """Витрина не передаёт токен — иначе цены зависели бы от того, кто смотрит.
+
+    Токен в этих запросах был бы не просто лишним: ручка бота отдала бы
+    персональные скидки, и страница, которую видит аноним, перестала бы быть
+    одинаковой для всех.
+    """
+    seen: list[tuple[str, str | None]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((str(request.url), request.headers.get('authorization')))
+        return httpx.Response(200, json={})
+
+    api = _api(handler)
+    await api.public_tariffs()
+    await api.server_status()
+
+    assert seen == [
+        ('http://bot.invalid/cabinet/public/tariffs?language=ru', None),
+        ('http://bot.invalid/cabinet/public/server-status', None),
+    ]

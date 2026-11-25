@@ -140,7 +140,8 @@ def test_list_requires_login(portal_app, bot: Bot):
         response = anonymous.get('/devices')
 
     assert response.status_code == 303
-    assert response.headers['location'] == '/login'
+    # Адрес, куда человек шёл, едет в ?next — после входа он попадёт туда же.
+    assert response.headers['location'] == '/login?next=%2Fdevices'
 
 
 def test_list_without_subscription_is_a_page_not_an_error(logged_in):
@@ -149,7 +150,7 @@ def test_list_without_subscription_is_a_page_not_an_error(logged_in):
     response = client.get('/devices')
 
     assert response.status_code == 200
-    assert 'Подключённых устройств нет' in response.text
+    assert 'Устройств пока нет' in response.text
 
 
 def test_empty_list_does_not_offer_the_reset(logged_in):
@@ -209,7 +210,7 @@ def test_remove_asks_before_deleting(client: TestClient, bot: Bot):
     response = client.get(f'/devices/{HWID_NAMED}/remove')
 
     assert response.status_code == 200
-    assert 'Точно отключить' in response.text
+    assert 'Отключить' in response.text and 'Телефон жены' in response.text
     assert bot.calls_to('/subscription/devices/', method='DELETE') == [], 'GET не должен удалять'
 
 

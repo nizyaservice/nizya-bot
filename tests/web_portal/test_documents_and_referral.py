@@ -1,11 +1,13 @@
-"""Разделы кабинета: подключение, документы, язык, рефералка.
+"""Документы сервиса и реферальная программа.
 
 Что закреплено:
 
-* ссылка подписки видна человеку, а когда её нет — экран объясняет, почему;
-* документы оператора показываются разметкой, а не текстом с тегами;
-* смена языка пишется в бота и сразу видна в сессии (от неё зависит язык
-  документов и шапка);
+* документы оператора показываются разметкой, а не текстом с тегами, и
+  открываются без входа: оферту читают до покупки, а платёжный провайдер —
+  вообще без аккаунта;
+* страница рефералки берёт список приглашённых из поля ``items`` — так его
+  называет ручка бота (``ReferralListResponse``), и по неверному имени список
+  молча оставался бы пустым;
 * реферальная ссылка портала работает: код из адреса доезжает до регистрации.
 """
 
@@ -20,13 +22,6 @@ from fastapi.testclient import TestClient
 
 from portal.api import CabinetApi
 
-
-CONNECTION = {
-    'subscription_url': 'https://panel.example/sub/abc123',
-    'display_link': 'https://panel.example/sub/abc123',
-    'happ_crypto_link': 'happ://crypt5/xyz',
-    'hide_link': False,
-}
 
 RULES_HTML = '<h2>Правила</h2><p>Пользуйтесь на здоровье.</p>'
 
@@ -50,31 +45,31 @@ class Bot:
             return httpx.Response(200, json={'expires_in_seconds': 900})
         if path.endswith('/auth/me'):
             return httpx.Response(200, json={'id': 7, 'email': 'user@example.com', 'language': 'ru'})
-        if path.endswith('/subscription/connection-link'):
-            if 'connection' in self.overrides:
-                return self.overrides['connection']
-            return httpx.Response(200, json=CONNECTION)
         if path.endswith('/info/service'):
             return httpx.Response(200, json={'name': 'Nizya', 'channel_url': 'https://t.me/nizya_vpn'})
         if path.endswith('/info/rules'):
             return self.overrides.get('rules', httpx.Response(200, json={'content': RULES_HTML}))
-        if path.endswith('/info/languages'):
-            return httpx.Response(
-                200,
-                json={
-                    'languages': [
-                        {'code': 'ru', 'name': 'Русский', 'flag': '🇷🇺'},
-                        {'code': 'en', 'name': 'English', 'flag': '🇬🇧'},
-                    ],
-                    'default': 'ru',
-                },
-            )
-        if path.endswith('/info/user/language'):
-            return httpx.Response(200, json={'language': (body or {}).get('language')})
         if path.endswith('/referral/list'):
             return self.overrides.get(
                 'referral_list',
-                httpx.Response(200, json={'referrals': [{'name': 'Петя', 'created_at': '2026-11-01T10:00:00'}]}),
+                httpx.Response(
+                    200,
+                    json={
+                        'items': [
+                            {
+                                'id': 11,
+                                'first_name': 'Петя',
+                                'created_at': '2026-11-01T10:00:00',
+                                'has_subscription': True,
+                                'has_paid': True,
+                            }
+                        ],
+                        'total': 1,
+                        'page': 1,
+                        'per_page': 20,
+                        'pages': 1,
+                    },
+                ),
             )
         if path.endswith('/referral'):
             return httpx.Response(
@@ -131,27 +126,6 @@ def _csrf_of(html: str) -> str:
     return html[start : html.index('"', start)]
 
 
-# ─── подключение ───
-
-
-def test_subscription_link_is_shown(client: TestClient):
-    response = client.get('/connect')
-
-    assert response.status_code == 200
-    assert 'https://panel.example/sub/abc123' in response.text
-    assert 'happ://crypt5/xyz' in response.text
-
-
-def test_without_subscription_the_reason_is_explained(logged_in):
-    client = logged_in(Bot(connection=httpx.Response(404, json={'detail': 'No subscription found'})))
-
-    response = client.get('/connect')
-
-    assert response.status_code == 200
-    assert 'No subscription found' in response.text or 'активная подписка' in response.text
-    assert '/tariffs' in response.text, 'человеку нужен путь к покупке'
-
-
 # ─── документы ───
 
 
@@ -176,35 +150,19 @@ def test_hidden_document_says_so(logged_in):
     response = client.get('/documents/rules')
 
     assert response.status_code == 404
-    assert 'не опубликован' in response.text
+    assert 'не публикует этот документ' in response.text
 
 
-# ─── язык ───
+def test_documents_open_without_a_session(portal_app):
+    """Оферту читают до покупки — и платёжный провайдер, у которого аккаунта нет."""
+    transport = httpx.MockTransport(Bot())
+    portal_app.state.api_double = CabinetApi(httpx.AsyncClient(base_url='http://bot.invalid', transport=transport))
 
-
-def test_language_list_marks_the_current_one(client: TestClient):
-    response = client.get('/language')
+    with TestClient(portal_app, follow_redirects=False) as client:
+        response = client.get('/documents/rules')
 
     assert response.status_code == 200
-    assert 'Русский' in response.text
-    assert 'English' in response.text
-    assert 'value="ru"' in response.text
-
-
-def test_language_choice_reaches_the_bot(client: TestClient, bot: Bot):
-    csrf = _csrf_of(client.get('/language').text)
-
-    response = client.post('/language', data={'language': 'en', 'csrf_token': csrf})
-
-    assert response.status_code == 303
-    assert bot.calls_to('/info/user/language') == [{'language': 'en'}]
-
-
-def test_language_without_csrf_token_does_nothing(client: TestClient, bot: Bot):
-    response = client.post('/language', data={'language': 'en'})
-
-    assert response.status_code == 400
-    assert bot.calls_to('/info/user/language') == []
+    assert '<h2>Правила</h2>' in response.text
 
 
 # ─── рефералка ───
@@ -215,9 +173,10 @@ def test_referral_page_shows_code_and_totals(client: TestClient):
 
     assert response.status_code == 200
     assert 'CODE123' in response.text
-    assert '123.45 ₽' in response.text
-    assert '25%' in response.text
-    assert 'Петя' in response.text
+    assert '123,45' in response.text, 'заработок в рублях из копеек'
+    assert '25' in response.text
+    assert 'Петя' in response.text, 'список приглашённых читается из items, а не из referrals'
+    assert '/login?ref=CODE123' in response.text, 'ссылка портала, а не только ссылка на бота'
 
 
 def test_referral_page_survives_a_broken_list(logged_in):

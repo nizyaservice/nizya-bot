@@ -1,24 +1,31 @@
 {% extends "base.html" %}
+{% from "_parts.html" import back, note %}
 {% block title %}Оплата — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Оплата</h1>
-  <p class="row"><span class="muted">Способ</span> <b>{{ method_name }}</b></p>
-  <p class="row"><span class="muted">Сумма</span>
-    <b>{{ '%.2f'|format(payment.amount_rubles or 0) }} ₽</b></p>
+{{ back('/balance', 'К балансу') }}
+
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <div class="eyebrow">Шаг последний</div>
+      <h1>Оплата {{ ((payment.amount_rubles or 0) * 100)|round|int|rubles }}</h1>
+      <p>Способ: {{ method_name }}. Деньги принимает платёжная система — портал их не касается.</p>
+    </div>
+  </div>
 
   {% if payment.payment_url %}
-    {# Платёж принимает провайдер; портал денег не касается. #}
-    <p><a class="button-link" href="{{ payment.payment_url }}" rel="noopener">Оплатить</a></p>
-    <p class="muted">После оплаты вернитесь сюда и проверьте платёж — зачисление
-      приходит от платёжной системы и может занять минуту.</p>
+    <div class="btn-row">
+      <a class="btn btn--lime btn--block" href="{{ payment.payment_url }}" rel="noopener">Оплатить</a>
+    </div>
+    <p class="muted small">После оплаты вернитесь сюда и нажмите «Я оплатил» — зачисление приходит от платёжной системы и может занять минуту.</p>
   {% else %}
-    <p class="muted">Платёж создан, но ссылка на оплату не пришла. Проверьте статус
-      ниже или напишите в поддержку.</p>
+    {{ note('Платёж создан, но ссылка на оплату не пришла. Проверьте статус ниже или напишите в поддержку.', 'warn') }}
   {% endif %}
 
-  <p><a href="/balance/payment/{{ method }}/{{ payment.payment_id }}">Я оплатил, проверить</a></p>
-  <p><a href="/balance">К балансу</a></p>
-</section>
+  <div class="btn-row">
+    <a class="btn btn--ghost" href="/balance/payment/{{ method }}/{{ payment.payment_id }}">Я оплатил, проверить</a>
+  </div>
+</div>
 {% endblock %}

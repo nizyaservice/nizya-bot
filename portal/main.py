@@ -11,22 +11,25 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from redis.asyncio import from_url
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api import CabinetUnavailableError, build_client
+from .api import CabinetApiError, CabinetUnavailableError, build_client
 from .config import get_settings
-from .deps import CsrfError, LoginRequiredError
+from .deps import CsrfError, LoginRequiredError, session_of
 from .routes import (
     auth as auth_routes,
     balance as balance_routes,
-    cabinet as cabinet_routes,
     devices as device_routes,
+    documents as document_routes,
     pages as page_routes,
     promocode as promocode_routes,
-    support as support_routes,
+    referral as referral_routes,
+    status as status_routes,
     tariffs as tariff_routes,
 )
 from .sessions import SessionStore
@@ -36,6 +39,8 @@ from .templating import render
 logger = structlog.get_logger(__name__)
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
+
+NOT_FOUND = 404
 
 
 @asynccontextmanager
@@ -70,17 +75,19 @@ def create_app() -> FastAPI:
     app.include_router(auth_routes.router)
     app.include_router(page_routes.router)
     app.include_router(tariff_routes.router)
+    app.include_router(status_routes.router)
     app.include_router(device_routes.router)
     app.include_router(promocode_routes.router)
-    app.include_router(cabinet_routes.router)
+    app.include_router(referral_routes.router)
+    app.include_router(document_routes.router)
     app.include_router(balance_routes.router)
-    app.include_router(support_routes.router)
 
     @app.exception_handler(LoginRequiredError)
-    async def _login_required(_request: Request, _exc: LoginRequiredError) -> RedirectResponse:
+    async def _login_required(_request: Request, exc: LoginRequiredError) -> RedirectResponse:
         # Страница требует входа. Возвращаем 303, чтобы браузер пошёл GET'ом,
-        # а не повторил POST на /login.
-        return RedirectResponse('/login', status_code=303)
+        # а не повторил POST на /login. Адрес, куда человек шёл, едет в ?next —
+        # после входа он попадает туда же, а не на главную кабинета.
+        return RedirectResponse(exc.login_url(), status_code=303)
 
     @app.exception_handler(CsrfError)
     async def _csrf_failed(request: Request, _exc: CsrfError) -> HTMLResponse:
@@ -89,6 +96,7 @@ def create_app() -> FastAPI:
             'error.html',
             {'title': 'Страница устарела', 'message': 'Обновите страницу и повторите действие.'},
             status_code=400,
+            session=session_of(request),
         )
 
     @app.exception_handler(CabinetUnavailableError)
@@ -99,6 +107,45 @@ def create_app() -> FastAPI:
             'error.html',
             {'title': 'Сервис недоступен', 'message': 'Не получилось связаться с сервисом. Попробуйте позже.'},
             status_code=503,
+            session=session_of(request),
+        )
+
+    @app.exception_handler(CabinetApiError)
+    async def _api_refused(request: Request, exc: CabinetApiError) -> HTMLResponse:
+        """Бот ответил ошибкой там, где страница её не ждала.
+
+        Без этого обработчика отказ любой ручки на экране, который его не
+        ловит сам, превращался бы в голую пятисотку Starlette — без шапки,
+        без пути назад и с трассировкой в логе как о поломке портала.
+        """
+        logger.info('Бот отказал на странице', path=request.url.path, status_code=exc.status_code)
+        return render(
+            request,
+            'error.html',
+            {
+                'title': 'Не получилось',
+                'message': exc.detail or 'Сервис ответил ошибкой. Попробуйте позже.',
+                'back_url': '/',
+            },
+            status_code=502,
+            session=session_of(request),
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(request: Request, exc: StarletteHTTPException) -> Response:
+        # Ненайденный адрес — тоже страница портала, а не голый JSON Starlette.
+        if exc.status_code != NOT_FOUND:
+            return await http_exception_handler(request, exc)
+        return render(
+            request,
+            'error.html',
+            {
+                'title': 'Страница не найдена',
+                'message': 'Адрес не существует или раздел переехал.',
+                'back_url': '/',
+            },
+            status_code=NOT_FOUND,
+            session=session_of(request),
         )
 
     return app

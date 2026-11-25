@@ -1,39 +1,69 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import pagehead, note %}
 {% block title %}Баланс — {{ brand_name }}{% endblock %}
+{% block page_class %}page--wide{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Баланс</h1>
-  <p class="row"><span class="muted">На счету</span>
-    <b>{{ '%.2f'|format(balance.available_rubles or balance.balance_rubles or 0) }} ₽</b></p>
-  <p><a href="/balance/topup">Пополнить</a></p>
+<div class="stack">
+
+  {{ pagehead('Баланс', 'С него оплачиваются подписка и продление. Деньги зачисляет сервис после подтверждения от платёжной системы.', 'balance') }}
+
+  <section class="card card--lg card--accent">
+    <div class="card__title">
+      <h2>На счету</h2>
+      <a class="btn btn--lime btn--sm" href="/balance/topup">Пополнить</a>
+    </div>
+    <div class="stat__value">{{ balance|spendable|rubles }}</div>
+    {% if balance.bonus_points_kopeks %}
+      {# Баллы тратятся раньше денег и считаются вместе с ними: показать только
+         деньги значило бы занизить то, чем человек может заплатить. #}
+      <p class="muted tiny">Включая {{ balance.bonus_points_kopeks|rubles }} бонусными баллами — они списываются первыми.</p>
+    {% endif %}
+  </section>
 
   {% if pending %}
-    <h2>Незавершённые платежи</h2>
-    {% for payment in pending %}
-      <p class="row">
-        <span>{{ payment.method_display or payment.method }} — {{ '%.2f'|format(payment.amount_rubles or 0) }} ₽</span>
-        <span class="muted">{{ payment.status_text or payment.status }}</span>
-      </p>
-      {% if payment.is_checkable %}
-        <p class="note"><a href="/balance/payment/{{ payment.method }}/{{ payment.identifier }}">Проверить платёж</a></p>
-      {% endif %}
-    {% endfor %}
+    <section class="card">
+      <div class="card__title"><h2>Незавершённые платежи</h2></div>
+      <div class="ledger">
+        {% for payment in pending %}
+          <div class="ledger__item">
+            <div class="ledger__what">
+              <div>{{ payment.method_display or payment.method }}</div>
+              <div class="ledger__when">{{ payment.status_text or payment.status }}</div>
+            </div>
+            <div class="btn-row">
+              <span class="ledger__sum">{{ ((payment.amount_rubles or 0) * 100)|round|int|rubles }}</span>
+              {% if payment.is_checkable %}
+                <a class="btn btn--quiet btn--sm" href="/balance/payment/{{ payment.method }}/{{ payment.identifier }}">Проверить</a>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
   {% endif %}
 
-  {% if transactions %}
-    <h2>Последние операции</h2>
-    {% for item in transactions %}
-      <p class="row">
-        <span>{{ item.description or item.type }}<br>
-          <span class="muted">{{ item.created_at | moment }}</span></span>
-        <b>{{ '%+.2f'|format(item.amount_rubles or 0) }} ₽</b>
-      </p>
-    {% endfor %}
-  {% else %}
-    <p class="muted">Операций пока нет.</p>
-  {% endif %}
+  <section class="card">
+    <div class="card__title"><h2>Последние операции</h2></div>
+    {% if transactions %}
+      <div class="ledger">
+        {% for item in transactions %}
+          <div class="ledger__item">
+            <div class="ledger__what">
+              <div>{{ item.description or item.type }}</div>
+              <div class="ledger__when">{{ item.created_at|moment }}</div>
+            </div>
+            <span class="ledger__sum {% if (item.amount_rubles or 0) > 0 %}ledger__sum--in{% endif %}">
+              {% if (item.amount_rubles or 0) > 0 %}+{% endif %}{{ ((item.amount_rubles or 0) * 100)|round|int|rubles }}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted small">Операций пока нет.</p>
+    {% endif %}
+  </section>
 
-  <p><a href="/">В личный кабинет</a></p>
-</section>
+</div>
 {% endblock %}

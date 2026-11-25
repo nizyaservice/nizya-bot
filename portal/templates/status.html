@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import pagehead, note, empty %}
+{% block title %}Статус серверов — {{ brand_name }}{% endblock %}
+{% block description %}Какие серверы {{ brand_name }} сейчас в сети и с какой задержкой отвечают.{% endblock %}
+{% block page_class %}page--wide{% endblock %}
+
+{% block content %}
+<div class="stack">
+
+  {{ pagehead('Статус серверов', 'Задержка измеряется с самих узлов и обновляется примерно раз в полминуты.', 'status') }}
+
+  {% if disabled %}
+    {{ note('Сервис не публикует статус узлов.', 'info') }}
+
+  {% elif unknown %}
+    <section class="card card--lg card--art">
+      {% call empty('oops', 'Данных сейчас нет', 'Сбор метрик не отвечает. Это не значит, что серверы легли, — обновите страницу через минуту.') %}
+        <div class="btn-row">
+          <a class="btn btn--ghost" href="/status">Обновить</a>
+        </div>
+      {% endcall %}
+    </section>
+
+  {% elif not servers %}
+    {{ note('Серверы ещё не отчитались. Загляните чуть позже.', 'info') }}
+
+  {% else %}
+    <section class="card">
+      <div class="status-summary">
+        <span class="badge {{ 'badge--ok' if offline_count == 0 else 'badge--warn' }}">
+          <span class="dot"></span>
+          {% if offline_count == 0 %}Все {{ total }} в сети{% else %}{{ offline_count }} из {{ total }} вне сети{% endif %}
+        </span>
+        <span class="muted small">
+          {{ online_count }} {{ online_count|plural('сервер отвечает', 'сервера отвечают', 'серверов отвечают') }} на проверку
+        </span>
+        <a class="small" href="/status">{{ i.icon('refresh') }} Обновить</a>
+      </div>
+    </section>
+
+    <section class="servers">
+      {% for server in servers %}
+        <div class="server {{ 'server--up' if server.is_online else 'server--down' }}">
+          {% if server.flag %}<span class="server__flag" aria-hidden="true">{{ server.flag }}</span>{% endif %}
+          <span class="server__name">{{ server.display_name }}</span>
+          <span class="server__ping">
+            {% if not server.is_online %}нет ответа
+            {% elif server.latency_ms %}{{ server.latency_ms }} мс
+            {% else %}в сети{% endif %}
+          </span>
+        </div>
+      {% endfor %}
+    </section>
+
+    <p class="muted tiny">
+      Задержка — время ответа узла на служебную проверку, а не скорость вашего подключения:
+      она зависит ещё и от того, как до узла добирается ваш провайдер.
+    </p>
+  {% endif %}
+
+</div>
+{% endblock %}

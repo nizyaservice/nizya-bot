@@ -1,21 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Тариф оформлен — {{ brand_name }}{% endblock %}
+{% from "_parts.html" import empty %}
+{% block title %}Подписка оформлена — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Готово</h1>
-  <p>{{ result.message or 'Тариф активирован.' }}</p>
-
-  {% if result.charged_label %}
-    <p class="row"><span class="muted">Списано</span> <b>{{ result.charged_label }}</b></p>
-  {% endif %}
-  {% if result.balance_label %}
-    <p class="row"><span class="muted">Остаток на балансе</span> <b>{{ result.balance_label }}</b></p>
-  {% endif %}
-  {% if result.subscription and result.subscription.end_date %}
-    <p class="row"><span class="muted">Действует до</span> <b>{{ result.subscription.end_date|moment }}</b></p>
-  {% endif %}
-
-  <p><a href="/">В личный кабинет</a></p>
+<section class="card card--lg card--art">
+  {% call empty('purchased', 'Готово — подписка оформлена', result.message or 'Деньги списаны, доступ уже работает. Ссылка подключения ждёт в кабинете.') %}
+    <div class="btn-row">
+      <a class="btn" href="/dashboard">К подписке</a>
+      <a class="btn btn--ghost" href="/devices">Подключить устройства</a>
+    </div>
+  {% endcall %}
 </section>
 {% endblock %}

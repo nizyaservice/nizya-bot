@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Ошибка — {{ brand_name }}{% endblock %}
+{% from "_parts.html" import empty %}
+{% block title %}{{ title }} — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>{{ title or 'Что-то пошло не так' }}</h1>
-  <p class="muted">{{ message }}</p>
-  {% if back_url %}
-    <p><a href="{{ back_url }}">Назад</a> · <a href="/">На главную</a></p>
-  {% else %}
-    <p><a href="/">На главную</a></p>
-  {% endif %}
+<section class="card card--lg card--art">
+  {% call empty('oops', title, message) %}
+    <div class="btn-row">
+      <a class="btn" href="{{ back_url or '/' }}">{% if back_url %}Вернуться{% else %}На главную{% endif %}</a>
+      {% if session %}<a class="btn btn--ghost" href="/dashboard">В кабинет</a>{% endif %}
+    </div>
+  {% endcall %}
 </section>
 {% endblock %}

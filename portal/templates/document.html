@@ -1,17 +1,27 @@
 {% extends "base.html" %}
+{% from "_parts.html" import back, note %}
 {% block title %}{{ title }} — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>{{ title }}</h1>
+{{ back('/', 'На главную') }}
+
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <h1>{{ title }}</h1>
+      {% if updated_at %}<p>Обновлено {{ updated_at|moment }}</p>{% endif %}
+    </div>
+  </div>
+
   {% if content %}
-    {# Документ пишет оператор в админке, это разметка, а не текст. Скрипты в ней
-       не исполнятся: CSP портала разрешает только собственные файлы. #}
-    <div class="document">{{ content | safe }}</div>
-    {% if updated_at %}<p class="muted note">Обновлено: {{ updated_at | moment }}</p>{% endif %}
+    {# Разметку писал оператор в админке. Скрипты в ней не исполняются:
+       политика портала не допускает ни встроенных, ни атрибутных. #}
+    <section class="card card--lg">
+      <div class="prose">{{ content|safe }}</div>
+    </section>
   {% else %}
-    <p class="muted">Документ пока не опубликован.</p>
+    {{ note('Сервис не публикует этот документ на сайте.', 'info') }}
   {% endif %}
-  <p><a href="/">В личный кабинет</a></p>
-</section>
+</div>
 {% endblock %}

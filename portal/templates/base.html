@@ -1,36 +1,89 @@
+{% import "_icons.html" as i %}
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0f1b">
+  <meta name="description" content="{% block description %}{{ brand_name }} — быстрый VPN без лишних шагов: тарифы, устройства и подписка в браузере.{% endblock %}">
   <title>{% block title %}{{ brand_name }}{% endblock %}</title>
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   <link rel="stylesheet" href="/static/portal.css">
-  {# HTMX подключается здесь, когда появятся экраны, которым он нужен:
-     файл вендорится в /static, из сети на рантайме ничего не тянем. #}
+  <script src="/static/portal.js" defer></script>
 </head>
 <body>
-  <header class="top">
-    <a class="brand" href="/">{{ brand_name }}</a>
-    {% if session %}
-      <nav class="top-nav">
-        <a href="/tariffs">Тарифы</a>
-        {% if user and user.email %}<span class="muted">{{ user.email }}</span>{% endif %}
-        <form method="post" action="/logout">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="link" type="submit">Выйти</button>
-        </form>
+  <a class="visually-hidden" href="#main">К содержимому</a>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="logo" href="/">
+        <img src="/static/img/logo.svg" alt="" width="26" height="26">
+        <span class="visually-hidden">{{ brand_name }}</span>
+        <span aria-hidden="true"><b>Nizya</b> <span>VPN</span></span>
+      </a>
+
+      <nav class="nav" aria-label="Разделы">
+        {% if session %}
+          <a href="/dashboard" {% if path == '/dashboard' %}aria-current="page"{% endif %}>Подписка</a>
+          <a href="/devices" {% if path.startswith('/devices') %}aria-current="page"{% endif %}>Устройства</a>
+        {% endif %}
+        <a href="/tariffs" {% if path.startswith('/tariffs') %}aria-current="page"{% endif %}>Тарифы</a>
+        {% if session %}
+          <a href="/referral" {% if path == '/referral' %}aria-current="page"{% endif %}>Рефералы</a>
+        {% endif %}
+        <a href="/status" {% if path == '/status' %}aria-current="page"{% endif %}>Серверы</a>
       </nav>
-    {% endif %}
+
+      <div class="topbar__end">
+        {% if session %}
+          {# Сумма в шапке — доступная к оплате: деньги плюс бонусные баллы.
+             Именно по ней бот решает, хватает ли на покупку, поэтому
+             `available_kopeks` (его кладут в сессию кабинет и баланс) идёт
+             первым, а `balance_kopeks` из /auth/me — только запасной вариант. #}
+          <a class="wallet" href="/balance">
+            <span class="num">{{ user|spendable|rubles }}</span>
+            <small>на счету</small>
+          </a>
+          <a class="btn btn--quiet btn--sm topbar__topup" href="/balance/topup">Пополнить</a>
+          <form method="post" action="/logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn--quiet btn--sm" type="submit" title="Выйти" aria-label="Выйти">{{ i.icon('logout') }}</button>
+          </form>
+        {% else %}
+          <a class="btn btn--sm" href="/login">Войти</a>
+        {% endif %}
+      </div>
+    </div>
   </header>
 
-  <main class="wrap">
-    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <main class="page {% block page_class %}{% endblock %}" id="main">
     {% block content %}{% endblock %}
   </main>
 
   <footer class="foot">
-    {% if support_url %}<a href="{{ support_url }}">Поддержка</a>{% endif %}
+    <div class="foot__inner">
+      <span>{{ brand_name }} — {{ brand_tagline }}</span>
+      <nav aria-label="Документы и помощь">
+        <a href="/status">Статус серверов</a>
+        <a href="/documents/offer">Оферта</a>
+        <a href="/documents/privacy">Конфиденциальность</a>
+        <a href="/documents/rules">Правила</a>
+        {% if support_url %}<a href="{{ support_url }}">Поддержка</a>{% endif %}
+        {% if bot_url %}<a href="{{ bot_url }}">Бот в Telegram</a>{% endif %}
+      </nav>
+    </div>
   </footer>
+
+  {% if session %}
+  <nav class="tabbar" aria-label="Разделы">
+    <a href="/dashboard" {% if path == '/dashboard' %}aria-current="page"{% endif %}>{{ i.icon('shield') }}Подписка</a>
+    <a href="/tariffs" {% if path.startswith('/tariffs') %}aria-current="page"{% endif %}>{{ i.icon('tags') }}Тарифы</a>
+    <a href="/devices" {% if path.startswith('/devices') %}aria-current="page"{% endif %}>{{ i.icon('devices') }}Устройства</a>
+    <a href="/referral" {% if path == '/referral' %}aria-current="page"{% endif %}>{{ i.icon('users') }}Рефералы</a>
+    <a href="/balance" {% if path.startswith('/balance') %}aria-current="page"{% endif %}>{{ i.icon('wallet') }}Баланс</a>
+  </nav>
+  {% endif %}
 </body>
 </html>

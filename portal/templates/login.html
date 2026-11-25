@@ -1,18 +1,46 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import note %}
 {% block title %}Вход — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Вход</h1>
-  <p class="muted">Пришлём код на почту — пароль не нужен.</p>
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <div class="eyebrow">{{ brand_tagline }}</div>
+      <h1>Вход по почте</h1>
+      <p>Пароля нет: пришлём код из шести цифр. Если аккаунта ещё нет — он создастся сам.</p>
+    </div>
+    <img class="pagehead__art" src="/static/img/mascot/login.webp" alt="" width="660" height="680">
+  </div>
 
-  <form method="post" action="/login" class="form">
-    {# Код приглашения из реферальной ссылки едет скрытым полем до конца входа. #}
-    {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
-    <label for="email">Почта</label>
-    <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
-           required autofocus value="{{ email or '' }}">
-    <button type="submit">Получить код</button>
-  </form>
-</section>
+  {% if error %}{{ note(error) }}{% endif %}
+
+  <section class="card card--lg">
+    <form class="form" method="post" action="/login" data-once>
+      {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
+      {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+      <div class="field">
+        <label for="email">Адрес почты</label>
+        <input id="email" name="email" type="email" value="{{ email or '' }}"
+               inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false"
+               placeholder="you@example.com" required autofocus>
+        <span class="field__hint">Письмо приходит за несколько секунд. Загляните в «Промоакции» и «Спам».</span>
+      </div>
+
+      <button class="btn btn--block" type="submit">Выслать код</button>
+    </form>
+  </section>
+
+  {% if referral_code %}
+    {{ note('Вы пришли по приглашению — бонус начислится после первой покупки.', 'ok') }}
+  {% endif %}
+
+  <p class="muted tiny">
+    Продолжая, вы принимаете <a href="/documents/offer">оферту</a> и
+    <a href="/documents/privacy">политику конфиденциальности</a>.
+  </p>
+</div>
 {% endblock %}

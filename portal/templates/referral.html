@@ -1,48 +1,103 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import pagehead, note, empty %}
 {% block title %}Реферальная программа — {{ brand_name }}{% endblock %}
+{% block page_class %}page--wide{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Реферальная программа</h1>
+<div class="stack">
 
-  {% if info.commission_percent %}
-    <p class="muted">Вы получаете {{ info.commission_percent }}% с платежей приглашённых.</p>
-  {% endif %}
+  {{ pagehead(
+       'Реферальная программа',
+       'Делитесь ссылкой — за покупки приглашённых начисляется вознаграждение.',
+       'referral'
+  ) }}
 
-  {% if info.referral_code %}
-    <label for="code">Ваш код</label>
-    <input id="code" type="text" readonly value="{{ info.referral_code }}">
-  {% endif %}
+  <section class="stats">
+    <div class="stat">
+      <div class="stat__label">Приглашено</div>
+      <div class="stat__value">{{ info.total_referrals or 0 }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">С подпиской</div>
+      <div class="stat__value">{{ info.active_referrals or 0 }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">Заработано</div>
+      <div class="stat__value">{{ (info.total_earnings_kopeks or 0)|rubles }}</div>
+    </div>
+    {% if info.commission_percent %}
+      <div class="stat">
+        <div class="stat__label">Ваш процент</div>
+        <div class="stat__value">{{ info.commission_percent }}<small> %</small></div>
+      </div>
+    {% endif %}
+  </section>
 
-  {% if portal_link %}
-    <label for="portal-link">Ссылка для приглашения на сайт</label>
-    <input id="portal-link" type="text" readonly value="{{ portal_link }}">
-  {% endif %}
-
-  {% if info.bot_referral_link or info.referral_link %}
-    <label for="bot-link">Ссылка на бота</label>
-    <input id="bot-link" type="text" readonly value="{{ info.bot_referral_link or info.referral_link }}">
-  {% endif %}
-
-  <h2>Итоги</h2>
-  <p class="row"><span class="muted">Приглашено</span> <b>{{ info.total_referrals or 0 }}</b></p>
-  <p class="row"><span class="muted">С активной подпиской</span> <b>{{ info.active_referrals or 0 }}</b></p>
-  <p class="row"><span class="muted">Заработано</span>
-    <b>{{ '%.2f'|format(info.total_earnings_rubles or 0) }} ₽</b></p>
   {% if info.total_earnings_days %}
-    <p class="row"><span class="muted">Начислено днями</span> <b>{{ info.total_earnings_days }}</b></p>
+    {# Награда днями: в деньгах она ноль, и без отдельной строки выглядела бы
+       как «ничего не начислено». #}
+    {{ note('Кроме денег вам начислено ' ~ info.total_earnings_days ~ ' ' ~ info.total_earnings_days|plural('день', 'дня', 'дней') ~ ' подписки.', 'ok') }}
   {% endif %}
 
-  {% if invited %}
-    <h2>Приглашённые</h2>
-    <ul class="specs">
-      {% for person in invited %}
-        <li>{{ person.name or person.username or 'Без имени' }}
-          {%- if person.created_at %} — с {{ person.created_at | moment }}{% endif %}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+  <section class="card card--lg">
+    <div class="card__title"><h2>Ваши ссылки</h2></div>
 
-  <p><a href="/">В личный кабинет</a></p>
-</section>
+    {% if portal_link %}
+      <div class="field">
+        <label for="ref-portal">Ссылка на сайт</label>
+        <div class="copy">
+          <input id="ref-portal" type="text" value="{{ portal_link }}" readonly spellcheck="false">
+          <button class="btn btn--lime" type="button" data-copy="ref-portal">Скопировать</button>
+        </div>
+        <span class="field__hint">Друг заводит аккаунт прямо здесь — телеграм ему не понадобится.</span>
+      </div>
+    {% endif %}
+
+    {% if info.bot_referral_link or info.referral_link %}
+      <div class="field">
+        <label for="ref-bot">Ссылка на бота</label>
+        <div class="copy">
+          <input id="ref-bot" type="text" value="{{ info.bot_referral_link or info.referral_link }}" readonly spellcheck="false">
+          <button class="btn btn--ghost" type="button" data-copy="ref-bot">Скопировать</button>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if info.referral_code %}
+      <p class="muted tiny">Ваш код: <b>{{ info.referral_code }}</b></p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card__title">
+      <h2>Кого вы пригласили</h2>
+      {% if invited %}<span class="badge">{{ invited|length }}</span>{% endif %}
+    </div>
+
+    {% if invited %}
+      <div class="ledger">
+        {% for person in invited %}
+          <div class="ledger__item">
+            <div class="ledger__what">
+              <div>{{ person.first_name or person.username or ('Участник №' ~ person.id) }}</div>
+              <div class="ledger__when">пришёл {{ person.created_at|moment }}</div>
+            </div>
+            <span class="badge {{ 'badge--ok' if person.has_paid else ('badge--brand' if person.has_subscription else '') }}">
+              {% if person.has_paid %}оплатил{% elif person.has_subscription %}с подпиской{% else %}зарегистрировался{% endif %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      {% call empty('referral', 'Пока никого', 'Отправьте ссылку друзьям — начисления появятся после их первой покупки.') %}{% endcall %}
+    {% endif %}
+  </section>
+
+  <p class="muted tiny">
+    Вознаграждение приходит на баланс и тратится на подписку. Вывод денег,
+    если он включён у сервиса, оформляется в боте.
+  </p>
+
+</div>
 {% endblock %}

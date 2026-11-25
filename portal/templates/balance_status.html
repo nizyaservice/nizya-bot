@@ -1,29 +1,67 @@
 {% extends "base.html" %}
+{% from "_parts.html" import back, note, empty %}
 {% block title %}Статус платежа — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Статус платежа</h1>
+{{ back('/balance', 'К балансу') }}
+
+{# Зачисление делает бот по вебхуку от провайдера. Эта страница только
+   показывает, что он ответил, и сама ничего не начисляет — поэтому заход
+   на неё безопасен, кто бы его ни сделал. #}
+<div class="stack">
+  {% if payment and payment.is_paid %}
+
+    <section class="card card--lg card--art">
+      {% call empty('paid', 'Платёж прошёл', 'Деньги на балансе — можно оформлять подписку.') %}
+        <div class="btn-row">
+          <a class="btn" href="/tariffs">Выбрать тариф</a>
+          <a class="btn btn--ghost" href="/balance">К балансу</a>
+        </div>
+      {% endcall %}
+    </section>
+
+  {% else %}
+
+    <div class="pagehead">
+      <div class="pagehead__text">
+        <h1>Статус платежа</h1>
+        <p>Деньги зачисляет сервис после подтверждения от платёжной системы. Если их ещё нет — обновите страницу через минуту.</p>
+      </div>
+    </div>
+
+  {% endif %}
 
   {% if payment %}
-    <p class="row"><span class="muted">Способ</span>
-      <b>{{ payment.method_display or payment.method }}</b></p>
-    <p class="row"><span class="muted">Сумма</span>
-      <b>{{ '%.2f'|format(payment.amount_rubles or 0) }} ₽</b></p>
-    <p class="row"><span class="muted">Состояние</span>
-      <b>{{ payment.status_emoji }} {{ payment.status_text or payment.status }}</b></p>
+    {# Подписи состояния даёт провайдер через бота: своих слов тут не
+       придумываем, иначе они разойдутся с тем, что человек видит у банка. #}
+    <section class="card">
+      <dl class="rows">
+        <div class="row">
+          <dt>Способ</dt>
+          <dd>{{ payment.method_display or payment.method }}</dd>
+        </div>
+        <div class="row">
+          <dt>Сумма</dt>
+          <dd class="num">{{ ((payment.amount_rubles or 0) * 100)|round|int|rubles }}</dd>
+        </div>
+        <div class="row">
+          <dt>Состояние</dt>
+          <dd>{{ payment.status_text or payment.status }}</dd>
+        </div>
+      </dl>
+    </section>
   {% endif %}
 
-  {% if message %}<p>{{ message }}</p>{% endif %}
+  {% if message %}{{ note(message, 'ok' if payment and payment.is_paid else 'info') }}{% endif %}
 
-  {% if payment and payment.is_paid %}
-    <p><a href="/tariffs">Купить подписку</a></p>
-  {% elif payment and payment.payment_url %}
-    <p><a href="{{ payment.payment_url }}" rel="noopener">Вернуться к оплате</a></p>
+  {% if not (payment and payment.is_paid) %}
+    <div class="btn-row">
+      {% if payment and payment.payment_url %}
+        <a class="btn" href="{{ payment.payment_url }}" rel="noopener">Вернуться к оплате</a>
+      {% endif %}
+      <a class="btn btn--ghost" href="/balance">К балансу</a>
+    </div>
   {% endif %}
-
-  <p class="muted">Деньги зачисляет сервис после подтверждения от платёжной
-    системы. Если ещё не зачислены — обновите эту страницу через минуту.</p>
-  <p><a href="/balance">К балансу</a></p>
-</section>
+</div>
 {% endblock %}

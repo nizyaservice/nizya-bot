@@ -1,18 +1,25 @@
 {% extends "base.html" %}
+{% from "_parts.html" import back, note %}
 {% block title %}Отключить устройство — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Отключить устройство?</h1>
-  <p>Точно отключить <b>{{ device.title }}</b>?</p>
-  <p class="muted">Доступ с него прекратится. Чтобы вернуть, устройство нужно будет
-    подключить заново — и оно снова займёт место в лимите.</p>
+{{ back('/devices/' ~ device.hwid|urlencode, 'Назад к устройству') }}
 
-  <form method="post" action="/devices/{{ device.hwid | urlencode }}/remove" class="form">
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <h1>Отключить «{{ device.title }}»?</h1>
+      <p>Доступ пропадёт сразу, место в тарифе освободится. Отменить это нельзя, но подключиться заново — можно.</p>
+    </div>
+  </div>
+
+  <form class="form" method="post" action="/devices/{{ device.hwid|urlencode }}/remove" data-once>
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit">Отключить</button>
+    <div class="btn-row">
+      <button class="btn btn--danger" type="submit">Да, отключить</button>
+      <a class="btn btn--ghost" href="/devices/{{ device.hwid|urlencode }}">Оставить</a>
+    </div>
   </form>
-
-  <p><a href="/devices/{{ device.hwid | urlencode }}">Отмена</a></p>
-</section>
+</div>
 {% endblock %}

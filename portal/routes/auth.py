@@ -23,6 +23,7 @@ from ..deps import (
     get_portal_settings,
     get_session,
     get_store,
+    safe_next,
 )
 from ..sessions import Session, SessionStore
 from ..templating import render
@@ -47,11 +48,17 @@ def _clean_referral_code(raw: str | None) -> str | None:
 async def login_form(
     request: Request,
     ref: str | None = None,
+    # `next` повторяет имя параметра в адресе и поля формы — переименовать нельзя.
+    next: str | None = None,
     session: Session | None = Depends(get_session),
 ) -> HTMLResponse:
     if session is not None:
-        return RedirectResponse('/', status_code=303)
-    return render(request, 'login.html', {'referral_code': _clean_referral_code(ref)})
+        return RedirectResponse(safe_next(next) or '/dashboard', status_code=303)
+    return render(
+        request,
+        'login.html',
+        {'referral_code': _clean_referral_code(ref), 'next_url': safe_next(next)},
+    )
 
 
 @router.post('/login', response_class=HTMLResponse)
@@ -59,6 +66,7 @@ async def request_code(
     request: Request,
     email: Annotated[str, Form()],
     ref: Annotated[str | None, Form()] = None,
+    next: Annotated[str | None, Form()] = None,
     api: CabinetApi = Depends(get_api),
 ) -> HTMLResponse:
     """Отправить код и сразу показать экран ввода.
@@ -69,11 +77,12 @@ async def request_code(
     """
     email = (email or '').strip()
     referral_code = _clean_referral_code(ref)
+    next_url = safe_next(next)
     if not email:
         return render(
             request,
             'login.html',
-            {'error': 'Введите адрес почты', 'referral_code': referral_code},
+            {'error': 'Введите адрес почты', 'referral_code': referral_code, 'next_url': next_url},
             status_code=400,
         )
 
@@ -86,11 +95,15 @@ async def request_code(
         return render(
             request,
             'login.html',
-            {'error': error.detail, 'email': email, 'referral_code': referral_code},
+            {'error': error.detail, 'email': email, 'referral_code': referral_code, 'next_url': next_url},
             status_code=400,
         )
 
-    return render(request, 'login_code.html', {'email': email, 'referral_code': referral_code})
+    return render(
+        request,
+        'login_code.html',
+        {'email': email, 'referral_code': referral_code, 'next_url': next_url},
+    )
 
 
 @router.post('/login/code', response_class=HTMLResponse)
@@ -100,6 +113,7 @@ async def submit_code(
     code: Annotated[str, Form()],
     accepted: Annotated[list[str] | None, Form()] = None,
     ref: Annotated[str | None, Form()] = None,
+    next: Annotated[str | None, Form()] = None,
     api: CabinetApi = Depends(get_api),
     store: SessionStore = Depends(get_store),
     settings: PortalSettings = Depends(get_portal_settings),
@@ -107,6 +121,7 @@ async def submit_code(
     email = (email or '').strip()
     code = (code or '').strip()
     referral_code = _clean_referral_code(ref)
+    next_url = safe_next(next)
 
     try:
         tokens = await api.verify_login_code(
@@ -128,13 +143,14 @@ async def submit_code(
                     'documents': documents,
                     'error': error.detail,
                     'referral_code': referral_code,
+                    'next_url': next_url,
                 },
                 status_code=428,
             )
         return render(
             request,
             'login_code.html',
-            {'email': email, 'error': error.detail, 'referral_code': referral_code},
+            {'email': email, 'error': error.detail, 'referral_code': referral_code, 'next_url': next_url},
             status_code=400,
         )
 
@@ -144,7 +160,9 @@ async def submit_code(
         user=tokens.get('user') if isinstance(tokens.get('user'), dict) else {},
     )
 
-    response = RedirectResponse('/', status_code=303)
+    # Возвращаем туда, куда человек шёл до входа: он мог нажать «Оформить»
+    # на конкретном тарифе, и главная кабинета заставила бы искать его заново.
+    response = RedirectResponse(next_url or '/dashboard', status_code=303)
     response.set_cookie(
         settings.session_cookie,
         session.sid,
@@ -171,7 +189,7 @@ async def logout(
             check_csrf(session, csrf_token)
         except CsrfError:
             # Выход по чужой ссылке — не катастрофа, но и выполнять не станем.
-            return RedirectResponse('/', status_code=303)
+            return RedirectResponse('/dashboard', status_code=303)
 
         try:
             await api.logout(session.refresh_token)
@@ -180,7 +198,8 @@ async def logout(
             logger.info('Бот не подтвердил выход', status_code=error.status_code)
         await store.delete(session.sid)
 
-    response = RedirectResponse('/login', status_code=303)
+    # После выхода — на витрину, а не на форму входа: человек вышел нарочно.
+    response = RedirectResponse('/', status_code=303)
     response.delete_cookie(settings.session_cookie, path='/')
     return response
 

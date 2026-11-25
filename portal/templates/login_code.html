@@ -1,44 +1,57 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import back, note %}
 {% block title %}Код из письма — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Код из письма</h1>
-  <p class="muted">Отправили код на <b>{{ email }}</b>. Он действует 15 минут.</p>
+{{ back('/login', 'Другая почта') }}
 
-  <form method="post" action="/login/code" class="form">
-    {# Почта — скрытым полем, а не в адресе страницы: иначе она осядет
-       в истории браузера, логах прокси и реферерах. #}
-    <input type="hidden" name="email" value="{{ email }}">
-    {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <h1>Код из письма</h1>
+      <p>Отправили шесть цифр на <b>{{ email }}</b>. Код живёт 15 минут.</p>
+    </div>
+  </div>
 
-    <label for="code">Код</label>
-    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-           pattern="[0-9]{6}" maxlength="6" required autofocus>
+  {% if error %}{{ note(error) }}{% endif %}
 
-    {% if documents %}
-      <fieldset class="consent">
-        <legend>Перед первым входом подтвердите:</legend>
-        {% for document in documents %}
-          <label class="check">
-            <input type="checkbox" name="accepted" value="{{ document.key }}" required>
-            {% if document.url %}
-              <a href="{{ document.url }}" target="_blank" rel="noopener">{{ document.title or document.key }}</a>
-            {% else %}
-              {{ document.title or document.key }}
-            {% endif %}
-          </label>
-        {% endfor %}
-      </fieldset>
-    {% endif %}
+  <section class="card card--lg">
+    <form class="form" method="post" action="/login/code" data-once>
+      <input type="hidden" name="email" value="{{ email }}">
+      {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
+      {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
 
-    <button type="submit">Войти</button>
-  </form>
+      <div class="field">
+        <label for="code">Код</label>
+        <input id="code" class="code-input" name="code" type="text" maxlength="6"
+               inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"
+               placeholder="000000" required autofocus data-code-input>
+      </div>
 
-  <form method="post" action="/login" class="form-inline">
-    <input type="hidden" name="email" value="{{ email }}">
-    {% if referral_code %}<input type="hidden" name="ref" value="{{ referral_code }}">{% endif %}
-    <button class="link" type="submit">Отправить код заново</button>
-  </form>
-</section>
+      {% if documents %}
+        {# Бот просит согласия при первом входе: без галочек он не выдаст токены. #}
+        <div class="field">
+          <span class="field__hint">Чтобы завести аккаунт, подтвердите согласие:</span>
+          <div class="choices">
+            {% for document in documents %}
+              <label class="choice">
+                <input type="checkbox" name="accepted" value="{{ document.key }}" required>
+                <span class="choice__body">
+                  <span class="choice__title">{{ document.title }}</span>
+                  {% if document.url %}<a class="choice__note" href="{{ document.url }}">Прочитать</a>{% endif %}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <button class="btn btn--block" type="submit">Войти</button>
+    </form>
+  </section>
+
+  <p class="muted tiny">Письма нет? Проверьте «Спам» или <a href="/login">отправьте код заново</a>.</p>
+</div>
 {% endblock %}

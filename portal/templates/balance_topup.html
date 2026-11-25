@@ -1,40 +1,67 @@
 {% extends "base.html" %}
+{% from "_parts.html" import back, note, empty %}
 {% block title %}Пополнение — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Пополнение баланса</h1>
+{{ back('/balance', 'К балансу') }}
+
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <h1>Пополнение баланса</h1>
+      <p>Выберите сумму и способ — дальше оплата идёт на стороне платёжной системы.</p>
+    </div>
+  </div>
+
+  {% if error %}{{ note(error) }}{% endif %}
 
   {% if methods %}
-    <form method="post" action="/balance/topup" class="form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <section class="card card--lg">
+      <form class="form" method="post" action="/balance/topup" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-      <label for="amount">Сумма, ₽</label>
-      <input id="amount" name="amount" type="text" inputmode="decimal" required autofocus>
+        <div class="field">
+          <label for="amount">Сумма, ₽</label>
+          <input id="amount" name="amount" type="text" inputmode="decimal"
+                 value="{{ amount or '' }}" placeholder="500" required autofocus>
+          <span class="field__hint">
+            Быстрый выбор:
+            {% for preset in presets %}<a href="/balance/topup?amount={{ preset }}">{{ preset }} ₽</a>{% if not loop.last %} · {% endif %}{% endfor %}
+          </span>
+        </div>
 
-      <label>Способ оплаты</label>
-      <div class="periods">
-        {% for item in methods %}
-          <label class="period">
-            <span>{{ item.name }}
-              {% if item.description %}<br><span class="muted">{{ item.description }}</span>{% endif %}
-              {% if item.min_amount_kopeks %}
-                <br><span class="muted">от {{ item.min_amount_kopeks // 100 }} ₽</span>
-              {% endif %}
-            </span>
-            <input type="radio" name="method" value="{{ item.id }}"
-                   {% if item.id == method %}checked{% endif %} required>
-          </label>
-        {% endfor %}
-      </div>
+        <div class="field">
+          <label>Способ оплаты</label>
+          <div class="choices">
+            {% for item in methods %}
+              <label class="choice">
+                <input type="radio" name="method" value="{{ item.id }}"
+                       {% if item.id == method or (not method and loop.first) %}checked{% endif %} required>
+                <span class="choice__body">
+                  <span class="choice__title">{{ item.name }}</span>
+                  <span class="choice__note">
+                    {% if item.description %}{{ item.description }}{% endif %}
+                    {% if item.min_amount_kopeks %}{% if item.description %} · {% endif %}от {{ item.min_amount_kopeks|rubles }}{% endif %}
+                    {% if item.max_amount_kopeks %} до {{ item.max_amount_kopeks|rubles }}{% endif %}
+                  </span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
 
-      <button type="submit">Перейти к оплате</button>
-    </form>
+        <button class="btn btn--block" type="submit">Перейти к оплате</button>
+      </form>
+    </section>
   {% else %}
-    <p class="muted">Сейчас нет доступных способов оплаты. Попробуйте позже или
-      напишите в поддержку.</p>
+    <section class="card card--lg card--art">
+      {% call empty('oops', 'Способов оплаты нет', 'Сейчас пополнить баланс нельзя. Загляните позже или напишите в поддержку.') %}
+        <div class="btn-row">
+          {% if support_url %}<a class="btn btn--ghost" href="{{ support_url }}">Написать в поддержку</a>{% endif %}
+        </div>
+      {% endcall %}
+    </section>
   {% endif %}
-
-  <p><a href="/balance">К балансу</a></p>
-</section>
+</div>
 {% endblock %}

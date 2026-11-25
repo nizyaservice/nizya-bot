@@ -1,13 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Не хватает средств — {{ brand_name }}{% endblock %}
+{% from "_parts.html" import empty %}
+{% block title %}Не хватило на счету — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Не хватает средств</h1>
-  {# Текст приходит от бота: он один знает итоговую цену со скидками. #}
-  <p>{{ message }}</p>
-  <p class="muted">Пополните баланс в боте и вернитесь к оформлению — выбор сохранять
-    не нужно, тариф на месте.</p>
-  <p><a href="/tariffs">К тарифам</a> · <a href="/">В личный кабинет</a></p>
+<section class="card card--lg card--art">
+  {# Бот отказал по деньгам: ничего не списано, повторять покупку безопасно. #}
+  {% call empty('balance', 'На счету не хватает', message or 'Пополните баланс и вернитесь к выбранному тарифу — деньги не списались.') %}
+    <div class="btn-row">
+      <a class="btn" href="/balance/topup">Пополнить баланс</a>
+      <a class="btn btn--ghost" href="/tariffs">К тарифам</a>
+    </div>
+  {% endcall %}
 </section>
 {% endblock %}

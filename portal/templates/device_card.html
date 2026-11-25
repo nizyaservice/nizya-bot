@@ -1,25 +1,62 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import back %}
 {% block title %}{{ device.title }} — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>{{ device.title }}</h1>
+{{ back('/devices', 'Все устройства') }}
 
-  <ul class="specs">
-    {% if device.platform %}<li>Платформа: {{ device.platform }}</li>{% endif %}
-    {% if device.device_model %}<li>Модель: {{ device.device_model }}</li>{% endif %}
-  </ul>
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <div class="eyebrow">Устройство</div>
+      <h1>{{ device.title }}</h1>
+    </div>
+  </div>
 
-  <form method="post" action="/devices/{{ device.hwid | urlencode }}/rename" class="form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label for="name">Своё название</label>
-    <input id="name" name="name" type="text" maxlength="64" value="{{ device.local_name }}"
-           placeholder="{{ device.default_title }}">
-    {# Пустое поле снимает своё название: бот вернётся к «платформа — модель». #}
-    <button type="submit">✏️ Сохранить название</button>
-  </form>
+  <section class="card">
+    <dl class="rows">
+      <div class="row">
+        <dt>Платформа</dt>
+        <dd>{{ device.platform or '—' }}</dd>
+      </div>
+      <div class="row">
+        <dt>Модель</dt>
+        <dd>{{ device.device_model or '—' }}</dd>
+      </div>
+      <div class="row">
+        <dt>Последняя активность</dt>
+        <dd>{{ device.created_at|moment }}</dd>
+      </div>
+    </dl>
+  </section>
 
-  <p class="note"><a href="/devices/{{ device.hwid | urlencode }}/remove">❌ Отключить устройство</a></p>
-  <p><a href="/devices">Все устройства</a></p>
-</section>
+  <section class="card">
+    <div class="card__title"><h2>Название</h2></div>
+    <form class="form" method="post" action="/devices/{{ device.hwid|urlencode }}/rename">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="name">Как называть это устройство</label>
+        <input id="name" name="name" type="text" maxlength="64" value="{{ device.local_name }}"
+               placeholder="{{ device.default_title }}">
+        <span class="field__hint">Пустое поле вернёт название по умолчанию — «{{ device.default_title }}».</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn--ghost" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__title"><h2>Отключение</h2></div>
+    <p class="muted small">
+      Устройство потеряет доступ и освободит место в тарифе. Подключить его заново
+      можно той же ссылкой подписки.
+    </p>
+    <div class="btn-row">
+      <a class="btn btn--danger btn--sm" href="/devices/{{ device.hwid|urlencode }}/remove">Отключить устройство</a>
+    </div>
+  </section>
+</div>
 {% endblock %}

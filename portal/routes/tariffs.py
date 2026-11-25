@@ -1,12 +1,19 @@
-"""Покупка тарифа с баланса.
+"""Каталог тарифов и покупка с баланса.
 
-Три экрана: каталог → подтверждение → результат. Цену на всех трёх даёт бот
-(``/subscription/purchase-options``), портал её не считает: скидки группы и
-промо-предложения живут на стороне бота, и посчитанная тут цена расходилась бы
-со списанием.
+Каталог открыт всем: цены человек смотрит до того, как заведёт аккаунт.
+Пока сессии нет, портал берёт публичную ручку бота (``/public/tariffs``) —
+там базовые цены без скидок промогруппы. Как только человек вошёл, каталог
+строится по ``/subscription/purchase-options``: те же тарифы, но с его
+скидками и отметкой текущего. Поэтому цена с витрины — верхняя граница, после
+входа она может только упасть.
 
-Подтверждение — GET: страницу можно обновить и вернуться назад, ничего не
-списав. Списывает только POST с CSRF-токеном.
+Дальше всё как прежде: подтверждение — GET (страницу можно обновить и уйти
+назад, ничего не списав), списывает только POST с CSRF-токеном. Экран
+подтверждения требует сессии, и человек без неё попадает на вход, а оттуда
+возвращается ровно на выбранный тариф (см. ``next`` в deps.py).
+
+Цену на всех экранах считает бот. Портал передаёт только выбор: посчитанная
+тут сумма разошлась бы со списанием, как только оператор заведёт скидку.
 """
 
 from __future__ import annotations
@@ -18,9 +25,10 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 
 from ..api import CabinetApi, CabinetApiError
-from ..deps import check_csrf, get_api, get_store, require_session, with_fresh_token
+from ..deps import check_csrf, get_api, get_session, get_store, require_session, with_fresh_token
 from ..sessions import Session, SessionStore
 from ..templating import render
+from .pages import available_balance
 
 
 logger = structlog.get_logger(__name__)
@@ -34,23 +42,28 @@ PAYMENT_REQUIRED = 402
 @router.get('/tariffs', response_class=HTMLResponse)
 async def tariff_catalog(
     request: Request,
-    session: Session = Depends(require_session),
+    days: int | None = None,
+    session: Session | None = Depends(get_session),
     api: CabinetApi = Depends(get_api),
     store: SessionStore = Depends(get_store),
 ) -> HTMLResponse:
-    options = await with_fresh_token(session, store, api, api.purchase_options)
+    """Каталог: вошедшему — с его ценами, остальным — базовые."""
+    if session is None:
+        options = await api.public_tariffs()
+    else:
+        options = await with_fresh_token(session, store, api, api.purchase_options)
+        # Заодно освежаем сумму в шапке: человек мог прийти сюда сразу после
+        # входа, и в сессии её бы ещё не было.
+        await available_balance(session, store, api)
+
     context = _catalog_context(options)
 
-    if context['sales_mode'] != 'tariffs':
+    if context['sales_mode'] and context['sales_mode'] != 'tariffs':
         # Классический режим продаж (сроки и опции по отдельности) на портале
         # не собран: показываем честную заглушку, а не половину воронки.
-        return render(
-            request,
-            'tariffs_unavailable.html',
-            {},
-            session=session,
-        )
+        return render(request, 'tariffs_unavailable.html', {}, session=session)
 
+    context.update(_with_chosen_periods(context['tariffs'], days))
     return render(request, 'tariffs.html', context, session=session)
 
 
@@ -82,15 +95,20 @@ async def tariff_confirm(
             session=session,
         )
 
-    enough = context['balance_kopeks'] >= int(period.get('price_kopeks') or 0)
+    price = int(period.get('price_kopeks') or 0)
+    # Сравниваем с доступной суммой (деньги + баллы), а не с денежным
+    # кошельком из каталога: списывает бот по ней же. См. available_balance.
+    available = await available_balance(session, store, api)
+    balance = context['balance_kopeks'] if available is None else available
     return render(
         request,
         'tariff_confirm.html',
         {
             'tariff': tariff,
             'period': period,
-            'balance_label': context['balance_label'],
-            'enough_balance': enough,
+            'balance_kopeks': balance,
+            'enough_balance': balance >= price,
+            'missing_kopeks': max(0, price - balance),
             'is_renewal': bool(tariff.get('is_current')),
         },
         session=session,
@@ -144,9 +162,13 @@ async def tariff_buy(
 def _catalog_context(options: Any) -> dict[str, Any]:
     """Разобрать ответ бота в то, что нужно страницам.
 
-    Из каталога убираем то, чего портал пока не умеет оформлять: суточные
-    тарифы (у них своя ручка), тарифы без готовых сроков (только произвольное
-    число дней) и уже купленные в режиме нескольких подписок — их продлевает
+    Форма ответа у публичной ручки и у ``purchase-options`` одна и та же —
+    отличается только наполнение (скидки, отметки «текущий» и «куплен»),
+    поэтому разбор общий.
+
+    Из каталога убираем то, чего портал не умеет оформлять: суточные тарифы
+    (у них своя ручка), тарифы без готовых сроков (только произвольное число
+    дней) и уже купленные в режиме нескольких подписок — их продлевает
     отдельная воронка с ``subscription_id``. Если что-то скрыли, страница
     скажет об этом, а не промолчит.
     """
@@ -171,9 +193,44 @@ def _catalog_context(options: Any) -> dict[str, Any]:
         'tariffs': tariffs,
         'hidden_count': hidden,
         'balance_kopeks': int(data.get('balance_kopeks') or 0),
-        'balance_label': data.get('balance_label') or '0 ₽',
         'has_subscription': bool(data.get('has_subscription')),
     }
+
+
+def _with_chosen_periods(tariffs: list[dict[str, Any]], days: int | None) -> dict[str, Any]:
+    """Выбранный срок и цена каждого тарифа на этот срок.
+
+    Переключатель собирается из всех сроков каталога разом: у разных тарифов
+    наборы сроков могут не совпадать. Тарифу, у которого выбранного срока нет,
+    показываем ближайший и отмечаем это — иначе он просто пропал бы из
+    каталога, и человек не понял бы, куда.
+    """
+    all_days = sorted({int(period['days']) for tariff in tariffs for period in tariff['periods']})
+    if not all_days:
+        return {'periods_offered': [], 'selected_days': None, 'cards': []}
+
+    selected = days if days in all_days else _default_days(tariffs, all_days)
+
+    cards = []
+    for tariff in tariffs:
+        exact = _find_period(tariff, selected)
+        period = exact or min(
+            tariff['periods'],
+            key=lambda item: (abs(int(item['days']) - selected), int(item['days'])),
+        )
+        cards.append({**tariff, 'period': period, 'is_exact_period': exact is not None})
+
+    return {'periods_offered': all_days, 'selected_days': selected, 'cards': cards}
+
+
+def _default_days(tariffs: list[dict[str, Any]], all_days: list[int]) -> int:
+    """Срок по умолчанию: отмеченный оператором как выгодный, иначе 30 дней."""
+    highlighted = [
+        int(period['days']) for tariff in tariffs for period in tariff['periods'] if period.get('is_highlighted')
+    ]
+    if highlighted:
+        return max(set(highlighted), key=highlighted.count)
+    return 30 if 30 in all_days else all_days[0]
 
 
 def _find_tariff(tariffs: list[dict[str, Any]], tariff_id: int) -> dict[str, Any] | None:

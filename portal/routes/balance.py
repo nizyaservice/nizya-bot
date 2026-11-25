@@ -26,6 +26,7 @@ from ..api import CabinetApi, CabinetApiError
 from ..deps import check_csrf, get_api, get_store, require_session, with_fresh_token
 from ..sessions import Session, SessionStore
 from ..templating import render
+from .pages import remember_available
 
 
 logger = structlog.get_logger(__name__)
@@ -34,6 +35,10 @@ router = APIRouter()
 
 #: Сколько операций показываем в истории.
 HISTORY_LIMIT = 20
+
+#: Подсказки сумм под полем ввода, в рублях. Это ссылки, а не скрипт: по ним
+#: страница открывается заново с подставленной суммой.
+AMOUNT_PRESETS = (300, 500, 1000, 2000)
 
 
 @router.get('/balance', response_class=HTMLResponse)
@@ -44,6 +49,8 @@ async def balance_page(
     store: SessionStore = Depends(get_store),
 ) -> HTMLResponse:
     balance = await with_fresh_token(session, store, api, api.balance)
+    # Сумма в шапке берётся из сессии: обновляем её здесь, как и в кабинете.
+    await remember_available(session, store, balance)
 
     async def history(token: str) -> Any:
         return await api.transactions(token, HISTORY_LIMIT)
@@ -80,12 +87,18 @@ async def balance_page(
 @router.get('/balance/topup', response_class=HTMLResponse)
 async def topup_form(
     request: Request,
+    amount: str = '',
     session: Session = Depends(require_session),
     api: CabinetApi = Depends(get_api),
     store: SessionStore = Depends(get_store),
 ) -> HTMLResponse:
     methods = await _methods(session, store, api)
-    return render(request, 'balance_topup.html', {'methods': methods}, session=session)
+    return render(
+        request,
+        'balance_topup.html',
+        {'methods': methods, 'presets': AMOUNT_PRESETS, 'amount': _preset(amount)},
+        session=session,
+    )
 
 
 @router.post('/balance/topup', response_class=HTMLResponse)
@@ -107,7 +120,7 @@ async def topup_start(
         return render(
             request,
             'balance_topup.html',
-            {'methods': methods, 'error': 'Выберите способ оплаты.'},
+            {'methods': methods, 'presets': AMOUNT_PRESETS, 'error': 'Выберите способ оплаты.', 'amount': amount},
             status_code=400,
             session=session,
         )
@@ -117,7 +130,13 @@ async def topup_start(
         return render(
             request,
             'balance_topup.html',
-            {'methods': methods, 'error': 'Введите сумму в рублях, например 300.', 'method': method},
+            {
+                'methods': methods,
+                'presets': AMOUNT_PRESETS,
+                'error': 'Введите сумму в рублях, например 300.',
+                'method': method,
+                'amount': amount,
+            },
             status_code=400,
             session=session,
         )
@@ -129,7 +148,7 @@ async def topup_start(
         return render(
             request,
             'balance_topup.html',
-            {'methods': methods, 'error': limit_error, 'method': method},
+            {'methods': methods, 'presets': AMOUNT_PRESETS, 'error': limit_error, 'method': method, 'amount': amount},
             status_code=400,
             session=session,
         )
@@ -144,7 +163,7 @@ async def topup_start(
         return render(
             request,
             'balance_topup.html',
-            {'methods': methods, 'error': error.detail, 'method': method},
+            {'methods': methods, 'presets': AMOUNT_PRESETS, 'error': error.detail, 'method': method, 'amount': amount},
             status_code=400,
             session=session,
         )
@@ -256,6 +275,16 @@ async def _methods(session: Session, store: SessionStore, api: CabinetApi) -> li
     if not isinstance(payload, list):
         return []
     return [item for item in payload if isinstance(item, dict) and item.get('id')]
+
+
+def _preset(raw: str) -> str:
+    """Сумма из адреса в поле ввода: принимаем только целые рубли.
+
+    Значение приходит из ссылки, то есть снаружи; всё, что не похоже на сумму,
+    выбрасываем, а не подставляем в форму.
+    """
+    cleaned = (raw or '').strip()
+    return cleaned if cleaned.isdigit() and len(cleaned) <= 7 else ''
 
 
 def _kopeks(raw: str) -> int | None:

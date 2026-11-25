@@ -1,19 +1,28 @@
 {% extends "base.html" %}
+{% from "_parts.html" import pagehead, note %}
 {% block title %}Промокод — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Промокод</h1>
-  <p class="muted">Введите код — бонус начислится сразу.</p>
+<div class="stack">
 
-  <form method="post" action="/promocode" class="form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label for="code">Код</label>
-    <input id="code" name="code" type="text" maxlength="50" autocomplete="off"
-           autocapitalize="characters" value="{{ code or '' }}" required autofocus>
-    <button type="submit">Применить</button>
-  </form>
+  {{ pagehead('Промокод', 'Скидка, дни подписки, трафик или бонусные баллы — что именно, зависит от кода.', 'promocode') }}
 
-  <p><a href="/">В личный кабинет</a></p>
-</section>
+  {% if error %}{{ note(error) }}{% endif %}
+
+  <section class="card card--lg">
+    <form class="form" method="post" action="/promocode" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="code">Код</label>
+        <input id="code" name="code" type="text" value="{{ code or '' }}" maxlength="64"
+               autocapitalize="characters" autocomplete="off" spellcheck="false"
+               placeholder="NIZYA2026" required autofocus>
+        <span class="field__hint">Регистр не важен. Один код активируется один раз.</span>
+      </div>
+      <button class="btn btn--block" type="submit">Активировать</button>
+    </form>
+  </section>
+
+</div>
 {% endblock %}

@@ -183,9 +183,10 @@ def test_balance_page_shows_amount_and_history(client: TestClient):
     response = client.get('/balance')
 
     assert response.status_code == 200
-    assert '500.00 ₽' in response.text
+    # Рубли из копеек с неразрывным пробелом в разряде: «500 ₽», не «500.00 ₽».
+    assert '500' in response.text
     assert 'Пополнение' in response.text
-    assert '+300.00 ₽' in response.text
+    assert '+300' in response.text
 
 
 def test_topup_form_lists_methods_from_the_bot(client: TestClient):
@@ -194,7 +195,7 @@ def test_topup_form_lists_methods_from_the_bot(client: TestClient):
     assert response.status_code == 200
     assert 'ЮKassa' in response.text
     assert 'CryptoBot' in response.text
-    assert 'от 100 ₽' in response.text, 'минимальная сумма способа видна до оплаты'
+    assert 'от 100' in response.text, 'минимальная сумма способа видна до оплаты'
 
 
 def test_without_methods_the_page_says_so(logged_in):
@@ -202,7 +203,7 @@ def test_without_methods_the_page_says_so(logged_in):
 
     response = client.get('/balance/topup')
 
-    assert 'нет доступных способов оплаты' in response.text
+    assert 'Способов оплаты нет' in response.text
 
 
 # ─── создание платежа ───

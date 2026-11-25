@@ -14,3 +14,8 @@ deploy/.env*
 deploy/*.md
 deploy/Caddyfile
 deploy/docker-compose.yml
+
+# Нарезка иллюстраций из баннеров бота — инструмент сборки, а не рантайма:
+# ей нужны Pillow и menu_images/, которых в образе нет. Готовые .webp лежат
+# в static/img/mascot/ и коммитятся в репозиторий.
+tools/

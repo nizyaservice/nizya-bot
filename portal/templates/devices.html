@@ -1,28 +1,62 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import pagehead, note, empty %}
 {% block title %}Устройства — {{ brand_name }}{% endblock %}
+{% block page_class %}page--wide{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Устройства</h1>
-  {% if device_limit %}
-    <p class="row"><span class="muted">Подключено</span> <b>{{ total }} из {{ device_limit }}</b></p>
-  {% endif %}
+<div class="stack">
+
+  {{ pagehead(
+       'Устройства',
+       'Устройство занимает место в тарифе с первого подключения. Отключите лишнее, чтобы освободить слот.',
+       'devices'
+  ) }}
 
   {% if devices %}
-    <div class="periods">
-      {# Кнопка во всю ширину: длинные имена устройств помещаются целиком. #}
+    <section class="card">
+      <div class="status-summary">
+        <span class="badge {{ 'badge--warn' if device_limit and total >= device_limit else 'badge--ok' }}">
+          <span class="dot"></span>
+          {{ total }}{% if device_limit %} из {{ device_limit }}{% endif %}
+          {{ total|plural('устройство', 'устройства', 'устройств') }}
+        </span>
+        {% if device_limit and total >= device_limit %}
+          <span class="muted small">Свободных мест нет: чтобы подключить новое, отключите одно из этих.</span>
+        {% elif device_limit %}
+          <span class="muted small">Свободно {{ device_limit - total }} {{ (device_limit - total)|plural('место', 'места', 'мест') }}.</span>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="tiles">
       {% for device in devices %}
-        <a class="period" href="/devices/{{ device.hwid | urlencode }}">
-          <span>{{ device.title }}</span>
-          <span class="muted">→</span>
+        <a class="tile" href="/devices/{{ device.hwid|urlencode }}">
+          <span class="tile__icon">{{ i.icon('devices') }}</span>
+          <span class="tile__body">
+            <span class="tile__title">{{ device.title }}</span>
+            <span class="tile__note">
+              {% if device.local_name %}{{ device.default_title }}{% else %}подключено {{ device.created_at|moment }}{% endif %}
+            </span>
+          </span>
+          <span class="tile__end">{{ i.icon('chevron') }}</span>
         </a>
       {% endfor %}
+    </section>
+
+    <div class="btn-row">
+      <a class="btn btn--danger btn--sm" href="/devices-reset">Отключить все устройства</a>
     </div>
-    <p class="note"><a href="/devices-reset">Отключить все устройства</a></p>
+
   {% else %}
-    <p class="muted">Подключённых устройств нет. Они появятся здесь после первого подключения.</p>
+    <section class="card card--lg card--art">
+      {% call empty('devices', 'Устройств пока нет', 'Они появятся здесь сами, как только вы подключитесь по ссылке подписки.') %}
+        <div class="btn-row">
+          <a class="btn" href="/dashboard">Ссылка подключения</a>
+        </div>
+      {% endcall %}
+    </section>
   {% endif %}
 
-  <p><a href="/">В личный кабинет</a></p>
-</section>
+</div>
 {% endblock %}

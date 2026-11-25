@@ -50,7 +50,7 @@ def test_login_page_opens(client: TestClient):
     response = client.get('/login')
 
     assert response.status_code == 200
-    assert 'Получить код' in response.text
+    assert 'Выслать код' in response.text
 
 
 def test_requesting_a_code_shows_the_code_screen(client: TestClient):
@@ -94,7 +94,7 @@ def test_correct_code_opens_a_session(client: TestClient, store: SessionStore):
     response = client.post('/login/code', data={'email': 'user@example.com', 'code': '123456'})
 
     assert response.status_code == 303
-    assert response.headers['location'] == '/'
+    assert response.headers['location'] == '/dashboard'
 
     cookie = response.cookies.get('portal_session')
     assert cookie, 'портал должен поставить cookie сессии'
@@ -154,20 +154,63 @@ def test_consent_is_asked_once_and_then_submitted(portal_app):
     assert seen[1]['accepted_legal_documents'] == ['rules']
 
 
-def test_home_requires_login(client: TestClient):
-    response = client.get('/')
+def test_cabinet_requires_login(client: TestClient):
+    response = client.get('/dashboard')
 
     assert response.status_code == 303
-    assert response.headers['location'] == '/login'
+    assert response.headers['location'] == '/login?next=%2Fdashboard'
 
 
-def test_home_opens_with_a_session(client: TestClient):
+def test_the_shop_window_is_open_without_a_session(client: TestClient):
+    """Витрина не просит входа: цену смотрят до регистрации."""
+    assert client.get('/').status_code == 200
+    assert client.get('/tariffs').status_code == 200
+    assert client.get('/status').status_code == 200
+
+
+def test_after_login_the_person_lands_where_they_were_going(client: TestClient):
+    """Адрес возврата доезжает от гейта до формы и дальше в редирект."""
+    gate = client.get('/tariffs/1?days=30')
+    assert gate.status_code == 303
+    assert gate.headers['location'] == '/login?next=%2Ftariffs%2F1%3Fdays%3D30'
+
+    form = client.get(gate.headers['location'])
+    assert 'value="/tariffs/1?days=30"' in form.text, 'адрес возврата едет скрытым полем'
+
+    done = client.post(
+        '/login/code',
+        data={'email': 'user@example.com', 'code': '123456', 'next': '/tariffs/1?days=30'},
+    )
+
+    assert done.headers['location'] == '/tariffs/1?days=30'
+
+
+def test_a_foreign_address_is_not_a_place_to_return_to(client: TestClient):
+    """`//evil.example` браузер читает как чужой сайт — такой возврат отбрасываем."""
+    done = client.post(
+        '/login/code',
+        data={'email': 'user@example.com', 'code': '123456', 'next': '//evil.example/steal'},
+    )
+
+    assert done.headers['location'] == '/dashboard'
+
+
+def test_a_logged_in_person_is_sent_to_the_cabinet(client: TestClient):
     client.post('/login/code', data={'email': 'user@example.com', 'code': '123456'})
 
     response = client.get('/')
 
+    assert response.status_code == 303
+    assert response.headers['location'] == '/dashboard'
+
+
+def test_cabinet_opens_with_a_session(client: TestClient):
+    client.post('/login/code', data={'email': 'user@example.com', 'code': '123456'})
+
+    response = client.get('/dashboard')
+
     assert response.status_code == 200
-    assert 'Личный кабинет' in response.text
+    assert 'Ваша подписка' in response.text
 
 
 def test_logout_without_csrf_token_does_nothing(client: TestClient, store: SessionStore):
@@ -189,7 +232,9 @@ def test_logout_with_csrf_token_closes_the_session(client: TestClient, store: Se
     response = client.post('/logout', data={'csrf_token': session.csrf_token})
 
     assert response.status_code == 303
-    assert response.headers['location'] == '/login'
+    # После выхода — на витрину: человек вышел нарочно, и форма входа
+    # с пустым полем была бы тупиком.
+    assert response.headers['location'] == '/'
     assert await_session(store, sid) is None
 
 

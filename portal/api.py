@@ -119,15 +119,23 @@ class CabinetApi:
         """Название сервиса, контакты поддержки и ссылка на канал."""
         return await self._call('GET', f'/info/service?language={language}')
 
+    # ─── витрина до входа ───
+
+    async def public_tariffs(self, language: str = 'ru') -> Any:
+        """Каталог тарифов без авторизации: базовые цены, без скидок группы.
+
+        Токен не передаём нарочно — иначе ручка вернула бы персональные цены
+        и витрина зависела бы от того, кто её открыл.
+        """
+        return await self._call('GET', f'/public/tariffs?language={language}')
+
+    async def server_status(self) -> Any:
+        """Доступность узлов. Ответ общий для всех, бот его кэширует."""
+        return await self._call('GET', '/public/server-status')
+
     async def legal_document(self, kind: str, language: str = 'ru') -> Any:
         """Документ сервиса: правила, политика или оферта."""
         return await self._call('GET', f'/info/{kind}?language={language}')
-
-    async def languages(self) -> Any:
-        return await self._call('GET', '/info/languages')
-
-    async def set_language(self, token: str, language: str) -> Any:
-        return await self._call('PATCH', '/info/user/language', json={'language': language}, token=token)
 
     async def referral(self, token: str) -> Any:
         return await self._call('GET', '/referral', token=token)
@@ -162,23 +170,7 @@ class CabinetApi:
         """Спросить провайдера о судьбе платежа, не дожидаясь вебхука."""
         return await self._call('POST', f'/balance/pending-payments/{method}/{payment_id}/check', token=token)
 
-    # ─── помощь ───
-
-    async def support_config(self) -> Any:
-        """Включены ли тикеты и куда писать, если нет."""
-        return await self._call('GET', '/info/support-config')
-
-    async def tickets(self, token: str) -> Any:
-        return await self._call('GET', '/tickets', token=token)
-
-    async def ticket(self, token: str, ticket_id: int) -> Any:
-        return await self._call('GET', f'/tickets/{ticket_id}', token=token)
-
-    async def create_ticket(self, token: str, title: str, message: str) -> Any:
-        return await self._call('POST', '/tickets', json={'title': title, 'message': message}, token=token)
-
-    async def reply_to_ticket(self, token: str, ticket_id: int, message: str) -> Any:
-        return await self._call('POST', f'/tickets/{ticket_id}/messages', json={'message': message}, token=token)
+    # ─── согласия ───
 
     async def legal_consent_config(self) -> Any:
         """Какие документы требуется принять на первом входе."""

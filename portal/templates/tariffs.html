@@ -1,47 +1,112 @@
 {% extends "base.html" %}
+{% import "_icons.html" as i %}
+{% from "_parts.html" import pagehead, note, empty %}
 {% block title %}Тарифы — {{ brand_name }}{% endblock %}
+{% block description %}Тарифы {{ brand_name }}: цена, трафик и количество устройств. Цены открыты, регистрация для просмотра не нужна.{% endblock %}
+{% block page_class %}page--wide{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>{% if has_subscription %}Продлить или сменить тариф{% else %}Выбор тарифа{% endif %}</h1>
-  <p class="row"><span class="muted">На балансе</span> <b>{{ balance_label }}</b></p>
-</section>
+<div class="stack stack--lg">
 
-{% for tariff in tariffs %}
-  <section class="card tariff{% if tariff.is_highlighted %} tariff-top{% endif %}">
-    <h2>{{ tariff.name }}{% if tariff.is_current %} <span class="tag">ваш тариф</span>{% endif %}</h2>
-    {% if tariff.description %}<p class="muted">{{ tariff.description }}</p>{% endif %}
+  {{ pagehead(
+       'Тарифы',
+       'Оплата с баланса. Сменить тариф или продлить срок можно в любой момент.',
+       'tariffs'
+  ) }}
 
-    <ul class="specs">
-      <li>Трафик: {{ tariff.traffic_limit_label }}</li>
-      <li>Устройств: {{ tariff.device_limit }}</li>
-      {% if tariff.servers_count %}<li>Локаций: {{ tariff.servers_count }}</li>{% endif %}
-    </ul>
+  {% if not session %}
+    {# Честно говорим, что показанное — базовая цена: после входа у человека
+       может оказаться скидка группы, и сумма окажется меньше, а не больше. #}
+    {{ note('Это базовые цены. Войдите — и в каталоге появятся ваши скидки, если они есть.', 'info') }}
+  {% endif %}
 
-    <div class="periods">
-      {% for period in tariff.periods %}
-        {# Срок — ссылка на подтверждение: списывает только форма на том экране. #}
-        <a class="period{% if period.is_highlighted %} period-top{% endif %}"
-           href="/tariffs/{{ tariff.id }}?days={{ period.days }}">
-          <span class="period-label">{{ period.label }}</span>
-          <span class="period-price">
-            {{ period.price_label }}
-            {% if period.original_price_label %}
-              <s class="muted">{{ period.original_price_label }}</s>
+  {% if cards %}
+
+    {% if periods_offered|length > 1 %}
+      <div class="switcher" role="group" aria-label="Срок подписки">
+        {% for days in periods_offered %}
+          <a href="/tariffs?days={{ days }}" {% if days == selected_days %}aria-current="true"{% endif %}>{{ days|period }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="plans">
+      {% for tariff in cards %}
+        <article class="plan {% if tariff.is_highlighted %}plan--top{% elif tariff.is_current %}plan--current{% endif %}">
+          {% if tariff.is_current %}
+            <span class="badge badge--ok plan__flag">Ваш тариф</span>
+          {% elif tariff.is_highlighted %}
+            <span class="badge badge--brand plan__flag">Выгодный</span>
+          {% endif %}
+
+          <div>
+            <div class="plan__name">{{ tariff.name }}</div>
+            {% if tariff.description %}<div class="plan__note">{{ tariff.description }}</div>{% endif %}
+          </div>
+
+          <div>
+            <div class="plan__price">
+              <span class="plan__amount">{{ tariff.period.price_kopeks|rubles }}</span>
+              {% if tariff.period.original_price_kopeks %}
+                <span class="plan__was">{{ tariff.period.original_price_kopeks|rubles }}</span>
+                <span class="badge badge--ok">{{ tariff.period.discount_label }}</span>
+              {% endif %}
+            </div>
+            <div class="plan__note">
+              {{ tariff.period.label }}
+              {% if tariff.period.days > 31 and tariff.period.price_per_month_kopeks %}
+                · {{ tariff.period.price_per_month_kopeks|rubles }} в месяц
+              {% endif %}
+            </div>
+            {% if not tariff.is_exact_period %}
+              <div class="plan__note">Срок {{ selected_days|period }} в этом тарифе не продаётся — показан ближайший.</div>
             {% endif %}
-          </span>
-        </a>
+          </div>
+
+          <ul class="plan__specs">
+            <li>{{ i.icon('check') }} {{ tariff.traffic_limit_label }} трафика</li>
+            <li>{{ i.icon('check') }} до {{ tariff.device_limit }} {{ tariff.device_limit|plural('устройства', 'устройств', 'устройств') }}</li>
+            {% if tariff.servers_count %}
+              <li>{{ i.icon('check') }} {{ tariff.servers_count }} {{ tariff.servers_count|plural('локация', 'локации', 'локаций') }}</li>
+            {% endif %}
+            {% if tariff.is_unlimited_traffic %}
+              <li>{{ i.icon('check') }} скорость не режется</li>
+            {% endif %}
+          </ul>
+
+          <div class="plan__foot">
+            <a class="btn {% if not tariff.is_highlighted %}btn--ghost{% endif %} btn--block"
+               href="/tariffs/{{ tariff.id }}?days={{ tariff.period.days }}">
+              {% if tariff.is_current %}Продлить{% else %}Оформить{% endif %}
+            </a>
+          </div>
+        </article>
       {% endfor %}
     </div>
-  </section>
-{% else %}
-  <section class="card">
-    <p class="muted">Сейчас нет тарифов, доступных к покупке на портале.</p>
-  </section>
-{% endfor %}
 
-{% if hidden_count %}
-  <p class="muted note">Часть тарифов оформляется только в боте: суточные, с произвольным
-    числом дней и продление уже купленных.</p>
-{% endif %}
+  {% else %}
+
+    <section class="card card--lg card--art">
+      {% call empty('oops', 'Тарифов сейчас нет', 'Каталог пуст или сервис его обновляет. Загляните чуть позже.') %}
+        <div class="btn-row">
+          {% if bot_url %}<a class="btn" href="{{ bot_url }}">Открыть бота</a>{% endif %}
+          <a class="btn btn--ghost" href="/">На главную</a>
+        </div>
+      {% endcall %}
+    </section>
+
+  {% endif %}
+
+  {# Строка о скрытых тарифах — вне ветвления нарочно: когда портал не умеет
+     оформить ни один тариф, список пуст, и без неё человек не узнал бы, что
+     тарифы вообще есть и где их купить. #}
+  {% if hidden_count %}
+    <p class="muted small">
+      Ещё {{ hidden_count }} {{ hidden_count|plural('тариф', 'тарифа', 'тарифов') }} оформляется только в боте —
+      посуточные и уже купленные.
+      {% if bot_url %}<a href="{{ bot_url }}">Открыть бота</a>.{% endif %}
+    </p>
+  {% endif %}
+
+</div>
 {% endblock %}

@@ -1,0 +1,43 @@
+{# Повторяющиеся куски экранов. Держим их здесь, чтобы шапка раздела и
+   пустой экран выглядели одинаково во всех разделах, а не похоже. #}
+
+{% import "_icons.html" as i %}
+
+{# Шапка раздела: надзаголовок, заголовок, пояснение и иллюстрация Низи
+   (та же, что на баннере этого раздела в боте). #}
+{% macro pagehead(title, lead='', art='', eyebrow='') %}
+<div class="pagehead">
+  <div class="pagehead__text">
+    {% if eyebrow %}<div class="eyebrow">{{ eyebrow }}</div>{% endif %}
+    <h1>{{ title }}</h1>
+    {% if lead %}<p>{{ lead }}</p>{% endif %}
+  </div>
+  {% if art %}
+    <img class="pagehead__art" src="/static/img/mascot/{{ art }}.webp" alt="" width="660" height="400" loading="lazy">
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# Ссылка «назад»: на мобильном жест назад есть не везде, а внутри раздела
+   уйти обратно надо в один тап. #}
+{% macro back(url, label) %}
+<a class="back" href="{{ url }}">{{ i.icon('back') }}{{ label }}</a>
+{% endmacro %}
+
+{# Сообщение. tone: error (по умолчанию), ok, info, warn. #}
+{% macro note(text, tone='error') %}
+<p class="alert{% if tone != 'error' %} alert--{{ tone }}{% endif %}" {% if tone == 'error' %}role="alert"{% endif %}>
+  {{ i.icon('alert' if tone in ('error', 'warn') else ('check-circle' if tone == 'ok' else 'info')) }}
+  <span>{{ text }}</span>
+</p>
+{% endmacro %}
+
+{# Пустой экран: Низя вместо серой надписи «нет данных». #}
+{% macro empty(art, title, text='') %}
+<div class="empty">
+  <img src="/static/img/mascot/{{ art }}.webp" alt="" width="660" height="400" loading="lazy">
+  <h3>{{ title }}</h3>
+  {% if text %}<p>{{ text }}</p>{% endif %}
+  {{ caller() if caller is defined }}
+</div>
+{% endmacro %}

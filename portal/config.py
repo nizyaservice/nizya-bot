@@ -36,8 +36,13 @@ class PortalSettings(BaseSettings):
     #: Публичный адрес портала — для ссылок в письмах и редиректов.
     public_url: str = 'https://example.com'
     brand_name: str = 'Nizya VPN'
+    #: Строка под логотипом и в титуле главной.
+    brand_tagline: str = 'Низя? Можна!'
     default_language: str = 'ru'
+    #: Куда вести за помощью: портал своих тикетов не ведёт, помощь — в боте.
     support_url: str = ''
+    #: Ссылка на бота: ею же закрывается всё, чего на портале нет.
+    bot_url: str = ''
 
     debug: bool = False
 

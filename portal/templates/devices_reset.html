@@ -1,17 +1,27 @@
 {% extends "base.html" %}
+{% from "_parts.html" import back, note %}
 {% block title %}Отключить все устройства — {{ brand_name }}{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1>Отключить все устройства?</h1>
-  <p>Будут отключены все подключённые устройства{% if total %} ({{ total }}){% endif %}.</p>
-  <p class="muted">Доступ прекратится на каждом из них — подключать придётся заново.</p>
+{{ back('/devices', 'Все устройства') }}
 
-  <form method="post" action="/devices-reset" class="form">
+<div class="stack">
+  <div class="pagehead">
+    <div class="pagehead__text">
+      <h1>Отключить все устройства?</h1>
+      <p>Сейчас подключено {{ total }} {{ total|plural('устройство', 'устройства', 'устройств') }}. Все потеряют доступ, и каждое придётся подключать заново.</p>
+    </div>
+  </div>
+
+  {{ note('Это удобно, когда ссылка подписки куда-то утекла: после сброса чужие устройства отвалятся.', 'info') }}
+
+  <form class="form" method="post" action="/devices-reset" data-once>
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit">Отключить все</button>
+    <div class="btn-row">
+      <button class="btn btn--danger" type="submit">Да, отключить все</button>
+      <a class="btn btn--ghost" href="/devices">Отмена</a>
+    </div>
   </form>
-
-  <p><a href="/devices">Отмена</a></p>
-</section>
+</div>
 {% endblock %}
