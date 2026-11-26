@@ -27,6 +27,7 @@ from app.services.payment_verification_service import (
     method_display_name,
     run_manual_check,
 )
+from app.utils.bonus_points import kopeks_to_points
 from app.utils.currency_converter import currency_converter
 
 from ..dependencies import get_cabinet_db, get_current_cabinet_user
@@ -70,6 +71,7 @@ async def get_balance(
     return BalanceResponse(
         balance_kopeks=fresh_user.balance_kopeks,
         balance_rubles=fresh_user.balance_kopeks / 100,
+        bonus_points=kopeks_to_points(points_kopeks),
         bonus_points_kopeks=points_kopeks,
         bonus_points_rubles=points_kopeks / 100,
         available_kopeks=available_kopeks,

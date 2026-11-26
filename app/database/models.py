@@ -2401,9 +2401,11 @@ class User(Base):
     status = Column(String(20), default=UserStatus.ACTIVE.value)
     language = Column(String(5), default='ru')
     balance_kopeks = Column(Integer, default=0)
-    # Бонусные баллы — второй кошелёк: 1 балл = 1 ₽, хранится в копейках, чтобы
-    # вся арифметика цен (прораты, скидки) работала без пересчётов. Тратятся
-    # раньше денег — см. subtract_user_balance.
+    # Бонусные баллы — второй кошелёк. Хранится ДЕНЕЖНАЯ СТОИМОСТЬ баллов в
+    # копейках, а не их количество: так вся арифметика цен (прораты, скидки)
+    # работает без пересчётов. Количество = стоимость / курс, курс — в
+    # app/utils/bonus_points.py (1 балл = 0,5 ₽). Тратятся раньше денег —
+    # см. subtract_user_balance.
     bonus_points_kopeks = Column(Integer, default=0, nullable=False, server_default='0')
     used_promocodes = Column(Integer, default=0)
     has_had_paid_subscription = Column(Boolean, default=False, nullable=False)
@@ -2556,6 +2558,7 @@ class User(Base):
 
     @property
     def bonus_points_rubles(self) -> float:
+        """Стоимость баллов в рублях (не их количество: курс не единица)."""
         return (self.bonus_points_kopeks or 0) / 100
 
     @property

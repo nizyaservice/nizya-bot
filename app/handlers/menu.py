@@ -46,8 +46,8 @@ from app.services.subscription_checkout_service import (
 )
 from app.services.support_settings_service import SupportSettingsService
 from app.services.user_cart_service import user_cart_service
+from app.utils.bonus_points import format_bonus_points_with_value
 from app.utils.display_mode import is_visible_in_bot
-from app.utils.formatters import format_bonus_points
 from app.utils.photo_message import edit_or_answer_photo
 from app.utils.pricing_utils import format_period_description
 from app.utils.promo_offer import (
@@ -1539,7 +1539,7 @@ async def get_main_menu_text(user, texts, db: AsyncSession):
     # текстом, поэтому строка в тексте и оказывается выше него.
     points_kopeks = getattr(user, 'bonus_points_kopeks', 0) or 0
     points_line = texts.t('MAIN_MENU_BONUS_POINTS', '🎁 Бонусные баллы: {points}').replace(
-        '{points}', format_bonus_points(points_kopeks)
+        '{points}', format_bonus_points_with_value(points_kopeks)
     )
     if action_prompt in base_text:
         base_text = base_text.replace(action_prompt, f'{points_line}\n\n{action_prompt}')

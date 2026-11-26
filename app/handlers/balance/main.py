@@ -24,8 +24,8 @@ from app.services.section_image_service import (
     get_section_media_kwargs,
 )
 from app.states import BalanceStates
+from app.utils.bonus_points import format_bonus_points_with_value
 from app.utils.decorators import error_handler
-from app.utils.formatters import format_bonus_points
 from app.utils.photo_message import edit_or_answer_photo
 from app.utils.timezone import format_local_datetime
 
@@ -273,7 +273,7 @@ async def show_balance_menu(callback: types.CallbackQuery, db_user: User, db: As
     # на экране «0 ₽», иначе не понимает, чем оплатилась подписка.
     points_kopeks = getattr(db_user, 'bonus_points_kopeks', 0) or 0
     points_line = texts.t('BALANCE_BONUS_POINTS_LINE', '🎁 Бонусные баллы: {points}').replace(
-        '{points}', format_bonus_points(points_kopeks)
+        '{points}', format_bonus_points_with_value(points_kopeks)
     )
     balance_text = f'{balance_text}\n{points_line}'
 

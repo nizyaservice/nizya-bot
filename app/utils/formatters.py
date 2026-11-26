@@ -31,20 +31,6 @@ def format_datetime(dt: datetime | str, format_str: str = '%d.%m.%Y %H:%M') -> s
     return format_local_datetime(_coerce_datetime(dt), format_str)
 
 
-def format_bonus_points(kopeks: int | None) -> str:
-    """Бонусные баллы числом: «500», «12.5».
-
-    Слово «баллов» стоит в шаблонах ПЕРЕД числом («Всего баллов: 500»),
-    поэтому склонять ничего не нужно — и в остальных локалях слово своё.
-    Храним баллы в копейках (1 балл = 1 ₽), дробная часть появляется после
-    частичной оплаты, поэтому ноль в хвосте убираем.
-    """
-    value = (kopeks or 0) / 100
-    if value == int(value):
-        return str(int(value))
-    return f'{value:.2f}'.rstrip('0').rstrip('.')
-
-
 def format_date(dt: datetime | str, format_str: str = '%d.%m.%Y') -> str:
     return format_local_datetime(_coerce_datetime(dt), format_str)
 

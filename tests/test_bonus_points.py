@@ -2,7 +2,8 @@
 
 Правила фичи (задал владелец):
 
-* баллы можно тратить наравне с деньгами, 1 балл = 1 ₽ (храним в копейках);
+* баллы можно тратить наравне с деньгами, 1 балл = 0,5 ₽ (в колонке лежит их
+  денежная стоимость в копейках, количество = стоимость / курс);
 * при любой оплате с баланса сначала уходят все доступные баллы, потом деньги;
 * баллы видны в главном меню над балансом;
 * начисляет их оператор в админке так же, как деньги.
@@ -22,7 +23,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.database.models import User
-from app.utils.formatters import format_bonus_points
+from app.utils.bonus_points import (
+    BONUS_POINT_VALUE_KOPEKS,
+    format_bonus_points,
+    format_bonus_points_with_value,
+    kopeks_to_points,
+    points_to_kopeks,
+)
 
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -98,10 +105,60 @@ def test_add_bonus_points_accumulates():
 
 @pytest.mark.parametrize(
     ('kopeks', 'expected'),
-    [(0, '0'), (None, '0'), (50000, '500'), (100, '1'), (1250, '12.5'), (1234, '12.34')],
+    [(0, '0'), (None, '0'), (50000, '1000'), (50, '1'), (625, '12.5'), (617, '12.34')],
 )
 def test_format_bonus_points(kopeks, expected):
     assert format_bonus_points(kopeks) == expected
+
+
+# ─── курс балла ───
+
+
+def test_one_point_costs_half_a_rouble():
+    """Решение владельца (26.11.2026): балл оплачивает 50 копеек, не рубль."""
+    assert BONUS_POINT_VALUE_KOPEKS == 50
+    assert points_to_kopeks(100) == 5000, '100 баллов оплатят 50 ₽'
+    assert kopeks_to_points(5000) == 100
+
+
+def test_odd_points_are_counted_to_the_kopek():
+    """49 баллов = 24,5 ₽: половина рубля — целое число копеек, терять нечего."""
+    assert points_to_kopeks(49) == 2450
+    assert kopeks_to_points(2450) == 49
+    assert format_bonus_points_with_value(2450) == '49 (24.5 ₽)'
+
+
+def test_the_value_is_shown_next_to_the_count():
+    """Курс не единица, поэтому одно число человек прочёл бы как рубли.
+
+    И копейки в стоимости не округляем: при PRICE_ROUNDING_ENABLED те самые
+    24,5 ₽ показались бы как «24 ₽», то есть меньше, чем человек может
+    заплатить.
+    """
+    assert format_bonus_points_with_value(0) == '0 (0 ₽)'
+    assert format_bonus_points_with_value(5000) == '100 (50 ₽)'
+
+
+def test_the_rate_is_applied_in_one_place():
+    """Пересчёт баллов в деньги — только через points_to_kopeks/kopeks_to_points.
+
+    Пока курс был единицей, количество баллов умножали на 100 прямо в
+    хендлерах — и смена курса разъехалась бы по экранам: где-то 100 баллов
+    стоили бы 50 ₽, где-то 100. Поэтому входы оператора обязаны идти через
+    модуль курса.
+    """
+    entry_points = (
+        'app/handlers/admin/users.py',  # начисление оператором
+        'app/handlers/admin/promocodes.py',  # промокод на баллы
+    )
+
+    for path in entry_points:
+        source = (REPO / path).read_text(encoding='utf-8')
+        assert 'points_to_kopeks(' in source, f'{path}: курс применяется вручную'
+
+    assert 'amount_points * 100' not in (REPO / 'app' / 'handlers' / 'admin' / 'users.py').read_text(
+        encoding='utf-8'
+    ), 'баллы снова считаются по старому курсу'
 
 
 # ─── списание с баланса ───

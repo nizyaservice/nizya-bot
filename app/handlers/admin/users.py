@@ -46,8 +46,9 @@ from app.services.remnawave_service import RemnaWaveService
 from app.services.subscription_service import SubscriptionService
 from app.services.user_service import UserService
 from app.states import AdminStates
+from app.utils.bonus_points import format_bonus_points_with_value, points_to_kopeks
 from app.utils.decorators import admin_required, error_handler
-from app.utils.formatters import format_bonus_points, format_datetime, format_time_ago
+from app.utils.formatters import format_datetime, format_time_ago
 from app.utils.formatting import user_html_link
 from app.utils.photo_message import safe_edit_or_resend
 from app.utils.subscription_time import format_time_left, local_days_until
@@ -1306,7 +1307,7 @@ async def show_user_management(callback: types.CallbackQuery, db_user: User, db:
     # иначе пришлось бы править существующий ключ во всех локалях и оба слоя.
     sections.append(
         texts.t('ADMIN_USER_BONUS_POINTS_LINE', '🎁 <b>Бонусные баллы:</b> {points}').format(
-            points=format_bonus_points(user.bonus_points_kopeks)
+            points=format_bonus_points_with_value(user.bonus_points_kopeks)
         )
     )
 
@@ -2300,7 +2301,8 @@ async def start_bonus_points_edit(callback: types.CallbackQuery, db_user: User, 
         '• Положительное число — начислить\n'
         '• Отрицательное — снять\n'
         '• Примеры: 100, -50, 25.5\n\n'
-        '1 балл = 1 ₽. Баллы тратятся раньше денег при любой оплате с баланса.\n\n'
+        '1 балл = 0,5 ₽ (100 баллов оплатят 50 ₽). '
+        'Баллы тратятся раньше денег при любой оплате с баланса.\n\n'
         'Или нажмите /cancel для отмены',
         reply_markup=types.InlineKeyboardMarkup(
             inline_keyboard=[
@@ -2330,13 +2332,13 @@ async def process_bonus_points_edit(message: types.Message, db_user: User, state
         await message.answer('❌ Введите корректное число (например: 100 или -50)')
         return
 
-    amount_kopeks = int(round(amount_points * 100))
+    amount_kopeks = points_to_kopeks(amount_points)
     if amount_kopeks == 0:
         await message.answer('❌ Ноль баллов начислять нечего')
         return
 
     # Тот же предел, что у баланса: 100 000 баллов за одно начисление.
-    if abs(amount_kopeks) > 10000000:
+    if abs(amount_points) > 100000:
         await message.answer('❌ Слишком много баллов (максимум 100 000 за раз)')
         return
 
@@ -2353,7 +2355,7 @@ async def process_bonus_points_edit(message: types.Message, db_user: User, state
     if success:
         action = 'начислены' if amount_kopeks > 0 else 'списаны'
         await message.answer(
-            f'✅ Бонусные баллы {action}: {format_bonus_points(abs(amount_kopeks))}',
+            f'✅ Бонусные баллы {action}: {format_bonus_points_with_value(abs(amount_kopeks))}',
             reply_markup=types.InlineKeyboardMarkup(
                 inline_keyboard=[
                     [types.InlineKeyboardButton(text='👤 К пользователю', callback_data=f'admin_user_manage_{user_id}')]

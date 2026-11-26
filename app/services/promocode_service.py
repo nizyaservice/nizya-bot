@@ -18,7 +18,7 @@ from app.database.crud.user_promo_group import add_user_to_promo_group, has_user
 from app.database.models import PromoCode, PromoCodeType, Subscription, SubscriptionStatus, User
 from app.services.remnawave_service import RemnaWaveService
 from app.services.subscription_service import SubscriptionService
-from app.utils.formatters import format_bonus_points
+from app.utils.bonus_points import format_bonus_points_with_value
 
 
 logger = structlog.get_logger(__name__)
@@ -502,7 +502,7 @@ class PromoCodeService:
             # платежей они не попадают и выводу наружу не подлежат.
             await change_user_bonus_points(db, user, promocode.balance_bonus_kopeks, commit=False)
 
-            effects.append(f'🎁 Начислено баллов: {format_bonus_points(promocode.balance_bonus_kopeks)}')
+            effects.append(f'🎁 Начислено баллов: {format_bonus_points_with_value(promocode.balance_bonus_kopeks)}')
             logger.info(
                 '✅ Пользователю начислены бонусные баллы по промокоду',
                 _format_user_log=self._format_user_log(user),

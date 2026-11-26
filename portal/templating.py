@@ -155,6 +155,25 @@ def plural(count: Any, one: str, few: str, many: str) -> str:
     return many
 
 
+def points(value: Any) -> str:
+    """Количество бонусных баллов со словом: «49 баллов», «48,98 балла».
+
+    Балл стоит половину рубля (курс задан в боте, ``app/utils/bonus_points.py``),
+    поэтому количество и стоимость — разные числа: без слова рядом с суммой
+    количество читалось бы как ещё одни рубли.
+    """
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        return '—'
+
+    if amount == int(amount):
+        whole = int(amount)
+        return f'{whole} {plural(whole, "балл", "балла", "баллов")}'
+
+    return f'{amount:.2f}'.rstrip('0').rstrip('.').replace('.', ',') + ' балла'
+
+
 _templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 _templates.env.filters['moment'] = format_moment
 _templates.env.filters['status'] = status_label
@@ -163,6 +182,7 @@ _templates.env.filters['rubles'] = rubles
 _templates.env.filters['spendable'] = spendable
 _templates.env.filters['fill'] = fill_class
 _templates.env.filters['plural'] = plural
+_templates.env.filters['points'] = points
 _templates.env.filters['period'] = period_label
 
 

@@ -59,7 +59,7 @@ from app.services.notification_delivery_service import (
     NotificationType,
     notification_delivery_service,
 )
-from app.utils.formatters import format_bonus_points
+from app.utils.bonus_points import format_bonus_points_with_value
 
 
 logger = structlog.get_logger(__name__)
@@ -599,7 +599,11 @@ class UserService:
         bot: Bot | None = None,
         admin_name: str | None = None,
     ) -> bool:
-        """Начислить или снять бонусные баллы — ручка админки, парная update_user_balance."""
+        """Начислить или снять бонусные баллы — ручка админки, парная update_user_balance.
+
+        ``amount_kopeks`` — денежная стоимость баллов, а не их количество: курс
+        применяет хендлер (``points_to_kopeks``, 1 балл = 0,5 ₽).
+        """
         try:
             user = await get_user_by_id(db, user_id)
             if not user:
@@ -657,7 +661,7 @@ class UserService:
         """
         texts = get_texts(user.language)
         balance_line = texts.t('BONUS_POINTS_NOTIFY_TOTAL', '🎁 <b>Всего баллов:</b> {points}').format(
-            points=format_bonus_points(user.bonus_points_kopeks)
+            points=format_bonus_points_with_value(user.bonus_points_kopeks)
         )
 
         if amount_kopeks > 0:
@@ -667,12 +671,12 @@ class UserService:
                 '➕ <b>Начислено баллов:</b> {amount}\n'
                 '{total}\n\n'
                 'Баллы тратятся раньше денег при любой оплате с баланса.',
-            ).format(amount=format_bonus_points(amount_kopeks), total=balance_line)
+            ).format(amount=format_bonus_points_with_value(amount_kopeks), total=balance_line)
         else:
             message = texts.t(
                 'BONUS_POINTS_NOTIFY_REMOVED',
                 '🎁 <b>Бонусные баллы списаны</b>\n\n➖ <b>Списано баллов:</b> {amount}\n{total}',
-            ).format(amount=format_bonus_points(abs(amount_kopeks)), total=balance_line)
+            ).format(amount=format_bonus_points_with_value(abs(amount_kopeks)), total=balance_line)
 
         if not user.telegram_id:
             return False

@@ -18,7 +18,7 @@
     {% if balance.bonus_points_kopeks %}
       {# Баллы тратятся раньше денег и считаются вместе с ними: показать только
          деньги значило бы занизить то, чем человек может заплатить. #}
-      <p class="muted tiny">Включая {{ balance.bonus_points_kopeks|rubles }} бонусными баллами — они списываются первыми.</p>
+      <p class="muted tiny">Включая {{ balance.bonus_points_kopeks|rubles }} бонусными баллами{% if balance.bonus_points %} ({{ balance.bonus_points|points }}){% endif %} — они списываются первыми.</p>
     {% endif %}
   </section>
 

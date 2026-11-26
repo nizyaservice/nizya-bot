@@ -5,9 +5,11 @@
 (``change_user_bonus_points``), а не через баланс. Денежная транзакция тут не
 создаётся намеренно — баллы в истории платежей исказили бы отчёты.
 
-Сумма лежит в ``balance_bonus_kopeks``: балл равен рублю в копейках, так что
-единица та же, а отличает тип. Поэтому здесь закреплено и то, что
-балансовый промокод баллов не трогает, и наоборот.
+Сумма лежит в ``balance_bonus_kopeks``: там и у денег, и у баллов копейки —
+только у баллов это их денежная СТОИМОСТЬ (1 балл = 0,5 ₽, курс в
+``app/utils/bonus_points.py``), а количество оператор вводит на входе.
+Поэтому здесь закреплено и то, что балансовый промокод баллов не трогает,
+и наоборот.
 """
 
 from types import SimpleNamespace
@@ -24,7 +26,7 @@ def _promocode(**overrides) -> SimpleNamespace:
         'id': 7,
         'code': 'POINTS500',
         'type': PromoCodeType.BONUS_POINTS.value,
-        'balance_bonus_kopeks': 50000,  # 500 баллов
+        'balance_bonus_kopeks': 25000,  # 500 баллов по 0,5 ₽ = 250 ₽
         'subscription_days': 0,
         'traffic_gb': 0,
         'tariff_id': None,
@@ -68,11 +70,11 @@ async def test_points_are_credited_to_the_second_wallet(monkeypatch, credit, add
 
     credit.assert_awaited_once()
     args, kwargs = credit.await_args
-    assert args[2] == 50000, 'сумма промокода в копейках = количество баллов'
+    assert args[2] == 25000, 'в кошелёк уходит стоимость баллов в копейках'
     assert kwargs['commit'] is False, 'активация коммитится одной транзакцией'
     # Деньги промокодом на баллы не начисляются.
     add_balance.assert_not_awaited()
-    assert '500' in description, 'человек должен увидеть, сколько баллов получил'
+    assert '500 (250 ₽)' in description, 'человек видит и количество баллов, и их стоимость'
 
 
 async def test_zero_amount_credits_nothing(monkeypatch, credit):
@@ -117,7 +119,10 @@ def test_admin_can_issue_a_points_promocode():
     assert "callback_data='promo_type_points'" in keyboards
     assert "'points': PromoCodeType.BONUS_POINTS," in handlers
     assert 'Введите количество бонусных баллов' in handlers
-    assert "balance_bonus_kopeks = value * 100 if promo_type in ('balance', 'points') else 0" in handlers
+    # Количество баллов умножается на курс (а не на 100, как рубли): иначе
+    # промокод выдавал бы вдвое больше, чем набрал оператор.
+    assert 'balance_bonus_kopeks = points_to_kopeks(value)' in handlers
+    assert "balance_bonus_kopeks = value * 100 if promo_type == 'balance' else 0" in handlers
 
 
 def test_cabinet_refuses_a_points_promocode_without_amount():

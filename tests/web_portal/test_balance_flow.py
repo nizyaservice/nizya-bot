@@ -134,7 +134,9 @@ class Bot:
                 ),
             )
         if path.endswith('/balance'):
-            return httpx.Response(200, json={'balance_kopeks': 50000, 'balance_rubles': 500.0})
+            return self.overrides.get(
+                'balance', httpx.Response(200, json={'balance_kopeks': 50000, 'balance_rubles': 500.0})
+            )
         return httpx.Response(200, json={})
 
     def calls_to(self, needle: str) -> list[dict[str, Any] | None]:
@@ -187,6 +189,33 @@ def test_balance_page_shows_amount_and_history(client: TestClient):
     assert '500' in response.text
     assert 'Пополнение' in response.text
     assert '+300' in response.text
+
+
+def test_balance_page_names_the_points_and_their_value(logged_in):
+    """Балл стоит 0,5 ₽, поэтому одной суммы мало: нужно и количество баллов.
+
+    Иначе человек с 49 баллами видит в карточке «24,50 ₽ бонусными баллами» и
+    не понимает, откуда взялась эта сумма, — числа-то разные.
+    """
+    double = Bot(
+        balance=httpx.Response(
+            200,
+            json={
+                'balance_kopeks': 10000,
+                'balance_rubles': 100.0,
+                'bonus_points': 49,
+                'bonus_points_kopeks': 2450,
+                'bonus_points_rubles': 24.5,
+                'available_kopeks': 12450,
+                'available_rubles': 124.5,
+            },
+        )
+    )
+
+    text = logged_in(double).get('/balance').text
+
+    assert '24,50' in text, 'стоимость баллов в рублях'
+    assert '49 баллов' in text, 'и само количество — 49 баллов это 24,50 ₽, а не 49 ₽'
 
 
 def test_topup_form_lists_methods_from_the_bot(client: TestClient):

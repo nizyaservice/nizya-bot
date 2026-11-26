@@ -13,10 +13,16 @@ class BalanceResponse(BaseModel):
     о баллах не знает, продолжает показывать ровно то, что показывал. А тот, кто
     считает «хватит ли на покупку», обязан смотреть на ``available_*`` — баллы
     тратятся раньше денег, и оплата проходит по сумме кошельков.
+
+    ``bonus_points`` — количество баллов, ``bonus_points_kopeks/_rubles`` — их
+    денежная стоимость; курс не единица (1 балл = 0,5 ₽, см.
+    ``app/utils/bonus_points.py``), поэтому числа разные и подписывать
+    стоимость как количество нельзя.
     """
 
     balance_kopeks: int
     balance_rubles: float
+    bonus_points: float = 0
     bonus_points_kopeks: int = 0
     bonus_points_rubles: float = 0
     available_kopeks: int = 0

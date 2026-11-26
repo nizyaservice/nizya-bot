@@ -46,8 +46,9 @@ from app.database.crud.tariff import get_tariff_by_id
 from app.database.crud.user_message import get_random_active_message
 from app.database.models import User
 from app.localization.texts import Texts
+from app.utils.bonus_points import format_bonus_points_with_value
 from app.utils.cache import cache
-from app.utils.formatters import format_bonus_points, format_username_link
+from app.utils.formatters import format_username_link
 from app.utils.logo_fingerprint import logo_version
 from app.utils.miniapp_buttons import build_miniapp_startapp_url
 from app.utils.promo_offer import build_promo_offer_hint, build_test_access_hint
@@ -597,7 +598,7 @@ async def build_main_menu_rich_html(user: User, texts, db: AsyncSession) -> str:
     # видеть, что кошелёк существует, а не гадать, куда делась строка.
     points_kopeks = getattr(user, 'bonus_points_kopeks', 0) or 0
     points_template = texts.t('MAIN_MENU_RICH_BONUS_POINTS', '🎁 Бонусные баллы: {points}')
-    points_value = f'<b>{html.escape(format_bonus_points(points_kopeks))}</b>'
+    points_value = f'<b>{html.escape(format_bonus_points_with_value(points_kopeks))}</b>'
     blocks.append(f'<p>{_rich_text(points_template).replace("{points}", points_value)}</p>')
 
     balance_template = texts.t('MAIN_MENU_RICH_BALANCE', '💰 Баланс: {balance}')
