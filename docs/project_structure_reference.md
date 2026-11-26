@@ -3727,8 +3727,8 @@
 #### portal/static/img
 
 - `portal/static/img/apple-touch-icon.png` — файл
-- `portal/static/img/favicon.svg` — файл
-- `portal/static/img/logo.svg` — файл
+- `portal/static/img/favicon.png` — файл
+- `portal/static/img/logo.webp` — файл
 - `portal/static/img/mascot/`
 
 ##### portal/static/img/mascot
@@ -3780,6 +3780,9 @@
 - `portal/tools/extract_mascots.py` — Python-модуль
   Классы: нет
   Функции: `content_box` — Рамка рисунка: всё, что заметно светлее или цветнее фона., `levelled` — Сдвинуть фон кадра ровно в цвет страницы., `feathered` — Прозрачность, линейно гаснущая к краям кадра., `extract`, `main`
+- `portal/tools/make_logo.py` — Python-модуль
+  Классы: нет
+  Функции: `round_mark` — Круглая метка в фирменном кольце, углы прозрачные — ложится на любой фон., `square_icon` — Непрозрачный квадрат на фирменном фоне., `main`
 
 ## scripts
 
@@ -6093,6 +6096,9 @@
 - `tests/web_portal/test_balance_flow.py` — Python-модуль
   Классы: `Bot` (3 методов)
   Функции: `bot`, `logged_in`, `client`, `test_balance_page_shows_amount_and_history`, `test_balance_page_names_the_points_and_their_value` — Балл стоит 0,5 ₽, поэтому одной суммы мало: нужно и количество баллов., `test_topup_form_lists_methods_from_the_bot`, `test_without_methods_the_page_says_so`, `test_amount_in_rubles_becomes_kopeks`, `test_fractional_amount_is_not_lost`, `test_amount_below_the_method_minimum_is_refused_before_the_provider`, `test_nonsense_amount_is_refused`, `test_unknown_method_is_refused`, `test_without_csrf_token_no_payment_is_created`, `test_bot_refusal_is_shown_on_the_form`, `test_return_page_asks_the_bot_instead_of_trusting_the_browser` — Заход на страницу возврата ничего не зачисляет — только спрашивает статус., `test_unconfirmed_payment_keeps_the_way_back_to_the_provider`, `test_provider_return_url_finds_the_payment_by_method` — Бот строит адрес возврата из CABINET_URL и знает только способ оплаты., `test_success_in_the_return_url_alone_proves_nothing` — status=success в адресе — слово из браузера, а не подтверждение оплаты., `test_return_without_a_known_payment_sends_to_the_balance`, `test_check_failure_is_explained`
+- `tests/web_portal/test_branding.py` — Python-модуль
+  Классы: нет
+  Функции: `test_portal_icons_are_not_the_aperture_mark`, `test_header_and_tab_use_the_nizya_logo`, `test_generated_icons_are_committed` — На проде нет ни Pillow, ни vpn_logo.png — иконки живут в репозитории.
 - `tests/web_portal/test_build_context.py` — Python-модуль
   Классы: нет
   Функции: `test_context_is_not_the_repo_root_while_it_hides_portal`, `test_every_copy_source_exists_inside_the_context`, `test_no_copy_source_is_excluded_by_dockerignore`, `test_operator_env_stays_out_of_the_image` — `.env` портала оператор создаёт рядом с compose, а COPY забирает весь каталог.
