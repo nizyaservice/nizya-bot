@@ -517,8 +517,7 @@ async def process_promocode_code(message: types.Message, db_user: User, state: F
     elif promo_type == 'points':
         # Спрашиваем в баллах, а в колонке лежит их стоимость в копейках.
         await message.answer(
-            f'🎁 <b>Промокод:</b> <code>{code}</code>\n\n'
-            f'Введите количество бонусных баллов (1 балл = 0,5 ₽):'
+            f'🎁 <b>Промокод:</b> <code>{code}</code>\n\nВведите количество бонусных баллов (1 балл = 0,5 ₽):'
         )
         await state.set_state(AdminStates.setting_promocode_value)
     elif promo_type == 'combo':

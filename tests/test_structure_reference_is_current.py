@@ -49,12 +49,19 @@ def test_only_tracked_files_are_listed() -> None:
 
     Иначе `.env`, кеши и локальные заметки попадали бы в него по-разному у
     каждого, и проверка выше срабатывала бы случайным образом.
+
+    Смотрим только на строки перечисления («- `путь`»): те же слова
+    встречаются в пересказанных документом докстрингах — так проверка краснела
+    из-за фразы «`.env` портала оператор создаёт рядом с compose», где никакого
+    лишнего файла в документе нет.
     """
     tracked = {path.as_posix() for path in tracked_paths()}
     document = OUTPUT.read_text(encoding='utf-8')
+    listed = [line for line in document.splitlines() if line.startswith('- `')]
 
     for stray in ('.env`', 'venv/`', '__pycache__/`', '.ruff_cache/`'):
-        assert stray not in document, f'в документе оказался неотслеживаемый путь: {stray}'
+        found = [line for line in listed if stray in line]
+        assert not found, f'в документе оказался неотслеживаемый путь: {stray} ({found[0]})'
 
     assert 'app/config.py' in tracked
     assert '`app/config.py`' in document
