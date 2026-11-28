@@ -276,7 +276,7 @@ async def _process_single_subscription(
         return 'skipped'
 
     # Проверяем, хватает ли баланса
-    shortage = renewal_cost - user.balance_kopeks
+    shortage = renewal_cost - user.available_balance_kopeks
     if shortage <= 0:
         # Баланса достаточно, обычный autopay справится
         return 'skipped'

@@ -995,7 +995,7 @@ async def _proceed_with_selected_tariff(
             if daily_discount > 0
             else ''
         )
-        user_balance = db_user.balance_kopeks or 0
+        user_balance = db_user.available_balance_kopeks
         traffic = format_traffic(tariff.traffic_limit_gb)
 
         if user_balance >= daily_price:
@@ -1086,7 +1086,7 @@ async def _proceed_with_selected_tariff(
 
         if can_custom_days:
             # Кастомные дни - показываем экран с +/- для дней (и опционально трафика)
-            user_balance = db_user.balance_kopeks or 0
+            user_balance = db_user.available_balance_kopeks
 
             initial_days = tariff.min_days
             initial_traffic = tariff.min_traffic_gb if can_custom_traffic else tariff.traffic_limit_gb
@@ -1209,7 +1209,7 @@ async def handle_custom_days_change(
         period_offer_pct=offer_pct,
     )
 
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
 
     preview_text = await format_custom_tariff_preview(
         tariff=tariff,
@@ -1273,7 +1273,7 @@ async def handle_custom_traffic_change(
 
     await state.update_data(custom_traffic_gb=new_traffic)
 
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
 
     preview_text = await format_custom_tariff_preview(
         tariff=tariff,
@@ -1351,7 +1351,7 @@ async def handle_custom_confirm(
         return
 
     # Проверяем баланс (при 100% скидке — пропускаем)
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if total_price > 0 and user_balance < total_price:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -1635,7 +1635,7 @@ async def select_tariff_period_with_traffic(
         )
         return
 
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     initial_traffic = tariff.min_traffic_gb
 
     # Получаем скидку для выбранного периода
@@ -1733,7 +1733,7 @@ async def select_tariff_period(
     shown_device_limit = device_limit if device_limit is not None else tariff.device_limit
 
     # Проверяем баланс
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
 
     traffic = format_traffic(tariff.traffic_limit_gb)
 
@@ -1924,7 +1924,7 @@ async def confirm_tariff_purchase(
     final_price = result.final_total
 
     # Проверяем баланс (user already locked, balance is fresh)
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if final_price > 0 and user_balance < final_price:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -2356,7 +2356,7 @@ async def confirm_daily_tariff_purchase(
     consume_promo = pricing_result.breakdown.get('offer_discount_pct', 0) > 0
 
     # Проверяем баланс (user already locked, balance is fresh)
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if final_daily_price > 0 and user_balance < final_daily_price:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -2963,7 +2963,7 @@ async def select_tariff_extend_period(
     )
 
     # Проверяем баланс
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
 
     traffic = format_traffic(tariff.traffic_limit_gb)
 
@@ -3137,7 +3137,7 @@ async def confirm_tariff_extend(
     consume_promo = result.promo_offer_discount > 0
 
     # Проверяем баланс
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if final_price > 0 and user_balance < final_price:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -3657,7 +3657,7 @@ async def select_tariff_switch(
             if daily_discount > 0
             else ''
         )
-        user_balance = db_user.balance_kopeks or 0
+        user_balance = db_user.available_balance_kopeks
 
         # Проверяем текущую подписку на оставшиеся дни (switched FROM, not TO)
         current_subscription, _sw_sub_id = await _resolve_switch_subscription(callback, db_user, db, state)
@@ -3802,7 +3802,7 @@ async def select_tariff_switch_period(
     )
 
     # Проверяем баланс
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
 
     traffic = format_traffic(tariff.traffic_limit_gb)
 
@@ -3951,7 +3951,7 @@ async def confirm_tariff_switch(
     consume_promo = result.promo_offer_discount > 0
 
     # Проверяем баланс
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if final_price > 0 and user_balance < final_price:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -4209,7 +4209,7 @@ async def confirm_daily_tariff_switch(
     consume_promo = pricing_result.breakdown.get('offer_discount_pct', 0) > 0
 
     # Проверяем баланс (user already locked, balance is fresh)
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if final_daily_price > 0 and user_balance < final_daily_price:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -4834,7 +4834,7 @@ async def preview_instant_switch(
         return
 
     # Проверяем баланс
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
 
     traffic = format_traffic(new_tariff.traffic_limit_gb)
     current_traffic = format_traffic(current_tariff.traffic_limit_gb)
@@ -4863,7 +4863,7 @@ async def preview_instant_switch(
             if daily_discount > 0
             else ''
         )
-        user_balance = db_user.balance_kopeks or 0
+        user_balance = db_user.available_balance_kopeks
 
         if user_balance >= daily_price:
             await callback.message.edit_text(
@@ -5194,7 +5194,7 @@ async def confirm_instant_switch(
         return
 
     # Проверяем баланс если это upgrade (use locked user's fresh balance)
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     if is_upgrade and user_balance < upgrade_cost:
         await callback.answer(
             texts.t('MINIAPP_PURCHASE_STATUS_INSUFFICIENT', 'Недостаточно средств на балансе'), show_alert=True
@@ -5550,7 +5550,7 @@ async def return_to_saved_tariff_cart(
         return
 
     total_price = cart_data.get('total_price', 0)
-    user_balance = db_user.balance_kopeks or 0
+    user_balance = db_user.available_balance_kopeks
     traffic = format_traffic(tariff.traffic_limit_gb)
 
     # Проверяем баланс (при 100% скидке — пропускаем)

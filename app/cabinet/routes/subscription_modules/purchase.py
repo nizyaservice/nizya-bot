@@ -850,7 +850,7 @@ async def purchase_tariff(
 
         # Check balance
         if price_kopeks > 0 and user.available_balance_kopeks < price_kopeks:
-            missing = price_kopeks - user.balance_kopeks
+            missing = price_kopeks - user.available_balance_kopeks
 
             # Save cart for auto-purchase after balance top-up
             if is_daily_tariff:

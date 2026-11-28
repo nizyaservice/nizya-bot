@@ -51,10 +51,16 @@ def _legacy_sub(end_date: datetime) -> MagicMock:
     return sub
 
 
-def _user() -> MagicMock:
+def _user(*, balance_kopeks: int = 0, bonus_points_kopeks: int = 0) -> MagicMock:
     user = MagicMock(spec=User)
     user.id = 1
     user.language = 'ru'
+    user.balance_kopeks = balance_kopeks
+    user.bonus_points_kopeks = bonus_points_kopeks
+    # `available_balance_kopeks` — property, у MagicMock(spec=User) она не
+    # вычисляется, поэтому сумму кошельков задаём явно. Именно по ней хендлеры
+    # считают «хватает ли» (см. tests/test_bonus_points.py).
+    user.available_balance_kopeks = balance_kopeks + bonus_points_kopeks
     user.promo_group_id = None
     user.promo_group = None
     user.promo_offer_discount_percent = 0
@@ -152,8 +158,7 @@ async def test_legacy_subscription_period_confirmation_does_not_say_unknown_tari
     _patch(monkeypatch, sub, switch_enabled=True)
     price = SimpleNamespace(final_total=20000, original_total=20000, promo_group_discount=0, promo_offer_discount=0)
     monkeypatch.setattr(pricing_module.pricing_engine, 'calculate_tariff_purchase_price', AsyncMock(return_value=price))
-    user = _user()
-    user.balance_kopeks = 100_000
+    user = _user(balance_kopeks=100_000)
     callback = _callback()
     callback.data = f'tariff_sw_period:{PAID_TARIFF.id}:30'
     state = _state()

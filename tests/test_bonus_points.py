@@ -49,6 +49,16 @@ def test_available_balance_sums_both_wallets():
     assert _user(10000, 5000).available_balance_kopeks == 15000
 
 
+def test_the_case_the_tariff_flow_refused():
+    """139 ₽ и 80 баллов = ровно 179 ₽: тариф за 179 ₽ оплачивается полностью."""
+    user = _user(balance_kopeks=13900, bonus_points_kopeks=points_to_kopeks(80))
+
+    assert user.available_balance_kopeks == 17900
+    assert user.subtract_balance(17900)
+    assert user.balance_kopeks == 0
+    assert user.bonus_points_kopeks == 0
+
+
 def test_available_balance_tolerates_empty_columns():
     """У строк, созданных до миграции, баллы приезжают как None."""
     user = _user(10000)
@@ -351,6 +361,11 @@ PAYMENT_PATHS = (
     'app/handlers/subscription/devices.py',
     'app/handlers/subscription/countries.py',
     'app/handlers/subscription/purchase.py',
+    # Основной флоу продаж (`SALES_MODE=tariffs` — значение по умолчанию). Он
+    # складывал деньги в переменную `user_balance` и сравнивал уже её, поэтому
+    # прошёл мимо правила: человеку с 139 ₽ и 80 баллами бот отказывал в тарифе
+    # за 179 ₽, хотя списание ровно на эту сумму прошло бы.
+    'app/handlers/subscription/tariff_purchase.py',
     'app/handlers/subscription/gift.py',
     'app/handlers/balance/main.py',
     'app/handlers/router_link.py',
@@ -359,6 +374,10 @@ PAYMENT_PATHS = (
     'app/services/subscription_purchase_service.py',
     'app/services/gift_purchase_service.py',
     'app/services/router_link_service.py',
+    # Дозапрос картой: сам autopay (`monitoring_service`) считает по обоим
+    # кошелькам, поэтому и нехватку надо считать так же — иначе с карты
+    # списывается то, что уже лежит баллами.
+    'app/services/recurrent_payment_service.py',
     # Кабинет и мини-апп списывают той же точкой, поэтому и «хватает ли» обязаны
     # считать по обоим кошелькам: иначе человеку с баллами на сайте отказывают
     # там, где бот бы продал.
@@ -391,6 +410,14 @@ _BALANCE_COMPARISON = re.compile(r'([\w.]*balance_kopeks)\s*[<>]')
 #: Так в мини-аппе жили три проверки, которых сторож не видел.
 _GETATTR_COMPARISON = re.compile(r"getattr\([^)]*'([\w]*balance_kopeks)'[^)]*\)\s*[<>]")
 
+#: Денежный кошелёк, уложенный в переменную с произвольным именем:
+#: `user_balance = db_user.balance_kopeks or 0`. Регексы выше требуют
+#: `balance_kopeks` в самом имени и такую переменную не видят — именно так весь
+#: тарифный флоу сравнивал цену с одними деньгами. Поэтому имя после такого
+#: присваивания считается деньгами, как бы оно ни называлось.
+#: `\b` перед именем столбца не даёт матчу зацепить `available_balance_kopeks`.
+_MONEY_ASSIGNMENT = re.compile(r'^\s*([a-z_][\w]*)\s*=\s*[\w.]*\bbalance_kopeks\b')
+
 
 def _money_only_names(line: str) -> list[str]:
     """Имена из сравнений, которые смотрят на деньги, а не на сумму кошельков."""
@@ -398,12 +425,23 @@ def _money_only_names(line: str) -> list[str]:
     return [name for name in found if 'available' not in name]
 
 
+def _money_variables(lines: list[str]) -> set[str]:
+    """Переменные файла, в которые положили один денежный кошелёк."""
+    return {match.group(1) for match in map(_MONEY_ASSIGNMENT.match, lines) if match}
+
+
+def _compares_money_variable(line: str, names: set[str]) -> bool:
+    return any(re.search(rf'\b{name}\s*[<>]|[<>]=?\s*{name}\b', line) for name in names)
+
+
 def _money_only_lines(path: str) -> list[str]:
     allowed = MONEY_ONLY_ALLOWED.get(path, ())
+    lines = (REPO / path).read_text(encoding='utf-8').split('\n')
+    names = _money_variables(lines)
     return [
         f'{index}: {line.strip()}'
-        for index, line in enumerate((REPO / path).read_text(encoding='utf-8').split('\n'), 1)
-        if _money_only_names(line) and line.strip() not in allowed
+        for index, line in enumerate(lines, 1)
+        if (_money_only_names(line) or _compares_money_variable(line, names)) and line.strip() not in allowed
     ]
 
 
@@ -421,6 +459,18 @@ def test_the_guard_sees_comparisons_through_a_variable():
     assert not _money_only_names('    available = user.available_balance_kopeks')
     assert _money_only_names("    if total_cost > 0 and getattr(user, 'balance_kopeks', 0) < total_cost:")
     assert not _money_only_names("    if getattr(user, 'available_balance_kopeks', 0) < total_cost:")
+
+
+def test_the_guard_sees_money_renamed_into_a_variable():
+    """Так прошёл тарифный флоу: деньги в `user_balance`, сравнение уже с ней."""
+    money = _money_variables(['    user_balance = db_user.balance_kopeks or 0'])
+    assert money == {'user_balance'}
+    assert _compares_money_variable('    if user_balance >= final_price:', money)
+    assert _compares_money_variable('    if final_price > user_balance:', money)
+    assert not _compares_money_variable('        balance=format_price_kopeks(user_balance),', money)
+
+    assert not _money_variables(['    user_balance = db_user.available_balance_kopeks'])
+    assert not _money_variables(['    user_balance = db_user.available_balance_kopeks or 0'])
 
 
 def test_operator_money_withdrawal_does_not_eat_points():

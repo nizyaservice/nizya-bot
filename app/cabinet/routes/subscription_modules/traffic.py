@@ -293,7 +293,7 @@ async def purchase_traffic(
 
     # Проверяем баланс
     if final_price > 0 and user.available_balance_kopeks < final_price:
-        missing = final_price - user.balance_kopeks
+        missing = final_price - user.available_balance_kopeks
 
         # Save cart for auto-purchase after balance top-up
         cart_data = {

@@ -160,7 +160,7 @@ async def preview_tariff_switch(
     discount_value = switch_result.discount_value
     period_discount_percent = switch_result.effective_discount_pct
 
-    balance = user.balance_kopeks or 0
+    balance = user.available_balance_kopeks
     has_enough = balance >= upgrade_cost
     missing = max(0, upgrade_cost - balance) if not has_enough else 0
 
@@ -362,7 +362,7 @@ async def switch_tariff(
     switch_transaction = None
     if upgrade_cost > 0:
         if user.available_balance_kopeks < upgrade_cost:
-            missing = upgrade_cost - user.balance_kopeks
+            missing = upgrade_cost - user.available_balance_kopeks
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail={

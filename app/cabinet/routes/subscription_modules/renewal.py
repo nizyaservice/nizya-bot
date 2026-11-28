@@ -195,7 +195,7 @@ async def renew_subscription(
 
     # Check balance (skip for 100% discount)
     if price_kopeks > 0 and user.available_balance_kopeks < price_kopeks:
-        missing = price_kopeks - user.balance_kopeks
+        missing = price_kopeks - user.available_balance_kopeks
 
         # Get tariff info for cart
         tariff_id = subscription.tariff_id

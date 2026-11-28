@@ -462,7 +462,7 @@ async def purchase_gift_from_balance(
             await db.rollback()
             raise GiftInsufficientBalanceError(
                 required_kopeks=fresh_price,
-                available_kopeks=buyer.balance_kopeks,
+                available_kopeks=buyer.available_balance_kopeks,
             )
 
         transaction = await create_transaction(

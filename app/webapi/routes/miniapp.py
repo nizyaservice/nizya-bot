@@ -6710,7 +6710,7 @@ async def purchase_tariff_endpoint(
 
     # Проверяем баланс (при 100% скидке — пропускаем)
     if price_kopeks > 0 and user.available_balance_kopeks < price_kopeks:
-        missing = price_kopeks - user.balance_kopeks
+        missing = price_kopeks - user.available_balance_kopeks
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail={
@@ -6976,7 +6976,7 @@ async def preview_tariff_switch_endpoint(
     upgrade_cost = switch_result.upgrade_cost
     is_upgrade = switch_result.is_upgrade
 
-    balance = user.balance_kopeks or 0
+    balance = user.available_balance_kopeks
     has_enough = balance >= upgrade_cost
     missing = max(0, upgrade_cost - balance) if not has_enough else 0
 
@@ -7117,7 +7117,7 @@ async def switch_tariff_endpoint(
     # Списываем доплату если апгрейд
     if upgrade_cost > 0:
         if user.available_balance_kopeks < upgrade_cost:
-            missing = upgrade_cost - user.balance_kopeks
+            missing = upgrade_cost - user.available_balance_kopeks
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail={

@@ -2436,7 +2436,7 @@ async def confirm_purchase(callback: types.CallbackQuery, state: FSMContext, db_
         )
 
         if not success:
-            missing_kopeks = final_price - db_user.balance_kopeks
+            missing_kopeks = final_price - db_user.available_balance_kopeks
             message_text = texts.t(
                 'ADDON_INSUFFICIENT_FUNDS_MESSAGE',
                 (
